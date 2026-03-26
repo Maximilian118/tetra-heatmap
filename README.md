@@ -24,9 +24,18 @@ A data visualisation tool for DAMM TetraFlex log servers. Displays TETRA radio s
    npm run dev
    ```
 
+This starts both the backend (port 3001) and the frontend (port 5173). The backend syncs RSSI data from the remote TetraFlex database into a local SQLite cache, which is created automatically on first run.
+
 ## Environment Variables
 
 See `.env.dev` for the full list of required variables. You will need:
 
 - A MapBox access token from https://account.mapbox.com/access-tokens/
 - Connection credentials for your TetraFlex Logserver MySQL database
+
+## Architecture
+
+- **`client/`** — React + TypeScript + MapBox GL frontend
+- **`server/`** — Express backend that syncs RSSI data from the remote TetraFlex MySQL database into a local SQLite cache and serves it to the frontend via a REST API
+
+Data older than 7 days is automatically pruned from the local cache.
