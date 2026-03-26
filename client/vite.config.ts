@@ -10,7 +10,7 @@ export default defineConfig({
     /* Proxy API requests to the Express backend */
     proxy: {
       "/api": {
-        target: "http://localhost:3001",
+        target: `http://localhost:${process.env.PORT || 3001}`,
         changeOrigin: true,
       },
     },

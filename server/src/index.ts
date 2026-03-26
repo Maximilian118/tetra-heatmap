@@ -13,13 +13,21 @@ import { closePool } from "./db/remote.js";
 import { closeDb } from "./db/local.js";
 
 const app = express();
-const PORT = 3001;
+const PORT = Number(process.env.PORT) || 3001;
+const HOST = process.env.HOST || "localhost";
 
 app.use(cors());
 app.use(express.json());
 
 /* Mount API routes */
 app.use("/api", rssiRoutes);
+
+/* Serve the built Vite client as static files (production mode) */
+const clientDist = path.resolve(__dirname, "../../client/dist");
+app.use(express.static(clientDist));
+app.get("/{*splat}", (_req, res) => {
+  res.sendFile(path.join(clientDist, "index.html"));
+});
 
 /* Cancel pending syncs, close MySQL pool and SQLite DB on process exit (prevents MySQL host blocking from tsx watch restarts) */
 const shutdown = async () => {
@@ -33,8 +41,8 @@ const shutdown = async () => {
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
 
-app.listen(PORT, () => {
-  console.log(`[server] Running on http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`[server] Running on http://${HOST}:${PORT}`);
   /* Begin syncing RSSI data from the remote TetraFlex database */
   startSync();
 });
