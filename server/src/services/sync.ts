@@ -5,7 +5,9 @@ import {
   pruneOldReadings,
   clearAllReadings,
 } from "../db/local.js";
+import type { Reading } from "../db/local.js";
 import type { RowDataPacket } from "mysql2";
+import { decodeLipShortReport } from "../utils/lip.js";
 
 /* Retention period in days, configurable via env var (default: 5) */
 const RETENTION_DAYS = Number(process.env.RETENTION_DAYS) || 5;
@@ -27,21 +29,17 @@ const CONNECTION_ERRORS = new Set([
   "PROTOCOL_CONNECTION_LOST",
 ]);
 
-/* Shape of a row from the remote msrssilog table */
-interface RssiRow extends RowDataPacket {
+/* Shape of a row from the remote sdsdata table (LIP messages only) */
+interface SdsRow extends RowDataPacket {
   DbId: number;
   Timestamp: string;
-  NodeNo: number;
-  NodeDescr: string;
-  OrgId: number;
-  OrgDescr: string;
-  Ssi: number;
-  MsDescr: string | null;
+  CallingSsi: number;
   Rssi: number | null;
   MsDistance: number | null;
+  UserData: Buffer;
 }
 
-/* Fetch new RSSI readings from the remote TetraFlex database and store them locally */
+/* Fetch new LIP readings from the remote TetraFlex database and store them locally */
 const syncReadings = async () => {
   const start = performance.now();
   console.log("[sync] Sync started");
@@ -49,29 +47,32 @@ const syncReadings = async () => {
   try {
     const latest = getLatestTimestamp();
 
-    /* Build query based on whether we have existing data */
+    /* Build query — only fetch SDS messages with ProtocolIdentifier=10 (LIP) */
     let query: string;
     let params: string[];
 
     if (latest) {
       /* Incremental sync — fetch rows newer than our latest cached timestamp */
-      query = `SELECT DbId, Timestamp, NodeNo, NodeDescr, OrgId, OrgDescr, Ssi, MsDescr, Rssi, MsDistance
-               FROM msrssilog WHERE Timestamp > ? ORDER BY DbId ASC LIMIT ${SYNC_BATCH_SIZE}`;
+      query = `SELECT DbId, Timestamp, CallingSsi, Rssi, MsDistance, UserData
+               FROM sdsdata WHERE ProtocolIdentifier = 10 AND Timestamp > ?
+               ORDER BY DbId ASC LIMIT ${SYNC_BATCH_SIZE}`;
       params = [latest];
     } else if (syncFromOverride) {
       /* Post-reset sync — only fetch data after the reset timestamp, no backfill */
-      query = `SELECT DbId, Timestamp, NodeNo, NodeDescr, OrgId, OrgDescr, Ssi, MsDescr, Rssi, MsDistance
-               FROM msrssilog WHERE Timestamp > ? ORDER BY DbId ASC LIMIT ${SYNC_BATCH_SIZE}`;
+      query = `SELECT DbId, Timestamp, CallingSsi, Rssi, MsDistance, UserData
+               FROM sdsdata WHERE ProtocolIdentifier = 10 AND Timestamp > ?
+               ORDER BY DbId ASC LIMIT ${SYNC_BATCH_SIZE}`;
       params = [syncFromOverride];
       syncFromOverride = null;
     } else {
       /* First sync — only fetch data within the retention window */
-      query = `SELECT DbId, Timestamp, NodeNo, NodeDescr, OrgId, OrgDescr, Ssi, MsDescr, Rssi, MsDistance
-               FROM msrssilog WHERE Timestamp > DATE_SUB(NOW(), INTERVAL ${RETENTION_DAYS} DAY) ORDER BY DbId ASC LIMIT ${SYNC_BATCH_SIZE}`;
+      query = `SELECT DbId, Timestamp, CallingSsi, Rssi, MsDistance, UserData
+               FROM sdsdata WHERE ProtocolIdentifier = 10 AND Timestamp > DATE_SUB(NOW(), INTERVAL ${RETENTION_DAYS} DAY)
+               ORDER BY DbId ASC LIMIT ${SYNC_BATCH_SIZE}`;
       params = [];
     }
 
-    const [rows] = await getPool().query<RssiRow[]>(query, params);
+    const [rows] = await getPool().query<SdsRow[]>(query, params);
 
     /* If we were disconnected, restore the normal sync interval */
     if (isDisconnected) {
@@ -80,34 +81,46 @@ const syncReadings = async () => {
       setSyncInterval(SYNC_INTERVAL_MS);
     }
 
-    /* Insert new readings into the local cache */
+    /* Decode LIP PDUs and filter out rows with no GPS fix */
     if (rows.length > 0) {
-      const readings = rows.map((row) => ({
-        id: row.DbId,
-        timestamp: new Date(row.Timestamp).toISOString(),
-        node_no: row.NodeNo,
-        node_descr: row.NodeDescr,
-        org_id: row.OrgId,
-        org_descr: row.OrgDescr,
-        ssi: row.Ssi,
-        ms_descr: row.MsDescr,
-        rssi: row.Rssi,
-        ms_distance: row.MsDistance,
-      }));
+      const readings: Reading[] = [];
 
-      insertReadings(readings);
-    }
+      for (const row of rows) {
+        const lip = decodeLipShortReport(row.UserData);
+        if (!lip) continue;
 
-    /* Remove data older than the retention period */
-    const pruned = pruneOldReadings();
+        readings.push({
+          id: row.DbId,
+          timestamp: new Date(row.Timestamp).toISOString(),
+          ssi: row.CallingSsi,
+          rssi: row.Rssi,
+          ms_distance: row.MsDistance,
+          latitude: lip.latitude,
+          longitude: lip.longitude,
+          position_error: lip.positionError,
+          velocity: lip.velocity,
+          direction: lip.direction,
+        });
+      }
 
-    /* Log a single finished line with row count, pruned count, and elapsed time */
-    const elapsed = Math.round(performance.now() - start);
-    if (rows.length > 0) {
-      const parts = [`${rows.length} rows fetched`];
+      if (readings.length > 0) {
+        insertReadings(readings);
+      }
+
+      /* Log how many rows had valid GPS vs total fetched */
+      const elapsed = Math.round(performance.now() - start);
+      const parts = [`${rows.length} LIP messages fetched`];
+      if (readings.length < rows.length) {
+        parts.push(`${readings.length} with GPS fix`);
+      }
+      const pruned = pruneOldReadings();
       if (pruned > 0) parts.push(`${pruned} pruned`);
       console.log(`[sync] Sync finished — ${parts.join(", ")} (${elapsed}ms)`);
     } else {
+      /* Remove data older than the retention period */
+      pruneOldReadings();
+
+      const elapsed = Math.round(performance.now() - start);
       console.log(`[sync] Sync finished — no new readings (${elapsed}ms)`);
     }
   } catch (err) {
@@ -154,7 +167,7 @@ const setSyncInterval = (ms: number) => {
 
 /* Start the sync loop — waits 3s before first sync then runs on the configured interval */
 export const startSync = () => {
-  console.log(`[sync] Starting RSSI sync service (first sync in ${STARTUP_DELAY_MS / 1000}s, interval: ${SYNC_INTERVAL_MS / 1000}s)`);
+  console.log(`[sync] Starting sync service (first sync in ${STARTUP_DELAY_MS / 1000}s, interval: ${SYNC_INTERVAL_MS / 1000}s)`);
   startupTimeout = setTimeout(() => {
     syncReadings();
     syncInterval = setInterval(syncReadings, SYNC_INTERVAL_MS);

@@ -11,55 +11,59 @@ const db = new Database(DB_PATH);
 /* Enable WAL mode for better concurrent read performance */
 db.pragma("journal_mode = WAL");
 
+/* Drop the old schema if it exists (from when we synced msrssilog) */
+db.exec(`DROP TABLE IF EXISTS rssi_readings`);
+
 db.exec(`
-  CREATE TABLE IF NOT EXISTS rssi_readings (
+  CREATE TABLE IF NOT EXISTS readings (
     id INTEGER PRIMARY KEY,
     timestamp TEXT NOT NULL,
-    node_no INTEGER NOT NULL,
-    node_descr TEXT NOT NULL,
-    org_id INTEGER NOT NULL,
-    org_descr TEXT NOT NULL,
     ssi INTEGER NOT NULL,
-    ms_descr TEXT,
     rssi INTEGER,
-    ms_distance INTEGER
+    ms_distance INTEGER,
+    latitude REAL,
+    longitude REAL,
+    position_error INTEGER,
+    velocity REAL,
+    direction INTEGER
   );
 
-  CREATE INDEX IF NOT EXISTS idx_rssi_timestamp
-    ON rssi_readings(timestamp);
+  CREATE INDEX IF NOT EXISTS idx_readings_timestamp
+    ON readings(timestamp);
 `);
+
+/* Reading shape matching the sdsdata + LIP decoded fields */
+export interface Reading {
+  id: number;
+  timestamp: string;
+  ssi: number;
+  rssi: number | null;
+  ms_distance: number | null;
+  latitude: number;
+  longitude: number;
+  position_error: number | null;
+  velocity: number | null;
+  direction: number | null;
+}
 
 /* Get the most recent timestamp in the local cache, or null if empty */
 export const getLatestTimestamp = (): string | null => {
   const row = db.prepare(
-    "SELECT MAX(timestamp) as latest FROM rssi_readings"
+    "SELECT MAX(timestamp) as latest FROM readings"
   ).get() as { latest: string | null } | undefined;
   return row?.latest ?? null;
 };
 
-/* Batch insert RSSI readings using a transaction for performance */
-export const insertReadings = (
-  readings: {
-    id: number;
-    timestamp: string;
-    node_no: number;
-    node_descr: string;
-    org_id: number;
-    org_descr: string;
-    ssi: number;
-    ms_descr: string | null;
-    rssi: number | null;
-    ms_distance: number | null;
-  }[]
-) => {
+/* Batch insert readings using a transaction for performance */
+export const insertReadings = (readings: Reading[]) => {
   const insert = db.prepare(`
-    INSERT OR IGNORE INTO rssi_readings
-      (id, timestamp, node_no, node_descr, org_id, org_descr, ssi, ms_descr, rssi, ms_distance)
+    INSERT OR IGNORE INTO readings
+      (id, timestamp, ssi, rssi, ms_distance, latitude, longitude, position_error, velocity, direction)
     VALUES
-      (@id, @timestamp, @node_no, @node_descr, @org_id, @org_descr, @ssi, @ms_descr, @rssi, @ms_distance)
+      (@id, @timestamp, @ssi, @rssi, @ms_distance, @latitude, @longitude, @position_error, @velocity, @direction)
   `);
 
-  const insertMany = db.transaction((rows: typeof readings) => {
+  const insertMany = db.transaction((rows: Reading[]) => {
     for (const row of rows) {
       insert.run(row);
     }
@@ -73,21 +77,21 @@ const RETENTION_DAYS = Number(process.env.RETENTION_DAYS) || 5;
 
 export const pruneOldReadings = (): number => {
   const result = db.prepare(
-    `DELETE FROM rssi_readings WHERE timestamp < datetime('now', '-${RETENTION_DAYS} days')`
+    `DELETE FROM readings WHERE timestamp < datetime('now', '-${RETENTION_DAYS} days')`
   ).run();
   return result.changes;
 };
 
 /* Delete all rows from the local cache */
 export const clearAllReadings = (): number => {
-  const result = db.prepare("DELETE FROM rssi_readings").run();
+  const result = db.prepare("DELETE FROM readings").run();
   return result.changes;
 };
 
 /* Fetch all cached readings, ordered by timestamp descending */
 export const getAllReadings = () => {
   return db.prepare(
-    "SELECT * FROM rssi_readings ORDER BY timestamp DESC"
+    "SELECT * FROM readings ORDER BY timestamp DESC"
   ).all();
 };
 
