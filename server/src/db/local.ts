@@ -46,11 +46,11 @@ export interface Reading {
   direction: number | null;
 }
 
-/* Get the most recent timestamp in the local cache, or null if empty */
-export const getLatestTimestamp = (): string | null => {
+/* Get the highest DbId in the local cache, or null if empty */
+export const getLatestId = (): number | null => {
   const row = db.prepare(
-    "SELECT MAX(timestamp) as latest FROM readings"
-  ).get() as { latest: string | null } | undefined;
+    "SELECT MAX(id) as latest FROM readings"
+  ).get() as { latest: number | null } | undefined;
   return row?.latest ?? null;
 };
 

@@ -1,6 +1,6 @@
 import { getPool } from "../db/remote.js";
 import {
-  getLatestTimestamp,
+  getLatestId,
   insertReadings,
   pruneOldReadings,
   clearAllReadings,
@@ -45,18 +45,18 @@ const syncReadings = async () => {
   console.log("[sync] Sync started");
 
   try {
-    const latest = getLatestTimestamp();
+    const latestId = getLatestId();
 
     /* Build query — only fetch SDS messages with ProtocolIdentifier=10 (LIP) */
     let query: string;
-    let params: string[];
+    let params: (string | number)[];
 
-    if (latest) {
-      /* Incremental sync — fetch rows newer than our latest cached timestamp */
+    if (latestId) {
+      /* Incremental sync — fetch rows with a DbId higher than our latest cached id */
       query = `SELECT DbId, Timestamp, CallingSsi, Rssi, MsDistance, UserData
-               FROM sdsdata WHERE ProtocolIdentifier = 10 AND Timestamp > ?
+               FROM sdsdata WHERE ProtocolIdentifier = 10 AND DbId > ?
                ORDER BY DbId ASC LIMIT ${SYNC_BATCH_SIZE}`;
-      params = [latest];
+      params = [latestId];
     } else if (syncFromOverride) {
       /* Post-reset sync — only fetch data after the reset timestamp, no backfill */
       query = `SELECT DbId, Timestamp, CallingSsi, Rssi, MsDistance, UserData
