@@ -1,22 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import ReactMapGL, {
   Source,
   Layer,
   type ViewStateChangeEvent,
-  type MapRef,
 } from "react-map-gl/mapbox";
 import type { HeatmapLayerSpecification } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { fetchReadings, resetCache, type Reading } from "../../utils/api";
 import { readingsToGeoJSON, readingsBounds } from "../../utils/geojson";
 import "./Map.scss";
-
-/* Default viewport centred on Melbourne Albert Park (before data loads) */
-const INITIAL_VIEW = {
-  longitude: 144.968,
-  latitude: -37.8497,
-  zoom: 14,
-};
 
 /* How often to poll for new readings (ms) */
 const POLL_INTERVAL_MS = 30_000;
@@ -65,46 +57,51 @@ const rssiHeatmapLayer: HeatmapLayerSpecification = {
   },
 };
 
+/* Viewport shape used by react-map-gl */
+interface ViewState {
+  longitude: number;
+  latitude: number;
+  zoom: number;
+}
+
+/* Compute a viewport that encompasses a bounding box [west, south, east, north] */
+const viewStateFromBounds = (bounds: [number, number, number, number]): ViewState => {
+  const [west, south, east, north] = bounds;
+  const longitude = (west + east) / 2;
+  const latitude = (south + north) / 2;
+  const lonSpan = east - west;
+  const latSpan = north - south;
+  const span = Math.max(lonSpan, latSpan, 0.001);
+  const zoom = Math.min(Math.log2(360 / span) - 1, 16);
+  return { longitude, latitude, zoom };
+};
+
 /* Full-viewport MapBox map with RSSI heatmap layer */
 const Map = () => {
-  const mapRef = useRef<MapRef>(null);
-  const [viewState, setViewState] = useState(INITIAL_VIEW);
+  const [viewState, setViewState] = useState<ViewState | null>(null);
   const [readings, setReadings] = useState<Reading[]>([]);
   const [resetting, setResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
-  const hasFitted = useRef(false);
-  const mapLoaded = useRef(false);
-  const readingsRef = useRef<Reading[]>([]);
 
-  /* Fly the map to the bounding box of all readings (called once per page load).
-     Because map init and data fetch race each other, this is attempted from both
-     the onLoad callback and from loadReadings — whichever fires last wins. */
-  const fitToData = useCallback((data: Reading[]) => {
-    if (hasFitted.current || data.length === 0 || !mapLoaded.current || !mapRef.current) return;
-    const bounds = readingsBounds(data);
-    if (bounds) {
-      mapRef.current.fitBounds(bounds, { padding: 60, maxZoom: 16 });
-      hasFitted.current = true;
-    }
-  }, []);
-
-  /* Called when the MapBox map has fully initialised */
-  const handleLoad = useCallback(() => {
-    mapLoaded.current = true;
-    fitToData(readingsRef.current);
-  }, [fitToData]);
-
-  /* Fetch readings from the API and attempt auto-center */
+  /* Fetch readings from the API. On first successful load, derive the
+     initial viewport from the data bounding box so the map opens already
+     centred on the readings — no fly animation needed. */
   const loadReadings = useCallback(async () => {
     try {
       const data = await fetchReadings();
       setReadings(data);
-      readingsRef.current = data;
-      fitToData(data);
+
+      /* Set initial viewport from data bounds (first load only) */
+      setViewState((prev) => {
+        if (prev) return prev;
+        const bounds = readingsBounds(data);
+        if (!bounds) return prev;
+        return viewStateFromBounds(bounds);
+      });
     } catch (err) {
       console.error("[map] Failed to fetch readings:", err);
     }
-  }, [fitToData]);
+  }, []);
 
   /* Poll the API on mount and at a regular interval */
   useEffect(() => {
@@ -127,8 +124,6 @@ const Map = () => {
     try {
       const { syncFrom } = await resetCache();
       setReadings([]);
-      readingsRef.current = [];
-      hasFitted.current = false;
       setResetMessage(`Cache cleared — syncing from ${new Date(syncFrom).toLocaleTimeString()}`);
       setTimeout(() => setResetMessage(null), 3000);
     } catch {
@@ -139,13 +134,16 @@ const Map = () => {
     }
   };
 
+  /* Don't render the map until we know where the data is */
+  if (!viewState) {
+    return <div className="map-container" />;
+  }
+
   return (
     <div className="map-container">
       <ReactMapGL
-        ref={mapRef}
         {...viewState}
         onMove={handleMove}
-        onLoad={handleLoad}
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle="mapbox://styles/mapbox/dark-v11"
         style={{ width: "100%", height: "100%" }}
