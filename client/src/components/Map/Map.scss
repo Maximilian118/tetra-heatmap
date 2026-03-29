@@ -49,3 +49,35 @@
   backdrop-filter: blur(4px);
   white-space: nowrap;
 }
+
+/* RSSI colour legend overlay — bottom center */
+.rssi-legend {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(30, 30, 30, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+  z-index: 1;
+
+  /* Gradient bar matching the heatmap density ramp (weak → strong) */
+  &__bar {
+    width: 100px;
+    height: 10px;
+    border-radius: 3px;
+    background: linear-gradient(to right, #dc143c, #ff4500, #ffa500, #7cfc00, #228b22);
+  }
+
+  /* Labels on either end of the gradient */
+  &__label {
+    font-size: 11px;
+    color: #fff;
+    white-space: nowrap;
+  }
+}
