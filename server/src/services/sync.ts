@@ -7,7 +7,7 @@ import {
 } from "../db/local.js";
 import type { Reading } from "../db/local.js";
 import type { RowDataPacket } from "mysql2";
-import { decodeLipShortReport } from "../utils/lip.js";
+import { decodeLipReport } from "../utils/lip.js";
 
 /* Retention period in days, configurable via env var (default: 5) */
 const RETENTION_DAYS = Number(process.env.RETENTION_DAYS) || 5;
@@ -86,7 +86,7 @@ const syncReadings = async () => {
       const readings: Reading[] = [];
 
       for (const row of rows) {
-        const lip = decodeLipShortReport(row.UserData);
+        const lip = decodeLipReport(row.UserData);
         if (!lip) continue;
 
         readings.push({
