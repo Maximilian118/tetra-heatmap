@@ -8,6 +8,7 @@ import {
 import type { Reading } from "../db/local.js";
 import type { RowDataPacket } from "mysql2";
 import { decodeLipReport } from "../utils/lip.js";
+import logger from "../utils/log.js";
 
 /* Retention period in days, configurable via env var (default: 5) */
 const RETENTION_DAYS = Number(process.env.RETENTION_DAYS) || 5;
@@ -42,7 +43,7 @@ interface SdsRow extends RowDataPacket {
 /* Fetch new LIP readings from the remote TetraFlex database and store them locally */
 const syncReadings = async () => {
   const start = performance.now();
-  console.log("[sync] Sync started");
+  logger.info("Sync started");
 
   try {
     const latestId = getLatestId();
@@ -76,7 +77,7 @@ const syncReadings = async () => {
 
     /* If we were disconnected, restore the normal sync interval */
     if (isDisconnected) {
-      console.log("[sync] TetraFlex database connection restored");
+      logger.info("TetraFlex database connection restored");
       isDisconnected = false;
       setSyncInterval(SYNC_INTERVAL_MS);
     }
@@ -115,21 +116,21 @@ const syncReadings = async () => {
       }
       const pruned = pruneOldReadings();
       if (pruned > 0) parts.push(`${pruned} pruned`);
-      console.log(`[sync] Sync finished — ${parts.join(", ")} (${elapsed}ms)`);
+      logger.info(`Sync finished — ${parts.join(", ")} (${elapsed}ms)`);
     } else {
       /* Remove data older than the retention period */
       pruneOldReadings();
 
       const elapsed = Math.round(performance.now() - start);
-      console.log(`[sync] Sync finished — no new readings (${elapsed}ms)`);
+      logger.info(`Sync finished — no new readings (${elapsed}ms)`);
     }
   } catch (err) {
     const code = (err as { code?: string }).code;
 
     /* Connection errors get a clean one-liner and a slower retry interval */
     if (code && CONNECTION_ERRORS.has(code)) {
-      console.warn(
-        `[sync] Cannot reach TetraFlex database (${process.env.DB_HOST}:${process.env.DB_PORT}) — retrying in 5m`
+      logger.warn(
+        `Cannot reach TetraFlex database (${process.env.DB_HOST}:${process.env.DB_PORT}) — retrying in 5m`
       );
       if (!isDisconnected) {
         isDisconnected = true;
@@ -138,9 +139,8 @@ const syncReadings = async () => {
     } else {
       /* Non-connection errors (query failures, etc.) keep the full log */
       const elapsed = Math.round(performance.now() - start);
-      console.error(
-        `[sync] Sync failed after ${elapsed}ms (host: ${process.env.DB_HOST}:${process.env.DB_PORT}):`,
-        err
+      logger.error(
+        `Sync failed after ${elapsed}ms (host: ${process.env.DB_HOST}:${process.env.DB_PORT}): ${err}`
       );
     }
   }
@@ -167,7 +167,7 @@ const setSyncInterval = (ms: number) => {
 
 /* Start the sync loop — waits 3s before first sync then runs on the configured interval */
 export const startSync = () => {
-  console.log(`[sync] Starting sync service (first sync in ${STARTUP_DELAY_MS / 1000}s, interval: ${SYNC_INTERVAL_MS / 1000}s)`);
+  logger.info(`Starting sync service (first sync in ${STARTUP_DELAY_MS / 1000}s, interval: ${SYNC_INTERVAL_MS / 1000}s)`);
   startupTimeout = setTimeout(() => {
     syncReadings();
     syncInterval = setInterval(syncReadings, SYNC_INTERVAL_MS);
@@ -185,6 +185,6 @@ export const resetSync = (): string => {
   const now = new Date().toISOString();
   const cleared = clearAllReadings();
   syncFromOverride = now;
-  console.log(`[sync] Cache reset — cleared ${cleared} readings, syncing from ${now}`);
+  logger.info(`Cache reset — cleared ${cleared} readings, syncing from ${now}`);
   return now;
 };

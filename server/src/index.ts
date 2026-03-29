@@ -11,6 +11,7 @@ import rssiRoutes from "./routes/rssi.js";
 import { startSync, stopSync } from "./services/sync.js";
 import { closePool } from "./db/remote.js";
 import { closeDb } from "./db/local.js";
+import logger from "./utils/log.js";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -31,7 +32,7 @@ app.get("/{*splat}", (_req, res) => {
 
 /* Cancel pending syncs, close MySQL pool and SQLite DB on process exit (prevents MySQL host blocking from tsx watch restarts) */
 const shutdown = async () => {
-  console.log("[server] Shutting down gracefully...");
+  logger.info("Shutting down gracefully...");
   stopSync();
   await closePool();
   closeDb();
@@ -42,7 +43,7 @@ process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
 
 app.listen(PORT, HOST, () => {
-  console.log(`[server] Running on http://${HOST}:${PORT}`);
+  logger.info(`Running on http://${HOST}:${PORT}`);
   /* Begin syncing RSSI data from the remote TetraFlex database */
   startSync();
 });
