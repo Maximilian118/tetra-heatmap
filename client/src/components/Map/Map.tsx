@@ -131,6 +131,7 @@ const Map = () => {
       radiusPixels: 30,
       intensity: 1,
       opacity: 0.8,
+      debounceTimeout: 500,
     }),
 
     /* Invisible pickable dots for hover tooltips */
