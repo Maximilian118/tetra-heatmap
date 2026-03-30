@@ -1,13 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
-import ReactMapGL, {
-  Source,
-  Layer,
-  type ViewStateChangeEvent,
-} from "react-map-gl/mapbox";
-import type { HeatmapLayerSpecification } from "mapbox-gl";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import DeckGL from "@deck.gl/react";
+import { Map as MapGL } from "react-map-gl/mapbox";
+import { HeatmapLayer } from "@deck.gl/aggregation-layers";
+import { ScatterplotLayer } from "@deck.gl/layers";
+import type { PickingInfo } from "@deck.gl/core";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { fetchReadings, resetCache, type Reading } from "../../utils/api";
-import { readingsToGeoJSON, readingsBounds } from "../../utils/geojson";
+import { readingsBounds } from "../../utils/geojson";
 import "./Map.scss";
 
 /* How often to poll for new readings (ms) */
@@ -16,48 +15,35 @@ const POLL_INTERVAL_MS = 30_000;
 /* Reads the MapBox token from Vite env */
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string;
 
-/* Heatmap style — blends nearby readings into a smooth density cloud.
-   Weight is driven by RSSI: stronger signals (-20 dBm) contribute more
-   intensity than weak ones (-100 dBm). Colour ramp runs from red (sparse /
-   weak edges) through yellow to green (dense / strong center). */
-const rssiHeatmapLayer: HeatmapLayerSpecification = {
-  id: "rssi-heatmap",
-  type: "heatmap",
-  source: "rssi-data",
-  paint: {
-    /* Map RSSI values to a 0-1 weight (stronger signal = higher weight) */
-    "heatmap-weight": [
-      "interpolate", ["linear"], ["get", "rssi"],
-      -100, 0,
-      -20, 1,
-    ],
-    /* Global intensity multiplier — slight boost at higher zoom for detail */
-    "heatmap-intensity": [
-      "interpolate", ["linear"], ["zoom"],
-      0, 1,
-      16, 1.5,
-    ],
-    /* Density → colour ramp: green center (strong), red edges (weak) */
-    "heatmap-color": [
-      "interpolate", ["linear"], ["heatmap-density"],
-      0.0, "rgba(0, 0, 0, 0)",
-      0.2, "#dc143c",
-      0.4, "#ff4500",
-      0.6, "#ffa500",
-      0.8, "#7cfc00",
-      1.0, "#228b22",
-    ],
-    /* Blur radius in pixels — zoom-dependent for smooth blending */
-    "heatmap-radius": [
-      "interpolate", ["linear"], ["zoom"],
-      0, 8,
-      16, 30,
-    ],
-    "heatmap-opacity": 0.8,
-  },
-};
+/* RSSI range constants for normalising to 0-1 (deck.gl doesn't support negative weights) */
+const RSSI_MIN = -100;
+const RSSI_MAX = -20;
+const RSSI_RANGE = RSSI_MAX - RSSI_MIN;
 
-/* Viewport shape used by react-map-gl */
+/* Normalise RSSI from [-100, -20] → [0, 1] */
+const normalizeRssi = (rssi: number) =>
+  Math.max(0, Math.min(1, (rssi - RSSI_MIN) / RSSI_RANGE));
+
+/* Colour ramp: red (weak signal) → orange → green (strong signal).
+   Matches the MapBox heatmap-color ramp from the original implementation. */
+const RSSI_COLOR_RANGE: [number, number, number][] = [
+  [220, 20, 60],  // #dc143c — crimson (weak)
+  [255, 69, 0],   // #ff4500 — orange-red
+  [255, 165, 0],  // #ffa500 — orange
+  [124, 252, 0],  // #7cfc00 — lawn green
+  [34, 139, 34],  // #228b22 — forest green (strong)
+];
+
+/* Tooltip state for hovered reading */
+interface TooltipInfo {
+  x: number;
+  y: number;
+  ssi: number;
+  rssi: number;
+  timestamp: string;
+}
+
+/* Viewport shape used by deck.gl / react-map-gl */
 interface ViewState {
   longitude: number;
   latitude: number;
@@ -76,12 +62,23 @@ const viewStateFromBounds = (bounds: [number, number, number, number]): ViewStat
   return { longitude, latitude, zoom };
 };
 
-/* Full-viewport MapBox map with RSSI heatmap layer */
+/* Full-viewport MapBox map with deck.gl RSSI heatmap + hover tooltips */
 const Map = () => {
-  const [viewState, setViewState] = useState<ViewState | null>(null);
+  const [initialView, setInitialView] = useState<ViewState | null>(null);
   const [readings, setReadings] = useState<Reading[]>([]);
   const [resetting, setResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
+
+  /* Log deck.gl rendering errors (layer failures, shader errors, etc.) */
+  const handleDeckError = useCallback((error: Error, layer?: unknown) => {
+    console.error("[deck.gl] error:", error.message, layer);
+  }, []);
+
+  /* Log MapBox errors (tile load failures, style errors, WebGL issues) */
+  const handleMapError = useCallback((e: { error?: { message?: string } }) => {
+    console.error("[mapbox] error:", e.error?.message ?? e);
+  }, []);
 
   /* Fetch readings from the API. On first successful load, derive the
      initial viewport from the data bounding box so the map opens already
@@ -92,7 +89,7 @@ const Map = () => {
       setReadings(data);
 
       /* Set initial viewport from data bounds (first load only) */
-      setViewState((prev) => {
+      setInitialView((prev) => {
         if (prev) return prev;
         const bounds = readingsBounds(data);
         if (!bounds) return prev;
@@ -110,13 +107,56 @@ const Map = () => {
     return () => clearInterval(id);
   }, [loadReadings]);
 
-  /* Convert readings to GeoJSON for the heatmap layer */
-  const geojson = readingsToGeoJSON(readings);
+  /* Filter out readings without a valid RSSI — they can't be visualised */
+  const validReadings = useMemo(
+    () => readings.filter((r) => r.rssi !== null),
+    [readings]
+  );
 
-  /* Sync viewport state on user interaction */
-  const handleMove = (evt: ViewStateChangeEvent) => {
-    setViewState(evt.viewState);
-  };
+  /* Build deck.gl layers — heatmap for visualisation, scatterplot for hover picking */
+  const layers = useMemo(() => [
+    /* Smooth heatmap coloured by average RSSI value (not density).
+       MEAN aggregation gives the weighted average RSSI at each pixel.
+       colorDomain pins the value-to-colour mapping so colours are purely
+       RSSI-based. minVal=0.01 enables the shader's alpha fading for edge
+       pixels whose raw kernel weight is below that threshold. */
+    new HeatmapLayer<Reading>({
+      id: "rssi-heatmap",
+      data: validReadings,
+      getPosition: (d) => [d.longitude, d.latitude],
+      getWeight: (d) => normalizeRssi(d.rssi!),
+      aggregation: "MEAN",
+      colorDomain: [0.01, 1.0],
+      colorRange: RSSI_COLOR_RANGE,
+      radiusPixels: 30,
+      intensity: 1,
+      opacity: 0.8,
+    }),
+
+    /* Invisible pickable dots for hover tooltips */
+    new ScatterplotLayer<Reading>({
+      id: "rssi-tooltip-targets",
+      data: validReadings,
+      getPosition: (d) => [d.longitude, d.latitude],
+      getRadius: 8,
+      radiusMinPixels: 8,
+      getFillColor: [0, 0, 0, 0],
+      pickable: true,
+      onHover: (info: PickingInfo<Reading>) => {
+        if (info.object) {
+          setTooltip({
+            x: info.x,
+            y: info.y,
+            ssi: info.object.ssi,
+            rssi: info.object.rssi!,
+            timestamp: info.object.timestamp,
+          });
+        } else {
+          setTooltip(null);
+        }
+      },
+    }),
+  ], [validReadings]);
 
   /* Wipe the local cache, reset the view flag, and show a brief confirmation */
   const handleReset = async () => {
@@ -135,24 +175,38 @@ const Map = () => {
   };
 
   /* Don't render the map until we know where the data is */
-  if (!viewState) {
+  if (!initialView) {
     return <div className="map-container" />;
   }
 
   return (
     <div className="map-container">
-      <ReactMapGL
-        {...viewState}
-        onMove={handleMove}
-        mapboxAccessToken={MAPBOX_TOKEN}
-        mapStyle="mapbox://styles/mapbox/dark-v11"
-        style={{ width: "100%", height: "100%" }}
+      {/* DeckGL as root — owns canvas + interactions.
+          MapGL is a child that renders tiles and follows DeckGL's viewport. */}
+      <DeckGL
+        initialViewState={initialView}
+        controller
+        layers={layers}
+        onError={handleDeckError}
       >
-        {/* RSSI heatmap — blended density cloud coloured by signal strength */}
-        <Source id="rssi-data" type="geojson" data={geojson}>
-          <Layer {...rssiHeatmapLayer} />
-        </Source>
-      </ReactMapGL>
+        <MapGL
+          mapboxAccessToken={MAPBOX_TOKEN}
+          mapStyle="mapbox://styles/mapbox/dark-v11"
+          onError={handleMapError}
+        />
+      </DeckGL>
+
+      {/* Hover tooltip showing reading details */}
+      {tooltip && (
+        <div
+          className="map-tooltip"
+          style={{ left: tooltip.x + 12, top: tooltip.y - 12 }}
+        >
+          <div><strong>ISSI:</strong> {tooltip.ssi}</div>
+          <div><strong>RSSI:</strong> {tooltip.rssi} dBm</div>
+          <div><strong>Time:</strong> {new Date(tooltip.timestamp).toLocaleString()}</div>
+        </div>
+      )}
 
       {/* Overlay controls */}
       <div className="map-controls">

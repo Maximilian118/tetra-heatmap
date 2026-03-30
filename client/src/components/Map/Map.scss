@@ -50,6 +50,22 @@
   white-space: nowrap;
 }
 
+/* Hover tooltip for individual readings */
+.map-tooltip {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #fff;
+  background: rgba(30, 30, 30, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+}
+
 /* RSSI colour legend overlay — bottom center */
 .rssi-legend {
   position: absolute;
