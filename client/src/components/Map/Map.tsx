@@ -8,6 +8,9 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { fetchReadings, resetCache, type Reading } from "../../utils/api";
 import { readingsBounds } from "../../utils/geojson";
 import { normalizeRssi, RSSI_COLOR_RANGE } from "../../utils/rssi";
+import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
+import MapControls from "./MapControls/MapControls";
+import RssiLegend from "./RssiLegend/RssiLegend";
 import "./Map.scss";
 
 /* How often to poll for new readings (ms) */
@@ -15,15 +18,6 @@ const POLL_INTERVAL_MS = 30_000;
 
 /* Reads the MapBox token from Vite env */
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string;
-
-/* Tooltip state for hovered reading */
-interface TooltipInfo {
-  x: number;
-  y: number;
-  ssi: number;
-  rssi: number;
-  timestamp: string;
-}
 
 /* Viewport shape used by deck.gl / react-map-gl */
 interface ViewState {
@@ -178,36 +172,9 @@ const Map = () => {
         />
       </DeckGL>
 
-      {/* Hover tooltip showing reading details */}
-      {tooltip && (
-        <div
-          className="map-tooltip"
-          style={{ left: tooltip.x + 12, top: tooltip.y - 12 }}
-        >
-          <div><strong>ISSI:</strong> {tooltip.ssi}</div>
-          <div><strong>RSSI:</strong> {tooltip.rssi} dBm</div>
-          <div><strong>Time:</strong> {new Date(tooltip.timestamp).toLocaleString()}</div>
-        </div>
-      )}
-
-      {/* Overlay controls */}
-      <div className="map-controls">
-        <button
-          className="reset-btn"
-          onClick={handleReset}
-          disabled={resetting}
-        >
-          {resetting ? "Resetting..." : "Reset Cache"}
-        </button>
-        {resetMessage && <span className="reset-message">{resetMessage}</span>}
-      </div>
-
-      {/* RSSI colour legend */}
-      <div className="rssi-legend">
-        <span className="rssi-legend__label">-110 dBm</span>
-        <div className="rssi-legend__bar" />
-        <span className="rssi-legend__label">-20 dBm</span>
-      </div>
+      <Tooltip tooltip={tooltip} />
+      <MapControls resetting={resetting} resetMessage={resetMessage} onReset={handleReset} />
+      <RssiLegend />
     </div>
   );
 };

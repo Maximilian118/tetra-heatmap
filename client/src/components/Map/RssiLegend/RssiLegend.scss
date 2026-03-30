@@ -1,0 +1,45 @@
+/* RSSI colour legend overlay — bottom center */
+.rssi-legend {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(30, 30, 30, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+  z-index: 1;
+
+  /* Gradient bar matching the TETRA signal quality ramp */
+  &__bar {
+    width: 140px;
+    height: 10px;
+    border-radius: 3px;
+    background: linear-gradient(
+      to right,
+      rgb(80, 0, 0),
+      rgb(178, 24, 43),
+      rgb(230, 70, 10),
+      rgb(255, 165, 0),
+      rgb(200, 210, 0),
+      rgb(100, 210, 40),
+      rgb(50, 190, 50),
+      rgb(34, 160, 40),
+      rgb(25, 130, 30),
+      rgb(25, 125, 70),
+      rgb(30, 100, 185),
+      rgb(30, 80, 220)
+    );
+  }
+
+  /* Labels on either end of the gradient */
+  &__label {
+    font-size: 11px;
+    color: #fff;
+    white-space: nowrap;
+  }
+}
