@@ -14,3 +14,10 @@ body,
   height: 100vh;
   overflow: hidden;
 }
+
+/* Global font — Roboto loaded via Google Fonts in index.html */
+body {
+  font-family: 'Roboto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

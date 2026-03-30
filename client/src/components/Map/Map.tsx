@@ -7,6 +7,7 @@ import type { PickingInfo } from "@deck.gl/core";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { fetchReadings, resetCache, type Reading } from "../../utils/api";
 import { readingsBounds } from "../../utils/geojson";
+import { normalizeRssi, RSSI_COLOR_RANGE } from "../../utils/rssi";
 import "./Map.scss";
 
 /* How often to poll for new readings (ms) */
@@ -14,25 +15,6 @@ const POLL_INTERVAL_MS = 30_000;
 
 /* Reads the MapBox token from Vite env */
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string;
-
-/* RSSI range constants for normalising to 0-1 (deck.gl doesn't support negative weights) */
-const RSSI_MIN = -100;
-const RSSI_MAX = -20;
-const RSSI_RANGE = RSSI_MAX - RSSI_MIN;
-
-/* Normalise RSSI from [-100, -20] → [0, 1] */
-const normalizeRssi = (rssi: number) =>
-  Math.max(0, Math.min(1, (rssi - RSSI_MIN) / RSSI_RANGE));
-
-/* Colour ramp: red (weak signal) → orange → green (strong signal).
-   Matches the MapBox heatmap-color ramp from the original implementation. */
-const RSSI_COLOR_RANGE: [number, number, number][] = [
-  [220, 20, 60],  // #dc143c — crimson (weak)
-  [255, 69, 0],   // #ff4500 — orange-red
-  [255, 165, 0],  // #ffa500 — orange
-  [124, 252, 0],  // #7cfc00 — lawn green
-  [34, 139, 34],  // #228b22 — forest green (strong)
-];
 
 /* Tooltip state for hovered reading */
 interface TooltipInfo {
@@ -117,16 +99,15 @@ const Map = () => {
   const layers = useMemo(() => [
     /* Smooth heatmap coloured by average RSSI value (not density).
        MEAN aggregation gives the weighted average RSSI at each pixel.
-       colorDomain pins the value-to-colour mapping so colours are purely
-       RSSI-based. minVal=0.01 enables the shader's alpha fading for edge
-       pixels whose raw kernel weight is below that threshold. */
+       colorDomain [0.01, 1.0] ensures all readings render at full opacity —
+       colour alone conveys signal quality, no alpha fading for weak signals. */
     new HeatmapLayer<Reading>({
       id: "rssi-heatmap",
       data: validReadings,
       getPosition: (d) => [d.longitude, d.latitude],
       getWeight: (d) => normalizeRssi(d.rssi!),
       aggregation: "MEAN",
-      colorDomain: [0.3, 1.0],
+      colorDomain: [0.01, 1.0],
       colorRange: RSSI_COLOR_RANGE,
       radiusPixels: 20,
       intensity: 1,
@@ -223,7 +204,7 @@ const Map = () => {
 
       {/* RSSI colour legend */}
       <div className="rssi-legend">
-        <span className="rssi-legend__label">-100 dBm</span>
+        <span className="rssi-legend__label">-110 dBm</span>
         <div className="rssi-legend__bar" />
         <span className="rssi-legend__label">-20 dBm</span>
       </div>

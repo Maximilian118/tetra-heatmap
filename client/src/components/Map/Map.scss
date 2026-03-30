@@ -82,12 +82,26 @@
   backdrop-filter: blur(4px);
   z-index: 1;
 
-  /* Gradient bar matching the heatmap density ramp (weak → strong) */
+  /* Gradient bar matching the TETRA signal quality ramp (poor → over-strong) */
   &__bar {
-    width: 100px;
+    width: 140px;
     height: 10px;
     border-radius: 3px;
-    background: linear-gradient(to right, #dc143c, #ff4500, #ffa500, #7cfc00, #228b22);
+    background: linear-gradient(
+      to right,
+      rgb(80, 0, 0),
+      rgb(178, 24, 43),
+      rgb(230, 70, 10),
+      rgb(255, 165, 0),
+      rgb(200, 210, 0),
+      rgb(100, 210, 40),
+      rgb(50, 190, 50),
+      rgb(34, 160, 40),
+      rgb(25, 130, 30),
+      rgb(25, 125, 70),
+      rgb(30, 100, 185),
+      rgb(30, 80, 220)
+    );
   }
 
   /* Labels on either end of the gradient */
