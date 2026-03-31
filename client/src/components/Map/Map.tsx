@@ -9,7 +9,7 @@ import { fetchReadings, resetCache, type Reading } from "../../utils/api";
 import { readingsBounds } from "../../utils/geojson";
 import { normalizeRssi, RSSI_COLOR_RANGE } from "../../utils/rssi";
 import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
-import MapControls from "./MapControls/MapControls";
+import Sidebar from "./Sidebar/Sidebar";
 import RssiLegend from "./RssiLegend/RssiLegend";
 import "./Map.scss";
 
@@ -44,6 +44,7 @@ const Map = () => {
   const [readings, setReadings] = useState<Reading[]>([]);
   const [resetting, setResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [lastReset, setLastReset] = useState<string | null>(() => localStorage.getItem("lastCacheReset"));
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
 
   /* Log deck.gl rendering errors (layer failures, shader errors, etc.) */
@@ -101,7 +102,7 @@ const Map = () => {
       getPosition: (d) => [d.longitude, d.latitude],
       getWeight: (d) => normalizeRssi(d.rssi!),
       aggregation: "MEAN",
-      colorDomain: [0.01, 1.0],
+      colorDomain: [0.3, 1.0],
       colorRange: RSSI_COLOR_RANGE,
       radiusPixels: 20,
       intensity: 1,
@@ -140,6 +141,8 @@ const Map = () => {
     try {
       const { syncFrom } = await resetCache();
       setReadings([]);
+      localStorage.setItem("lastCacheReset", syncFrom);
+      setLastReset(syncFrom);
       setResetMessage(`Cache cleared — syncing from ${new Date(syncFrom).toLocaleTimeString()}`);
       setTimeout(() => setResetMessage(null), 3000);
     } catch {
@@ -157,24 +160,27 @@ const Map = () => {
 
   return (
     <div className="map-container">
-      {/* DeckGL as root — owns canvas + interactions.
-          MapGL is a child that renders tiles and follows DeckGL's viewport. */}
-      <DeckGL
-        initialViewState={initialView}
-        controller
-        layers={layers}
-        onError={handleDeckError}
-      >
-        <MapGL
-          mapboxAccessToken={MAPBOX_TOKEN}
-          mapStyle="mapbox://styles/mapbox/dark-v11"
-          onError={handleMapError}
-        />
-      </DeckGL>
+      <Sidebar resetting={resetting} resetMessage={resetMessage} lastReset={lastReset} onReset={handleReset} />
 
-      <Tooltip tooltip={tooltip} />
-      <MapControls resetting={resetting} resetMessage={resetMessage} onReset={handleReset} />
-      <RssiLegend />
+      <div className="map-area">
+        {/* DeckGL as root — owns canvas + interactions.
+            MapGL is a child that renders tiles and follows DeckGL's viewport. */}
+        <DeckGL
+          initialViewState={initialView}
+          controller
+          layers={layers}
+          onError={handleDeckError}
+        >
+          <MapGL
+            mapboxAccessToken={MAPBOX_TOKEN}
+            mapStyle="mapbox://styles/mapbox/dark-v11"
+            onError={handleMapError}
+          />
+        </DeckGL>
+
+        <Tooltip tooltip={tooltip} />
+        <RssiLegend />
+      </div>
     </div>
   );
 };

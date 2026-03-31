@@ -1,0 +1,69 @@
+/* Left sidebar panel */
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: rgba(20, 20, 20, 0.95);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px;
+  z-index: 2;
+
+  /* Application title */
+  &__title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  /* Scrollable area for future controls */
+  &__content {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  /* Bottom section pinned to sidebar floor */
+  &__footer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Reset cache button — full width at the bottom */
+  &__reset-btn {
+    width: 100%;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    background: rgba(50, 50, 50, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover:not(:disabled) {
+      background: rgba(70, 70, 70, 0.9);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  /* Brief confirmation message above the reset button */
+  &__message {
+    font-size: 12px;
+    color: #fff;
+    background: rgba(50, 50, 50, 0.85);
+    padding: 8px 10px;
+    border-radius: 4px;
+    text-align: center;
+    white-space: nowrap;
+  }
+}

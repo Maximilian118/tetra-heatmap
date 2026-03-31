@@ -1,6 +1,13 @@
-/* Full-viewport map container */
+/* Flex layout — sidebar + map side by side */
 .map-container {
-  position: relative;
+  display: flex;
   width: 100%;
+  height: 100%;
+}
+
+/* Map area fills remaining space after sidebar */
+.map-area {
+  flex: 1;
+  position: relative;
   height: 100%;
 }
