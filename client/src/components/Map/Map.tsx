@@ -6,6 +6,7 @@ import { ScatterplotLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { fetchReadings, resetCache, type Reading } from "../../utils/api";
+import { saveDataset, loadDataset, type SavedViewState } from "../../utils/dataset";
 import { readingsBounds } from "../../utils/geojson";
 import { normalizeRssi, RSSI_COLOR_RANGE } from "../../utils/rssi";
 import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
@@ -78,7 +79,11 @@ const Map = () => {
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [lastReset, setLastReset] = useState<string | null>(() => localStorage.getItem("lastCacheReset"));
   const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/navigation-preview-night-v4");
+  const [fileReadings, setFileReadings] = useState<Reading[] | null>(null);
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
+
+  /* Use file data when loaded, otherwise fall back to live server data */
+  const displayedReadings = fileReadings ?? readings;
 
   /* Log deck.gl rendering errors (layer failures, shader errors, etc.) */
   const handleDeckError = useCallback((error: Error, layer?: unknown) => {
@@ -134,8 +139,8 @@ const Map = () => {
 
   /* Filter out readings without a valid RSSI — they can't be visualised */
   const validReadings = useMemo(
-    () => readings.filter((r) => r.rssi !== null),
-    [readings]
+    () => displayedReadings.filter((r) => r.rssi !== null),
+    [displayedReadings]
   );
 
   /* Build deck.gl layers — heatmap for visualisation, scatterplot for hover picking */
@@ -183,6 +188,38 @@ const Map = () => {
     }),
   ], [validReadings]);
 
+  /* Download the currently displayed readings as a JSON file via the browser save dialog */
+  const handleSaveData = useCallback(() => {
+    const savedView = loadSavedViewState() as SavedViewState | undefined;
+    saveDataset(displayedReadings, savedView ?? undefined, mapStyle);
+  }, [displayedReadings, mapStyle]);
+
+  /* Load readings from a user-selected JSON file and switch to file mode */
+  const handleLoadData = useCallback(async (file: File) => {
+    try {
+      const { readings: data, viewState, mapStyle: style } = await loadDataset(file);
+      setFileReadings(data);
+
+      /* Restore saved view state from file, or fall back to data bounds */
+      if (viewState) {
+        setInitialView(viewState);
+      } else {
+        const bounds = readingsBounds(data);
+        if (bounds) setInitialView(viewStateFromBounds(bounds));
+      }
+
+      /* Restore saved map style if present */
+      if (style) setMapStyle(style);
+    } catch (err) {
+      console.error("[map] Failed to load dataset:", err);
+    }
+  }, []);
+
+  /* Switch back to live server data by clearing the file overlay */
+  const handleResumeLive = useCallback(() => {
+    setFileReadings(null);
+  }, []);
+
   /* Wipe the local cache, reset the view flag, and show a brief confirmation */
   const handleReset = async () => {
     setResetting(true);
@@ -213,7 +250,12 @@ const Map = () => {
         resetMessage={resetMessage}
         lastReset={lastReset}
         mapStyle={mapStyle}
+        readingCount={displayedReadings.length}
+        isFileMode={fileReadings !== null}
         onStyleChange={setMapStyle}
+        onSaveData={handleSaveData}
+        onLoadData={handleLoadData}
+        onResumeLive={handleResumeLive}
         onReset={handleReset}
       />
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Confirm from "./Confirm/Confirm";
 import MapPresets from "./MapPresets/MapPresets";
+import DataControls from "./DataControls/DataControls";
 import "./Sidebar.scss";
 
 /* Format an ISO timestamp into a user-friendly locale string */
@@ -12,12 +13,17 @@ interface SidebarProps {
   resetMessage: string | null;
   lastReset: string | null;
   mapStyle: string;
+  readingCount: number;
+  isFileMode: boolean;
   onStyleChange: (style: string) => void;
+  onSaveData: () => void;
+  onLoadData: (file: File) => void;
+  onResumeLive: () => void;
   onReset: () => void;
 }
 
 /* Left sidebar panel for map controls and future features */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, onStyleChange, onReset }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, readingCount, isFileMode, onStyleChange, onSaveData, onLoadData, onResumeLive, onReset }: SidebarProps) => {
   const [confirming, setConfirming] = useState(false);
 
   /* Execute the reset and dismiss the confirmation overlay */
@@ -32,6 +38,13 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, onStyleChange, 
 
       <div className="sidebar__content">
         <MapPresets mapStyle={mapStyle} onStyleChange={onStyleChange} />
+        <DataControls
+          readingCount={readingCount}
+          isFileMode={isFileMode}
+          onSave={onSaveData}
+          onLoad={onLoadData}
+          onResumeLive={onResumeLive}
+        />
       </div>
 
       <div className="sidebar__footer">

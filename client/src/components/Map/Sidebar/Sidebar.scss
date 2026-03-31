@@ -20,10 +20,13 @@
     margin-bottom: 24px;
   }
 
-  /* Scrollable area for future controls */
+  /* Scrollable area for sidebar controls */
   &__content {
     flex: 1;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
   }
 
   /* Bottom section pinned to sidebar floor */
