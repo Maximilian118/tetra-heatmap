@@ -45,6 +45,7 @@ const Map = () => {
   const [resetting, setResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [lastReset, setLastReset] = useState<string | null>(() => localStorage.getItem("lastCacheReset"));
+  const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/dark-v11");
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
 
   /* Log deck.gl rendering errors (layer failures, shader errors, etc.) */
@@ -160,7 +161,14 @@ const Map = () => {
 
   return (
     <div className="map-container">
-      <Sidebar resetting={resetting} resetMessage={resetMessage} lastReset={lastReset} onReset={handleReset} />
+      <Sidebar
+        resetting={resetting}
+        resetMessage={resetMessage}
+        lastReset={lastReset}
+        mapStyle={mapStyle}
+        onStyleChange={setMapStyle}
+        onReset={handleReset}
+      />
 
       <div className="map-area">
         {/* DeckGL as root — owns canvas + interactions.
@@ -173,7 +181,7 @@ const Map = () => {
         >
           <MapGL
             mapboxAccessToken={MAPBOX_TOKEN}
-            mapStyle="mapbox://styles/mapbox/dark-v11"
+            mapStyle={mapStyle}
             onError={handleMapError}
           />
         </DeckGL>

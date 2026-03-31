@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Confirm from "./Confirm/Confirm";
+import MapPresets from "./MapPresets/MapPresets";
 import "./Sidebar.scss";
 
 /* Format an ISO timestamp into a user-friendly locale string */
@@ -10,11 +11,13 @@ interface SidebarProps {
   resetting: boolean;
   resetMessage: string | null;
   lastReset: string | null;
+  mapStyle: string;
+  onStyleChange: (style: string) => void;
   onReset: () => void;
 }
 
 /* Left sidebar panel for map controls and future features */
-const Sidebar = ({ resetting, resetMessage, lastReset, onReset }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, onStyleChange, onReset }: SidebarProps) => {
   const [confirming, setConfirming] = useState(false);
 
   /* Execute the reset and dismiss the confirmation overlay */
@@ -28,7 +31,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, onReset }: SidebarProps) 
       <h1 className="sidebar__title">Tetra Heatmap</h1>
 
       <div className="sidebar__content">
-        {/* Future controls go here */}
+        <MapPresets mapStyle={mapStyle} onStyleChange={onStyleChange} />
       </div>
 
       <div className="sidebar__footer">
