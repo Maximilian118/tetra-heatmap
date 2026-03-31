@@ -45,7 +45,7 @@ const Map = () => {
   const [resetting, setResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [lastReset, setLastReset] = useState<string | null>(() => localStorage.getItem("lastCacheReset"));
-  const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/dark-v11");
+  const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/navigation-preview-night-v4");
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
 
   /* Log deck.gl rendering errors (layer failures, shader errors, etc.) */
