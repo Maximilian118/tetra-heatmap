@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import DeckGL from "@deck.gl/react";
 import { Map as MapGL } from "react-map-gl/mapbox";
 import { HeatmapLayer } from "@deck.gl/aggregation-layers";
@@ -19,11 +19,19 @@ const POLL_INTERVAL_MS = 30_000;
 /* Reads the MapBox token from Vite env */
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string;
 
+/* How long to wait after the last interaction before saving view state (ms) */
+const VIEW_SAVE_DELAY_MS = 500;
+
+/* localStorage key for persisted map viewport */
+const VIEW_STATE_KEY = "mapViewState";
+
 /* Viewport shape used by deck.gl / react-map-gl */
 interface ViewState {
   longitude: number;
   latitude: number;
   zoom: number;
+  bearing: number;
+  pitch: number;
 }
 
 /* Compute a viewport that encompasses a bounding box [west, south, east, north] */
@@ -35,12 +43,36 @@ const viewStateFromBounds = (bounds: [number, number, number, number]): ViewStat
   const latSpan = north - south;
   const span = Math.max(lonSpan, latSpan, 0.001);
   const zoom = Math.min(Math.log2(360 / span) - 1, 16);
-  return { longitude, latitude, zoom };
+  return { longitude, latitude, zoom, bearing: 0, pitch: 0 };
+};
+
+/* Try to restore a previously saved view state from localStorage */
+const loadSavedViewState = (): ViewState | null => {
+  try {
+    const raw = localStorage.getItem(VIEW_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      typeof parsed.longitude === "number" &&
+      typeof parsed.latitude === "number" &&
+      typeof parsed.zoom === "number"
+    ) {
+      return {
+        longitude: parsed.longitude,
+        latitude: parsed.latitude,
+        zoom: parsed.zoom,
+        bearing: parsed.bearing ?? 0,
+        pitch: parsed.pitch ?? 0,
+      };
+    }
+  } catch { /* corrupt data — ignore */ }
+  return null;
 };
 
 /* Full-viewport MapBox map with deck.gl RSSI heatmap + hover tooltips */
 const Map = () => {
-  const [initialView, setInitialView] = useState<ViewState | null>(null);
+  const [initialView, setInitialView] = useState<ViewState | null>(() => loadSavedViewState());
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [readings, setReadings] = useState<Reading[]>([]);
   const [resetting, setResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
@@ -51,6 +83,21 @@ const Map = () => {
   /* Log deck.gl rendering errors (layer failures, shader errors, etc.) */
   const handleDeckError = useCallback((error: Error, layer?: unknown) => {
     console.error("[deck.gl] error:", error.message, layer);
+  }, []);
+
+  /* Debounce-save the current viewport to localStorage so it persists across refreshes */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleViewStateChange = useCallback(({ viewState }: any) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({
+        longitude: viewState.longitude,
+        latitude: viewState.latitude,
+        zoom: viewState.zoom,
+        bearing: viewState.bearing,
+        pitch: viewState.pitch,
+      }));
+    }, VIEW_SAVE_DELAY_MS);
   }, []);
 
   /* Log MapBox errors (tile load failures, style errors, WebGL issues) */
@@ -177,6 +224,7 @@ const Map = () => {
           initialViewState={initialView}
           controller
           layers={layers}
+          onViewStateChange={handleViewStateChange}
           onError={handleDeckError}
         >
           <MapGL
