@@ -72,12 +72,10 @@ export const insertReadings = (readings: Reading[]) => {
   insertMany(readings);
 };
 
-/* Remove readings older than the configured retention period */
-const RETENTION_DAYS = Number(process.env.RETENTION_DAYS) || 5;
-
-export const pruneOldReadings = (): number => {
+/* Remove readings older than the specified retention period */
+export const pruneOldReadings = (retentionDays: number): number => {
   const result = db.prepare(
-    `DELETE FROM readings WHERE timestamp < datetime('now', '-${RETENTION_DAYS} days')`
+    `DELETE FROM readings WHERE timestamp < datetime('now', '-${retentionDays} days')`
   ).run();
   return result.changes;
 };

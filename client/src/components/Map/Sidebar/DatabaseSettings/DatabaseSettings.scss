@@ -1,0 +1,101 @@
+/* Database settings form — two sections matching the Map tab's section pattern */
+.db-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  /* Visual section grouping — mirrors MapPresets/DataControls internal layout */
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Connection status label — coloured to indicate state */
+  &__status {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+
+    &--connected {
+      color: #4ade80;
+    }
+
+    &--disconnected {
+      color: #f87171;
+    }
+  }
+
+  /* Logserver version beneath the status label */
+  &__subtitle {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.35);
+    margin-top: -6px;
+  }
+
+  /* Section labels (Sync) */
+  &__label {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Individual field group */
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__field-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  &__field-desc {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.35);
+  }
+
+  /* Input styled to match sidebar controls (select, buttons) */
+  &__field-input {
+    width: 100%;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    background: rgba(50, 50, 50, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+
+    &:focus {
+      outline: none;
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Hide number input spinners for a cleaner look */
+    &[type="number"] {
+      -moz-appearance: textfield;
+
+      &::-webkit-outer-spin-button,
+      &::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+    }
+  }
+
+  /* Loading placeholder */
+  &__loading {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 13px;
+    padding: 20px 0;
+  }
+}

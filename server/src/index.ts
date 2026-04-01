@@ -8,9 +8,11 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 import express from "express";
 import cors from "cors";
 import rssiRoutes from "./routes/rssi.js";
+import settingsRoutes from "./routes/settings.js";
 import { startSync, stopSync } from "./services/sync.js";
-import { closePool } from "./db/remote.js";
+import { createPool, closePool } from "./db/remote.js";
 import { closeDb } from "./db/local.js";
+import { getSettings, isConfigured } from "./db/settings.js";
 import logger from "./utils/log.js";
 
 const app = express();
@@ -22,6 +24,7 @@ app.use(express.json());
 
 /* Mount API routes */
 app.use("/api", rssiRoutes);
+app.use("/api", settingsRoutes);
 
 /* Serve the built Vite client as static files (production mode) */
 const clientDist = path.resolve(__dirname, "../../client/dist");
@@ -44,6 +47,13 @@ process.on("SIGINT", shutdown);
 
 app.listen(PORT, HOST, () => {
   logger.info(`Running on http://${HOST}:${PORT}`);
-  /* Begin syncing RSSI data from the remote TetraFlex database */
-  startSync();
+
+  /* Initialize MySQL pool and sync service only if credentials are configured */
+  if (isConfigured()) {
+    const settings = getSettings();
+    createPool(settings);
+    startSync();
+  } else {
+    logger.info("Waiting for database configuration via UI");
+  }
 });

@@ -20,6 +20,38 @@
     margin-bottom: 24px;
   }
 
+  /* Tab bar — two equal-width tabs side by side */
+  &__tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+  }
+
+  /* Individual tab button */
+  &__tab {
+    flex: 1;
+    padding: 8px 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.5);
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+
+    &:hover {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* Active tab — brighter text and border */
+    &--active {
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(50, 50, 50, 0.5);
+    }
+  }
+
   /* Scrollable area for sidebar controls */
   &__content {
     flex: 1;
@@ -51,6 +83,29 @@
 
     &:hover:not(:disabled) {
       background: rgba(70, 70, 70, 0.9);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  /* Apply button — blue accent, pinned to sidebar floor on Database tab */
+  &__apply-btn {
+    width: 100%;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    background: rgba(30, 100, 185, 0.7);
+    border: 1px solid rgba(60, 140, 220, 0.4);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover:not(:disabled) {
+      background: rgba(30, 100, 185, 0.9);
     }
 
     &:disabled {
