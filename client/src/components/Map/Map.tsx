@@ -80,7 +80,7 @@ const Map = () => {
   const [resetting, setResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [lastReset, setLastReset] = useState<string | null>(() => localStorage.getItem("lastCacheReset"));
-  const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/navigation-preview-night-v4");
+  const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/navigation-guidance-night-v4");
   const [layerType, setLayerType] = useState<LayerType>("heatmap");
   const [layerSettings, setLayerSettings] = useState<LayerSettings>(DEFAULT_LAYER_SETTINGS);
   const [fileReadings, setFileReadings] = useState<Reading[] | null>(null);
