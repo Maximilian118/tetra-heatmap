@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import DeckGL from "@deck.gl/react";
 import { Map as MapGL } from "react-map-gl/mapbox";
-import { HeatmapLayer } from "@deck.gl/aggregation-layers";
-import { ScatterplotLayer } from "@deck.gl/layers";
+import { HeatmapLayer, HexagonLayer } from "@deck.gl/aggregation-layers";
+import { ScatterplotLayer, LineLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { fetchReadings, resetCache, type Reading } from "../../utils/api";
 import { saveDataset, loadDataset, type SavedViewState } from "../../utils/dataset";
 import { readingsBounds } from "../../utils/geojson";
-import { normalizeRssi, RSSI_COLOR_RANGE } from "../../utils/rssi";
+import { normalizeRssi, rssiElevationWeight, rssiToColor, RSSI_COLOR_RANGE, buildLineSegments } from "../../utils/rssi";
+import type { LayerType } from "./Sidebar/MapPresets/MapPresets";
 import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
 import Sidebar from "./Sidebar/Sidebar";
 import RssiLegend from "./RssiLegend/RssiLegend";
@@ -79,6 +80,7 @@ const Map = () => {
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [lastReset, setLastReset] = useState<string | null>(() => localStorage.getItem("lastCacheReset"));
   const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/navigation-preview-night-v4");
+  const [layerType, setLayerType] = useState<LayerType>("heatmap");
   const [fileReadings, setFileReadings] = useState<Reading[] | null>(null);
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
 
@@ -143,50 +145,102 @@ const Map = () => {
     [displayedReadings]
   );
 
-  /* Build deck.gl layers — heatmap for visualisation, scatterplot for hover picking */
-  const layers = useMemo(() => [
-    /* Smooth heatmap coloured by average RSSI value (not density).
-       MEAN aggregation gives the weighted average RSSI at each pixel.
-       colorDomain [0.01, 1.0] ensures all readings render at full opacity —
-       colour alone conveys signal quality, no alpha fading for weak signals. */
-    new HeatmapLayer<Reading>({
-      id: "rssi-heatmap",
-      data: validReadings,
-      getPosition: (d) => [d.longitude, d.latitude],
-      getWeight: (d) => normalizeRssi(d.rssi!),
-      aggregation: "MEAN",
-      colorDomain: [0.3, 1.0],
-      colorRange: RSSI_COLOR_RANGE,
-      radiusPixels: 20,
-      intensity: 1,
-      opacity: 0.8,
-      debounceTimeout: 500,
-    }),
+  /* Pre-compute line segments when in line mode (memoised to avoid re-grouping on every render) */
+  const lineSegments = useMemo(
+    () => (layerType === "line" ? buildLineSegments(validReadings) : []),
+    [validReadings, layerType]
+  );
 
-    /* Invisible pickable dots for hover tooltips */
-    new ScatterplotLayer<Reading>({
-      id: "rssi-tooltip-targets",
-      data: validReadings,
-      getPosition: (d) => [d.longitude, d.latitude],
-      getRadius: 8,
-      radiusMinPixels: 8,
-      getFillColor: [0, 0, 0, 0],
-      pickable: true,
-      onHover: (info: PickingInfo<Reading>) => {
-        if (info.object) {
-          setTooltip({
-            x: info.x,
-            y: info.y,
-            ssi: info.object.ssi,
-            rssi: info.object.rssi!,
-            timestamp: info.object.timestamp,
-          });
-        } else {
-          setTooltip(null);
-        }
-      },
-    }),
-  ], [validReadings]);
+  /* Build deck.gl layers — the visualisation layer changes based on layerType,
+     while the invisible scatterplot for hover tooltips is always present. */
+  const layers = useMemo(() => {
+    /* Choose the primary visualisation layer based on the active layer type */
+    const vizLayer =
+      layerType === "hexagon"
+        ? /* 3D hexagonal bins — both colour and height encode average RSSI per hex */
+          new HexagonLayer<Reading>({
+            id: "rssi-hexagon",
+            data: validReadings,
+            getPosition: (d) => [d.longitude, d.latitude],
+            getColorWeight: (d) => normalizeRssi(d.rssi!),
+            colorAggregation: "MEAN",
+            colorDomain: [0.1, 1.0],
+            colorRange: RSSI_COLOR_RANGE,
+            getElevationWeight: (d) => rssiElevationWeight(d.rssi!),
+            elevationAggregation: "MEAN",
+            elevationDomain: [0, 1],
+            elevationRange: [2, 80],
+            elevationScale: 1,
+            upperPercentile: 100,
+            radius: 3,
+            extruded: true,
+            coverage: 0.85,
+            opacity: 0.8,
+            material: {
+              ambient: 0.64,
+              diffuse: 0.6,
+              shininess: 32,
+              specularColor: [51, 51, 51],
+            },
+          })
+        : layerType === "line"
+          ? /* Per-radio movement trails coloured by RSSI at each segment endpoint */
+            new LineLayer({
+              id: "rssi-lines",
+              data: lineSegments,
+              getSourcePosition: (d) => d.sourcePosition,
+              getTargetPosition: (d) => d.targetPosition,
+              getColor: (d) => rssiToColor(d.rssi),
+              getWidth: 10,
+              widthMinPixels: 1,
+              opacity: 0.8,
+            })
+          : /* Smooth heatmap coloured by average RSSI value (not density).
+               MEAN aggregation gives the weighted average RSSI at each pixel.
+               colorDomain [0.3, 1.0] ensures all readings render at full opacity —
+               colour alone conveys signal quality, no alpha fading for weak signals. */
+            new HeatmapLayer<Reading>({
+              id: "rssi-heatmap",
+              data: validReadings,
+              getPosition: (d) => [d.longitude, d.latitude],
+              getWeight: (d) => normalizeRssi(d.rssi!),
+              aggregation: "MEAN",
+              colorDomain: [0.3, 1.0],
+              colorRange: RSSI_COLOR_RANGE,
+              radiusPixels: 20,
+              intensity: 1,
+              opacity: 0.8,
+              debounceTimeout: 500,
+            });
+
+    return [
+      vizLayer,
+
+      /* Invisible pickable dots for hover tooltips — active on all layer types */
+      new ScatterplotLayer<Reading>({
+        id: "rssi-tooltip-targets",
+        data: validReadings,
+        getPosition: (d) => [d.longitude, d.latitude],
+        getRadius: 8,
+        radiusMinPixels: 8,
+        getFillColor: [0, 0, 0, 0],
+        pickable: true,
+        onHover: (info: PickingInfo<Reading>) => {
+          if (info.object) {
+            setTooltip({
+              x: info.x,
+              y: info.y,
+              ssi: info.object.ssi,
+              rssi: info.object.rssi!,
+              timestamp: info.object.timestamp,
+            });
+          } else {
+            setTooltip(null);
+          }
+        },
+      }),
+    ];
+  }, [validReadings, layerType, lineSegments]);
 
   /* Download the currently displayed readings as a JSON file via the browser save dialog */
   const handleSaveData = useCallback(() => {
@@ -250,9 +304,11 @@ const Map = () => {
         resetMessage={resetMessage}
         lastReset={lastReset}
         mapStyle={mapStyle}
+        layerType={layerType}
         readingCount={displayedReadings.length}
         isFileMode={fileReadings !== null}
         onStyleChange={setMapStyle}
+        onLayerTypeChange={setLayerType}
         onSaveData={handleSaveData}
         onLoadData={handleLoadData}
         onResumeLive={handleResumeLive}

@@ -1,3 +1,5 @@
+import type { Reading } from "./api";
+
 /* RSSI normalisation range based on TETRA signal quality standards.
    -110 dBm: just below Rx sensitivity / radio link failure (-105 to -109)
    -20 dBm:  BS422 RSSI dynamic range ceiling */
@@ -8,6 +10,66 @@ const RSSI_RANGE = RSSI_MAX - RSSI_MIN;
 /* Normalise RSSI from [-110, -20] → [0, 1] */
 export const normalizeRssi = (rssi: number) =>
   Math.max(0, Math.min(1, (rssi - RSSI_MIN) / RSSI_RANGE));
+
+/* V-shaped elevation weight for HexagonLayer — returns 0 at the deep green
+   sweet spot (normalised 0.75 ≈ -42 dBm) and 1.0 at both extremes:
+   near-black red (unusable, 0.0) and blue (over-strong, 1.0).
+   Makes bad signal zones tall and good zones flat. */
+const ELEVATION_CENTER = 0.55;
+export const rssiElevationWeight = (rssi: number): number => {
+  const n = normalizeRssi(rssi);
+  return n <= ELEVATION_CENTER
+    ? (ELEVATION_CENTER - n) / ELEVATION_CENTER
+    : (n - ELEVATION_CENTER) / (1 - ELEVATION_CENTER);
+};
+
+/* Pick an RGB colour from RSSI_COLOR_RANGE based on a normalised [0,1] value */
+export const rssiToColor = (rssi: number): [number, number, number, number] => {
+  const t = normalizeRssi(rssi);
+  const idx = Math.min(Math.floor(t * (RSSI_COLOR_RANGE.length - 1)), RSSI_COLOR_RANGE.length - 1);
+  const [r, g, b] = RSSI_COLOR_RANGE[idx];
+  return [r, g, b, 200];
+};
+
+/* A single line segment connecting two consecutive positions from the same radio */
+export interface LineSegment {
+  sourcePosition: [number, number];
+  targetPosition: [number, number];
+  rssi: number;
+}
+
+/* Build line segments from readings, grouped by SSI (radio identity).
+   Each radio's readings are sorted by timestamp and consecutive pairs
+   become line segments coloured by the destination reading's RSSI. */
+export const buildLineSegments = (readings: Reading[]): LineSegment[] => {
+  /* Group readings by radio SSI */
+  const bySSI = new Map<number, Reading[]>();
+  for (const r of readings) {
+    const group = bySSI.get(r.ssi);
+    if (group) group.push(r);
+    else bySSI.set(r.ssi, [r]);
+  }
+
+  const segments: LineSegment[] = [];
+
+  /* For each radio, sort by timestamp and connect consecutive positions */
+  for (const group of bySSI.values()) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
+    for (let i = 1; i < group.length; i++) {
+      const prev = group[i - 1];
+      const curr = group[i];
+      segments.push({
+        sourcePosition: [prev.longitude, prev.latitude],
+        targetPosition: [curr.longitude, curr.latitude],
+        rssi: curr.rssi!,
+      });
+    }
+  }
+
+  return segments;
+};
 
 /* 21-stop colour ramp calibrated to TETRA signal quality thresholds.
    Each stop spans ~4.5 dB across -110 to -20 dBm.

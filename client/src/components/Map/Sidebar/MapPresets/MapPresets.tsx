@@ -1,5 +1,15 @@
 import "./MapPresets.scss";
 
+/* The three available deck.gl visualisation modes */
+export type LayerType = "heatmap" | "hexagon" | "line";
+
+/* Button definitions for the layer toggle row */
+const LAYER_OPTIONS: { type: LayerType; label: string }[] = [
+  { type: "heatmap", label: "Heat" },
+  { type: "hexagon", label: "Hex" },
+  { type: "line", label: "Line" },
+];
+
 /* All available MapBox GL style presets */
 const MAP_STYLES = [
   { label: "Dark", url: "mapbox://styles/mapbox/dark-v11" },
@@ -20,11 +30,13 @@ const MAP_STYLES = [
 
 interface MapPresetsProps {
   mapStyle: string;
+  layerType: LayerType;
   onStyleChange: (style: string) => void;
+  onLayerTypeChange: (type: LayerType) => void;
 }
 
-/* Dropdown selector for switching MapBox base map style */
-const MapPresets = ({ mapStyle, onStyleChange }: MapPresetsProps) => (
+/* Map style dropdown and layer type toggle for the sidebar */
+const MapPresets = ({ mapStyle, layerType, onStyleChange, onLayerTypeChange }: MapPresetsProps) => (
   <div className="map-presets">
     <label className="map-presets__label" htmlFor="map-style-select">
       Map Style
@@ -41,6 +53,19 @@ const MapPresets = ({ mapStyle, onStyleChange }: MapPresetsProps) => (
         </option>
       ))}
     </select>
+
+    {/* Layer type toggle — three equal-width connected buttons */}
+    <div className="map-presets__layers">
+      {LAYER_OPTIONS.map((opt) => (
+        <button
+          key={opt.type}
+          className={`map-presets__layer-btn ${layerType === opt.type ? "map-presets__layer-btn--active" : ""}`}
+          onClick={() => onLayerTypeChange(opt.type)}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
   </div>
 );
 

@@ -48,4 +48,58 @@
       color: #fff;
     }
   }
+
+  /* Connected button group for switching deck.gl layer type */
+  &__layers {
+    display: flex;
+    margin-top: 4px;
+  }
+
+  /* Individual layer toggle button — equal width, connected borders */
+  &__layer-btn {
+    flex: 1;
+    padding: 8px 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
+    background: rgba(50, 50, 50, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+
+    /* Collapse shared borders between adjacent buttons */
+    & + & {
+      border-left: none;
+    }
+
+    /* Round only the outer corners of the first and last buttons */
+    &:first-child {
+      border-radius: 4px 0 0 4px;
+    }
+
+    &:last-child {
+      border-radius: 0 4px 4px 0;
+    }
+
+    &:hover {
+      background: rgba(70, 70, 70, 0.9);
+    }
+
+    /* Active / selected state */
+    &--active {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.3);
+
+      /* Re-add left border on active button to keep it fully outlined */
+      & + & {
+        border-left: 1px solid rgba(255, 255, 255, 0.3);
+      }
+    }
+
+    /* Also re-add left border when the button after the active one needs its own edge */
+    &--active + & {
+      border-left: 1px solid rgba(255, 255, 255, 0.15);
+    }
+  }
 }
