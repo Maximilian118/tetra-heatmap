@@ -15,7 +15,7 @@ export const testConnection = async (
       user: config.dbUser,
       password: config.dbPassword,
       database: config.dbName,
-      connectTimeout: 10_000,
+      connectTimeout: 3_000,
       ssl: { rejectUnauthorized: false },
     });
     await connection.query("SELECT 1");

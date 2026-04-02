@@ -4,8 +4,8 @@ import {
   getSafeSettings,
   saveSettings,
   validateSettings,
+  coerceSettings,
   isConfigured,
-  type Settings,
 } from "../db/settings.js";
 import { testConnection } from "../utils/testConnection.js";
 import { recreatePool } from "../db/remote.js";
@@ -33,7 +33,7 @@ router.post("/settings/test", async (_req, res) => {
 
 /* Save new settings, test the connection, and restart the sync service */
 router.post("/settings", async (req, res) => {
-  const incoming = req.body as Settings;
+  const incoming = coerceSettings(req.body as Record<string, unknown>);
 
   /* If password is masked (unchanged), preserve the existing stored password */
   if (incoming.dbPassword === "********") {
@@ -43,6 +43,7 @@ router.post("/settings", async (req, res) => {
   /* Validate all fields before saving */
   const errors = validateSettings(incoming);
   if (errors.length > 0) {
+    logger.warn(`Settings validation failed: ${errors.join("; ")}`);
     res.status(400).json({ success: false, errors });
     return;
   }
@@ -55,8 +56,12 @@ router.post("/settings", async (req, res) => {
 
   /* Recreate the MySQL pool and restart the sync service on successful connection */
   if (result.success) {
-    await recreatePool(incoming);
-    restartSync();
+    try {
+      await recreatePool(incoming);
+      restartSync();
+    } catch (err) {
+      logger.error(`Failed to recreate pool or restart sync: ${err}`);
+    }
   }
 
   logger.info(

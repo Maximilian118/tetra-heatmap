@@ -1,5 +1,6 @@
 import mysql from "mysql2/promise";
 import type { Settings } from "./settings.js";
+import logger from "../utils/log.js";
 
 /* Pool instance — created by createPool() when settings are configured */
 let pool: ReturnType<typeof mysql.createPool> | null = null;
@@ -8,6 +9,7 @@ let pool: ReturnType<typeof mysql.createPool> | null = null;
 export const createPool = (
   config: Pick<Settings, "dbHost" | "dbPort" | "dbUser" | "dbPassword" | "dbName">
 ) => {
+  logger.info(`Creating MySQL pool → ${config.dbHost}:${config.dbPort}/${config.dbName}`);
   pool = mysql.createPool({
     host: config.dbHost,
     port: config.dbPort,
@@ -17,7 +19,7 @@ export const createPool = (
     /* Single connection — we only run one sync query at a time */
     connectionLimit: 1,
     /* Fail fast if the connection can't be established */
-    connectTimeout: 10_000,
+    connectTimeout: 3_000,
     /* TetraFlex requires SSL (--require_secure_transport=ON) with a self-signed certificate */
     ssl: { rejectUnauthorized: false },
     /* Prevent idle connections from being dropped */
@@ -32,6 +34,7 @@ export const getPool = () => pool;
 /* Gracefully close all connections in the pool */
 export const closePool = async () => {
   if (pool) {
+    logger.info("Closing MySQL pool");
     await pool.end();
     pool = null;
   }

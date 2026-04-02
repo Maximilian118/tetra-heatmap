@@ -102,17 +102,34 @@ export const getSafeSettings = (): Settings => {
   };
 };
 
+/* Coerce incoming fields to their expected types (guards against untyped JSON bodies) */
+export const coerceSettings = (raw: Record<string, unknown>): Settings => ({
+  dbHost: String(raw.dbHost ?? ""),
+  dbPort: Number(raw.dbPort),
+  dbUser: String(raw.dbUser ?? ""),
+  dbPassword: String(raw.dbPassword ?? ""),
+  dbName: String(raw.dbName ?? ""),
+  syncIntervalMs: Number(raw.syncIntervalMs),
+  syncBatchSize: Number(raw.syncBatchSize),
+  retentionDays: Number(raw.retentionDays),
+});
+
+/* Check that a value is a finite integer (rejects NaN, Infinity, floats) */
+const isInt = (v: unknown): v is number =>
+  typeof v === "number" && Number.isFinite(v) && Number.isInteger(v);
+
 /* Validate settings and return an array of error messages (empty = valid) */
 export const validateSettings = (s: Settings): string[] => {
   const errors: string[] = [];
   if (!s.dbHost.trim()) errors.push("DB host is required");
   if (!s.dbUser.trim()) errors.push("DB user is required");
-  if (s.dbPort < 1 || s.dbPort > 65535) errors.push("DB port must be 1–65535");
-  if (s.syncIntervalMs < SYNC_INTERVAL_MIN)
-    errors.push(`Sync interval must be at least ${SYNC_INTERVAL_MIN}ms`);
-  if (s.syncBatchSize < 1 || s.syncBatchSize > SYNC_BATCH_MAX)
-    errors.push(`Batch size must be 1–${SYNC_BATCH_MAX}`);
-  if (s.retentionDays < RETENTION_DAYS_MIN)
-    errors.push(`Retention must be at least ${RETENTION_DAYS_MIN} day`);
+  if (!isInt(s.dbPort) || s.dbPort < 1 || s.dbPort > 65535)
+    errors.push("DB port must be an integer 1–65535");
+  if (!isInt(s.syncIntervalMs) || s.syncIntervalMs < SYNC_INTERVAL_MIN)
+    errors.push(`Sync interval must be an integer of at least ${SYNC_INTERVAL_MIN}ms`);
+  if (!isInt(s.syncBatchSize) || s.syncBatchSize < 1 || s.syncBatchSize > SYNC_BATCH_MAX)
+    errors.push(`Batch size must be an integer 1–${SYNC_BATCH_MAX}`);
+  if (!isInt(s.retentionDays) || s.retentionDays < RETENTION_DAYS_MIN)
+    errors.push(`Retention must be an integer of at least ${RETENTION_DAYS_MIN} day`);
   return errors;
 };

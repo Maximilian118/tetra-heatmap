@@ -30,6 +30,12 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_readings_timestamp
     ON readings(timestamp);
+
+  /* Single-row table to persist sync metadata across restarts */
+  CREATE TABLE IF NOT EXISTS sync_meta (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    sync_from TEXT
+  );
 `);
 
 /* Reading shape matching the sdsdata + LIP decoded fields */
@@ -75,8 +81,8 @@ export const insertReadings = (readings: Reading[]) => {
 /* Remove readings older than the specified retention period */
 export const pruneOldReadings = (retentionDays: number): number => {
   const result = db.prepare(
-    `DELETE FROM readings WHERE timestamp < datetime('now', '-${retentionDays} days')`
-  ).run();
+    "DELETE FROM readings WHERE timestamp < datetime('now', '-' || ? || ' days')"
+  ).run(retentionDays);
   return result.changes;
 };
 
@@ -91,6 +97,21 @@ export const getAllReadings = () => {
   return db.prepare(
     "SELECT * FROM readings ORDER BY timestamp DESC"
   ).all();
+};
+
+/* Get the persisted sync-from override timestamp, or null if not set */
+export const getSyncFrom = (): string | null => {
+  const row = db.prepare("SELECT sync_from FROM sync_meta WHERE id = 1").get() as
+    | { sync_from: string | null }
+    | undefined;
+  return row?.sync_from ?? null;
+};
+
+/* Persist a sync-from override timestamp (survives server restarts) */
+export const setSyncFrom = (iso: string | null): void => {
+  db.prepare(
+    "INSERT OR REPLACE INTO sync_meta (id, sync_from) VALUES (1, ?)"
+  ).run(iso);
 };
 
 /* Gracefully close the SQLite database */

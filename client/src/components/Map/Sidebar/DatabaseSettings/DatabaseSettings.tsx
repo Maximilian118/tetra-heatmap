@@ -73,11 +73,17 @@ const DatabaseSettings = forwardRef<DatabaseSettingsHandle, DatabaseSettingsProp
           setSettings(data);
           setLoading(false);
         })
-        .catch(() => setLoading(false));
+        .catch((err) => {
+          console.error("Failed to load settings:", err);
+          setLoading(false);
+        });
 
       testDbConnection()
         .then((result) => setConnected(result.connected))
-        .catch(() => setConnected(false));
+        .catch((err) => {
+          console.error("Failed to test DB connection:", err);
+          setConnected(false);
+        });
     }, []);
 
     /* Report saving and status message changes to the parent */

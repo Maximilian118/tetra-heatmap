@@ -4,15 +4,14 @@ import {
   insertReadings,
   pruneOldReadings,
   clearAllReadings,
+  getSyncFrom,
+  setSyncFrom,
 } from "../db/local.js";
 import type { Reading } from "../db/local.js";
 import type { RowDataPacket } from "mysql2";
 import { decodeLipReport } from "../utils/lip.js";
 import { getSettings, isConfigured } from "../db/settings.js";
 import logger from "../utils/log.js";
-
-/* When set, the next empty-DB sync will fetch only data after this timestamp instead of backfilling */
-let syncFromOverride: string | null = null;
 
 /* Tracks whether the last sync failed due to a connection error */
 let isDisconnected = false;
@@ -54,25 +53,28 @@ const syncReadings = async () => {
     let query: string;
     let params: (string | number)[];
 
+    /* Check for a persisted sync-from override (set by cache reset, survives restarts) */
+    const syncFrom = getSyncFrom();
+
     if (latestId) {
       /* Incremental sync — fetch rows with a DbId higher than our latest cached id */
       query = `SELECT DbId, Timestamp, CallingSsi, Rssi, MsDistance, UserData
                FROM sdsdata WHERE ProtocolIdentifier = 10 AND DbId > ?
-               ORDER BY DbId ASC LIMIT ${settings.syncBatchSize}`;
-      params = [latestId];
-    } else if (syncFromOverride) {
+               ORDER BY DbId ASC LIMIT ?`;
+      params = [latestId, settings.syncBatchSize];
+    } else if (syncFrom) {
       /* Post-reset sync — only fetch data after the reset timestamp, no backfill */
       query = `SELECT DbId, Timestamp, CallingSsi, Rssi, MsDistance, UserData
                FROM sdsdata WHERE ProtocolIdentifier = 10 AND Timestamp > ?
-               ORDER BY DbId ASC LIMIT ${settings.syncBatchSize}`;
-      params = [syncFromOverride];
-      syncFromOverride = null;
+               ORDER BY DbId ASC LIMIT ?`;
+      params = [syncFrom, settings.syncBatchSize];
+      setSyncFrom(null);
     } else {
       /* First sync — only fetch data within the retention window */
       query = `SELECT DbId, Timestamp, CallingSsi, Rssi, MsDistance, UserData
-               FROM sdsdata WHERE ProtocolIdentifier = 10 AND Timestamp > DATE_SUB(NOW(), INTERVAL ${settings.retentionDays} DAY)
-               ORDER BY DbId ASC LIMIT ${settings.syncBatchSize}`;
-      params = [];
+               FROM sdsdata WHERE ProtocolIdentifier = 10 AND Timestamp > DATE_SUB(NOW(), INTERVAL ? DAY)
+               ORDER BY DbId ASC LIMIT ?`;
+      params = [settings.retentionDays, settings.syncBatchSize];
     }
 
     const [rows] = await pool.query<SdsRow[]>(query, params);
@@ -139,10 +141,11 @@ const syncReadings = async () => {
         setSyncInterval(RETRY_INTERVAL_MS);
       }
     } else {
-      /* Non-connection errors (query failures, etc.) keep the full log */
+      /* Non-connection errors (query failures, etc.) keep the full log with stack trace */
       const elapsed = Math.round(performance.now() - start);
+      const detail = err instanceof Error ? err.stack ?? err.message : String(err);
       logger.error(
-        `Sync failed after ${elapsed}ms (host: ${settings.dbHost}:${settings.dbPort}): ${err}`
+        `Sync failed after ${elapsed}ms (host: ${settings.dbHost}:${settings.dbPort}): ${detail}`
       );
     }
   }
@@ -199,11 +202,11 @@ export const restartSync = () => {
   }, STARTUP_DELAY_MS);
 };
 
-/* Clear the local cache and set a sync override so the next cycle only fetches new data from now */
+/* Clear the local cache and persist a sync override so the next cycle only fetches new data from now */
 export const resetSync = (): string => {
   const now = new Date().toISOString();
   const cleared = clearAllReadings();
-  syncFromOverride = now;
+  setSyncFrom(now);
   logger.info(`Cache reset — cleared ${cleared} readings, syncing from ${now}`);
   return now;
 };

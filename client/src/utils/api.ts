@@ -41,36 +41,47 @@ export interface SettingsResponse {
   errors?: string[];
 }
 
+/* Assert that a fetch response is OK, throwing the status text on failure */
+const assertOk = async (res: Response): Promise<Response> => {
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res;
+};
+
 /* Fetch all cached RSSI readings from the local database */
 export const fetchReadings = async (): Promise<Reading[]> => {
-  const res = await fetch(`${API_BASE}/rssi`);
+  const res = await assertOk(await fetch(`${API_BASE}/rssi`));
   return res.json();
 };
 
 /* Clear the local RSSI cache and start collecting fresh data from now */
 export const resetCache = async (): Promise<{ success: boolean; syncFrom: string }> => {
-  const res = await fetch(`${API_BASE}/rssi/reset`, { method: "POST" });
+  const res = await assertOk(await fetch(`${API_BASE}/rssi/reset`, { method: "POST" }));
   return res.json();
 };
 
 /* Fetch current database settings from the server (password is masked) */
 export const fetchSettings = async (): Promise<Settings> => {
-  const res = await fetch(`${API_BASE}/settings`);
+  const res = await assertOk(await fetch(`${API_BASE}/settings`));
   return res.json();
 };
 
 /* Test the connection using the currently saved settings */
 export const testDbConnection = async (): Promise<ConnectionTestResult> => {
-  const res = await fetch(`${API_BASE}/settings/test`, { method: "POST" });
+  const res = await assertOk(await fetch(`${API_BASE}/settings/test`, { method: "POST" }));
   return res.json();
 };
 
 /* Save new settings, test connection, and restart sync service */
 export const saveSettings = async (settings: Settings): Promise<SettingsResponse> => {
-  const res = await fetch(`${API_BASE}/settings`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(settings),
-  });
+  const res = await assertOk(
+    await fetch(`${API_BASE}/settings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    })
+  );
   return res.json();
 };
