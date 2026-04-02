@@ -3,6 +3,8 @@ import Confirm from "./Confirm/Confirm";
 import MapPresets from "./MapPresets/MapPresets";
 import type { LayerType } from "./MapPresets/MapPresets";
 import DataControls from "./DataControls/DataControls";
+import Customise from "./Customise/Customise";
+import type { LayerSettings } from "./Customise/Customise";
 import DatabaseSettings from "./DatabaseSettings/DatabaseSettings";
 import type { DatabaseSettingsHandle } from "./DatabaseSettings/DatabaseSettings";
 import "./Sidebar.scss";
@@ -19,10 +21,12 @@ interface SidebarProps {
   lastReset: string | null;
   mapStyle: string;
   layerType: LayerType;
+  layerSettings: LayerSettings;
   readingCount: number;
   isFileMode: boolean;
   onStyleChange: (style: string) => void;
   onLayerTypeChange: (type: LayerType) => void;
+  onSettingsChange: (settings: LayerSettings) => void;
   onSaveData: () => void;
   onLoadData: (file: File) => void;
   onResumeLive: () => void;
@@ -30,7 +34,7 @@ interface SidebarProps {
 }
 
 /* Left sidebar panel with Map and Database tabs */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, readingCount, isFileMode, onStyleChange, onLayerTypeChange, onSaveData, onLoadData, onResumeLive, onReset }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readingCount, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("map");
   const [confirming, setConfirming] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -87,6 +91,11 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, read
               onSave={onSaveData}
               onLoad={onLoadData}
               onResumeLive={onResumeLive}
+            />
+            <Customise
+              layerType={layerType}
+              settings={layerSettings}
+              onSettingsChange={onSettingsChange}
             />
           </>
         ) : (

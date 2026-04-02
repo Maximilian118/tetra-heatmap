@@ -1,0 +1,93 @@
+/* Customise section — adjustable layer styling sliders */
+.customise {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  /* Section label — matches Data / Map Style labels */
+  &__label {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Individual slider with label row and range input */
+  &__slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 4px;
+  }
+
+  /* Label and value on the same row */
+  &__slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* Slider parameter name */
+  &__slider-name {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  /* Current value readout */
+  &__slider-value {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+    min-width: 32px;
+    text-align: right;
+  }
+
+  /* Range input styled to match dark sidebar theme */
+  &__slider {
+    width: 100%;
+    height: 4px;
+    appearance: none;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+
+    /* Thumb — WebKit (Chrome, Safari, Edge) */
+    &::-webkit-slider-thumb {
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.1s;
+
+      &:hover {
+        transform: scale(1.2);
+      }
+    }
+
+    /* Thumb — Firefox */
+    &::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      border: none;
+      cursor: pointer;
+
+      &:hover {
+        transform: scale(1.2);
+      }
+    }
+
+    /* Track — Firefox */
+    &::-moz-range-track {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+    }
+  }
+}

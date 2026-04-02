@@ -10,6 +10,7 @@ import { saveDataset, loadDataset, type SavedViewState } from "../../utils/datas
 import { readingsBounds } from "../../utils/geojson";
 import { normalizeRssi, rssiElevationWeight, rssiToColor, RSSI_COLOR_RANGE, buildLineSegments } from "../../utils/rssi";
 import type { LayerType } from "./Sidebar/MapPresets/MapPresets";
+import { DEFAULT_LAYER_SETTINGS, type LayerSettings } from "./Sidebar/Customise/Customise";
 import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
 import Sidebar from "./Sidebar/Sidebar";
 import RssiLegend from "./RssiLegend/RssiLegend";
@@ -81,6 +82,7 @@ const Map = () => {
   const [lastReset, setLastReset] = useState<string | null>(() => localStorage.getItem("lastCacheReset"));
   const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/navigation-preview-night-v4");
   const [layerType, setLayerType] = useState<LayerType>("heatmap");
+  const [layerSettings, setLayerSettings] = useState<LayerSettings>(DEFAULT_LAYER_SETTINGS);
   const [fileReadings, setFileReadings] = useState<Reading[] | null>(null);
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
 
@@ -170,12 +172,12 @@ const Map = () => {
             elevationAggregation: "MEAN",
             elevationDomain: [0, 1],
             elevationRange: [2, 80],
-            elevationScale: 1,
+            elevationScale: layerSettings.elevationScale,
             upperPercentile: 100,
-            radius: 3,
+            radius: layerSettings.hexRadius,
             extruded: true,
-            coverage: 0.85,
-            opacity: 0.8,
+            coverage: layerSettings.coverage,
+            opacity: layerSettings.opacity,
             material: {
               ambient: 0.64,
               diffuse: 0.6,
@@ -191,9 +193,9 @@ const Map = () => {
               getSourcePosition: (d) => d.sourcePosition,
               getTargetPosition: (d) => d.targetPosition,
               getColor: (d) => rssiToColor(d.rssi),
-              getWidth: 10,
+              getWidth: layerSettings.lineWidth,
               widthMinPixels: 1,
-              opacity: 0.8,
+              opacity: layerSettings.opacity,
             })
           : /* Smooth heatmap coloured by average RSSI value (not density).
                MEAN aggregation gives the weighted average RSSI at each pixel.
@@ -207,9 +209,9 @@ const Map = () => {
               aggregation: "MEAN",
               colorDomain: [0.3, 1.0],
               colorRange: RSSI_COLOR_RANGE,
-              radiusPixels: 20,
+              radiusPixels: layerSettings.radiusPixels,
               intensity: 1,
-              opacity: 0.8,
+              opacity: layerSettings.opacity,
               debounceTimeout: 500,
             });
 
@@ -240,7 +242,7 @@ const Map = () => {
         },
       }),
     ];
-  }, [validReadings, layerType, lineSegments]);
+  }, [validReadings, layerType, lineSegments, layerSettings]);
 
   /* Download the currently displayed readings as a JSON file via the browser save dialog */
   const handleSaveData = useCallback(() => {
@@ -305,10 +307,12 @@ const Map = () => {
         lastReset={lastReset}
         mapStyle={mapStyle}
         layerType={layerType}
+        layerSettings={layerSettings}
         readingCount={displayedReadings.length}
         isFileMode={fileReadings !== null}
         onStyleChange={setMapStyle}
         onLayerTypeChange={setLayerType}
+        onSettingsChange={setLayerSettings}
         onSaveData={handleSaveData}
         onLoadData={handleLoadData}
         onResumeLive={handleResumeLive}
