@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Confirm from "./Confirm/Confirm";
 import MapPresets from "./MapPresets/MapPresets";
 import type { LayerType } from "./MapPresets/MapPresets";
@@ -8,6 +8,9 @@ import type { LayerSettings } from "./Customise/Customise";
 import DatabaseSettings from "./DatabaseSettings/DatabaseSettings";
 import type { DatabaseSettingsHandle } from "./DatabaseSettings/DatabaseSettings";
 import "./Sidebar.scss";
+
+/* Breakpoint at which the sidebar collapses into a mobile overlay */
+const MOBILE_BREAKPOINT = 768;
 
 /* Format an ISO timestamp into a user-friendly locale string */
 const formatResetDate = (iso: string): string =>
@@ -40,6 +43,15 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
   const [dbSaving, setDbSaving] = useState(false);
   const [dbStatusMessage, setDbStatusMessage] = useState<string | null>(null);
   const dbRef = useRef<DatabaseSettingsHandle>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= MOBILE_BREAKPOINT);
+
+  /* Track viewport width to toggle mobile mode */
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   /* Execute the reset and dismiss the confirmation overlay */
   const handleConfirm = () => {
@@ -57,7 +69,20 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
   );
 
   return (
-    <aside className="sidebar">
+    <>
+    {/* Hamburger toggle — visible only on mobile when sidebar is closed */}
+    {isMobile && !mobileOpen && (
+      <button className="sidebar-toggle" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+        <span /><span /><span />
+      </button>
+    )}
+
+    {/* Backdrop — tapping outside the sidebar closes it on mobile */}
+    {isMobile && mobileOpen && (
+      <div className="sidebar-backdrop" onClick={() => setMobileOpen(false)} />
+    )}
+
+    <aside className={`sidebar ${isMobile ? (mobileOpen ? "sidebar--open" : "sidebar--closed") : ""}`}>
       <h1 className="sidebar__title">Tetra Heatmap</h1>
 
       {/* Tab bar — Map on left, Settings on right */}
@@ -139,7 +164,15 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
           onCancel={() => setConfirming(false)}
         />
       )}
+
+      {/* Close button — visible only on mobile when sidebar is open */}
+      {isMobile && mobileOpen && (
+        <button className="sidebar__close" onClick={() => setMobileOpen(false)} aria-label="Close menu">
+          ✕
+        </button>
+      )}
     </aside>
+    </>
   );
 };
 
