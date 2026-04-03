@@ -114,6 +114,13 @@
     }
   }
 
+  /* Subtle interaction hint above the footer buttons */
+  &__hint {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    text-align: center;
+  }
+
   /* Brief confirmation message above the reset button */
   &__message {
     font-size: 12px;

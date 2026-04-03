@@ -106,6 +106,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
       {/* Footer — Map tab shows Reset Cache, Settings tab shows Apply */}
       {activeTab === "map" ? (
         <div className="sidebar__footer">
+          <span className="sidebar__hint">Hold Shift + drag to rotate and tilt the map</span>
           {resetMessage && <span className="sidebar__message">{resetMessage}</span>}
           <button
             className="sidebar__reset-btn"
