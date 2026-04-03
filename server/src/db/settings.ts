@@ -138,10 +138,15 @@ const isInt = (v: unknown): v is number =>
 /* Validate settings and return an array of error messages (empty = valid) */
 export const validateSettings = (s: Settings): string[] => {
   const errors: string[] = [];
-  if (!s.dbHost.trim()) errors.push("DB host is required");
-  if (!s.dbUser.trim()) errors.push("DB user is required");
-  if (!isInt(s.dbPort) || s.dbPort < 1 || s.dbPort > 65535)
-    errors.push("DB port must be an integer 1–65535");
+
+  /* Only enforce DB credential rules when the user has started configuring them */
+  const dbBeingConfigured = s.dbHost.trim() !== "" || s.dbUser.trim() !== "";
+  if (dbBeingConfigured) {
+    if (!s.dbHost.trim()) errors.push("DB host is required");
+    if (!s.dbUser.trim()) errors.push("DB user is required");
+    if (!isInt(s.dbPort) || s.dbPort < 1 || s.dbPort > 65535)
+      errors.push("DB port must be an integer 1–65535");
+  }
   if (!isInt(s.syncIntervalMs) || s.syncIntervalMs < SYNC_INTERVAL_MIN)
     errors.push(`Sync interval must be an integer of at least ${SYNC_INTERVAL_MIN}ms`);
   if (!isInt(s.syncBatchSize) || s.syncBatchSize < 1 || s.syncBatchSize > SYNC_BATCH_MAX)
