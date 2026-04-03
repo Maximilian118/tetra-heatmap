@@ -1,3 +1,5 @@
+@use "../../../styles/variables" as *;
+
 /* RSSI colour legend overlay — bottom center */
 .rssi-legend {
   position: absolute;
@@ -8,7 +10,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  background: rgba(30, 30, 30, 0.85);
+  background: $overlay-bg;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 4px;
   backdrop-filter: blur(4px);

@@ -1,0 +1,3 @@
+/* Shared background for floating map overlays (hamburger toggle, RSSI legend, etc.).
+   Matches the sidebar's base rgb(20, 20, 20) at overlay-appropriate opacity. */
+$overlay-bg: rgba(20, 20, 20, 0.85);
