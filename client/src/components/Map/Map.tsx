@@ -331,7 +331,7 @@ const Map = () => {
         mapStyle={mapStyle}
         layerType={layerType}
         layerSettings={layerSettings}
-        readingCount={displayedReadings.length}
+        readings={displayedReadings}
         isFileMode={fileReadings !== null}
         onStyleChange={setMapStyle}
         onLayerTypeChange={setLayerType}

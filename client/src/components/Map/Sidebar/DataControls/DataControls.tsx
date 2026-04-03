@@ -1,8 +1,10 @@
 import { useRef } from "react";
+import type { Reading } from "../../../../utils/api";
+import { formatReadingSummary } from "../../../../utils/format";
 import "./DataControls.scss";
 
 interface DataControlsProps {
-  readingCount: number;
+  readings: Reading[];
   isFileMode: boolean;
   onSave: () => void;
   onLoad: (file: File) => void;
@@ -10,7 +12,7 @@ interface DataControlsProps {
 }
 
 /* Save/Load buttons for exporting and importing heatmap datasets */
-const DataControls = ({ readingCount, isFileMode, onSave, onLoad, onResumeLive }: DataControlsProps) => {
+const DataControls = ({ readings, isFileMode, onSave, onLoad, onResumeLive }: DataControlsProps) => {
   const fileInput = useRef<HTMLInputElement>(null);
 
   /* Open the native file picker when Load Data is clicked */
@@ -26,11 +28,7 @@ const DataControls = ({ readingCount, isFileMode, onSave, onLoad, onResumeLive }
   return (
     <div className="data-controls">
       <span className="data-controls__label">Data</span>
-      <span className="data-controls__count">
-        {isFileMode
-          ? `Viewing saved file — ${readingCount.toLocaleString()} readings`
-          : `${readingCount.toLocaleString()} reading${readingCount !== 1 ? "s" : ""} loaded`}
-      </span>
+      <span className="data-controls__count">{formatReadingSummary(readings)}</span>
 
       {/* Save Data in live mode, Resume Live in file mode — same slot */}
       {isFileMode ? (
@@ -38,7 +36,7 @@ const DataControls = ({ readingCount, isFileMode, onSave, onLoad, onResumeLive }
           Resume Live
         </button>
       ) : (
-        <button className="data-controls__btn" onClick={onSave} disabled={readingCount === 0}>
+        <button className="data-controls__btn" onClick={onSave} disabled={readings.length === 0}>
           Save Data
         </button>
       )}

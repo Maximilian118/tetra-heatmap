@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import type { Reading } from "../../../utils/api";
 import Confirm from "./Confirm/Confirm";
 import MapPresets from "./MapPresets/MapPresets";
 import type { LayerType } from "./MapPresets/MapPresets";
@@ -25,7 +26,7 @@ interface SidebarProps {
   mapStyle: string;
   layerType: LayerType;
   layerSettings: LayerSettings;
-  readingCount: number;
+  readings: Reading[];
   isFileMode: boolean;
   onStyleChange: (style: string) => void;
   onLayerTypeChange: (type: LayerType) => void;
@@ -37,7 +38,7 @@ interface SidebarProps {
 }
 
 /* Left sidebar panel with Map and Database tabs */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readingCount, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("map");
   const [confirming, setConfirming] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -111,7 +112,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
               onLayerTypeChange={onLayerTypeChange}
             />
             <DataControls
-              readingCount={readingCount}
+              readings={readings}
               isFileMode={isFileMode}
               onSave={onSaveData}
               onLoad={onLoadData}
