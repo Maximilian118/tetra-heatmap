@@ -39,6 +39,8 @@ COPY --from=client-builder /build/client/dist ./client/dist
 # Create the data directory for SQLite (volume mount point)
 RUN mkdir -p /app/server/data
 
+ENV HOST=0.0.0.0
+
 EXPOSE 3001
 
 # Start the server using tsx for TypeScript execution
