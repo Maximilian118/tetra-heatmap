@@ -60,7 +60,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
     <aside className="sidebar">
       <h1 className="sidebar__title">Tetra Heatmap</h1>
 
-      {/* Tab bar — Map on left, Database on right */}
+      {/* Tab bar — Map on left, Settings on right */}
       <div className="sidebar__tabs">
         <button
           className={`sidebar__tab ${activeTab === "map" ? "sidebar__tab--active" : ""}`}
@@ -72,7 +72,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
           className={`sidebar__tab ${activeTab === "database" ? "sidebar__tab--active" : ""}`}
           onClick={() => setActiveTab("database")}
         >
-          Database
+          Settings
         </button>
       </div>
 
@@ -103,7 +103,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
         )}
       </div>
 
-      {/* Footer — Map tab shows Reset Cache, Database tab shows Apply */}
+      {/* Footer — Map tab shows Reset Cache, Settings tab shows Apply */}
       {activeTab === "map" ? (
         <div className="sidebar__footer">
           {resetMessage && <span className="sidebar__message">{resetMessage}</span>}

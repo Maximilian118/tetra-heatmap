@@ -5,7 +5,7 @@ import { HeatmapLayer, HexagonLayer } from "@deck.gl/aggregation-layers";
 import { ScatterplotLayer, LineLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { fetchReadings, resetCache, type Reading } from "../../utils/api";
+import { fetchReadings, resetCache, fetchSettings, type Reading } from "../../utils/api";
 import { saveDataset, loadDataset, type SavedViewState } from "../../utils/dataset";
 import { readingsBounds } from "../../utils/geojson";
 import { normalizeRssi, rssiElevationWeight, rssiToColor, RSSI_COLOR_RANGE, buildLineSegments } from "../../utils/rssi";
@@ -14,13 +14,11 @@ import { DEFAULT_LAYER_SETTINGS, type LayerSettings } from "./Sidebar/Customise/
 import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
 import Sidebar from "./Sidebar/Sidebar";
 import RssiLegend from "./RssiLegend/RssiLegend";
+import MapboxSetup from "./MapboxSetup/MapboxSetup";
 import "./Map.scss";
 
 /* How often to poll for new readings (ms) */
 const POLL_INTERVAL_MS = 30_000;
-
-/* Reads the MapBox token from Vite env */
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string;
 
 /* How long to wait after the last interaction before saving view state (ms) */
 const VIEW_SAVE_DELAY_MS = 500;
@@ -36,6 +34,15 @@ interface ViewState {
   bearing: number;
   pitch: number;
 }
+
+/* Fallback viewport when there are no readings and no saved view in localStorage */
+const DEFAULT_VIEW: ViewState = {
+  longitude: 0,
+  latitude: 30,
+  zoom: 2,
+  bearing: 0,
+  pitch: 0,
+};
 
 /* Compute a viewport that encompasses a bounding box [west, south, east, north] */
 const viewStateFromBounds = (bounds: [number, number, number, number]): ViewState => {
@@ -84,6 +91,7 @@ const Map = () => {
   const [layerType, setLayerType] = useState<LayerType>("heatmap");
   const [layerSettings, setLayerSettings] = useState<LayerSettings>(DEFAULT_LAYER_SETTINGS);
   const [fileReadings, setFileReadings] = useState<Reading[] | null>(null);
+  const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
 
   /* Use file data when loaded, otherwise fall back to live server data */
@@ -140,6 +148,13 @@ const Map = () => {
     const id = setInterval(loadReadings, POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, [loadReadings]);
+
+  /* Fetch the Mapbox token from server settings on mount */
+  useEffect(() => {
+    fetchSettings()
+      .then((s) => setMapboxToken(s.mapboxToken || ""))
+      .catch((err) => console.error("[map] Failed to fetch settings:", err));
+  }, []);
 
   /* Filter out readings without a valid RSSI — they can't be visualised */
   const validReadings = useMemo(
@@ -294,10 +309,18 @@ const Map = () => {
     }
   };
 
-  /* Don't render the map until we know where the data is */
-  if (!initialView) {
+  /* Still loading settings from server */
+  if (mapboxToken === null) {
     return <div className="map-container" />;
   }
+
+  /* No Mapbox token configured — show first-time setup screen */
+  if (!mapboxToken) {
+    return <MapboxSetup />;
+  }
+
+  /* Resolve the viewport: saved view > data bounds > world overview fallback */
+  const resolvedView = initialView ?? DEFAULT_VIEW;
 
   return (
     <div className="map-container">
@@ -323,14 +346,14 @@ const Map = () => {
         {/* DeckGL as root — owns canvas + interactions.
             MapGL is a child that renders tiles and follows DeckGL's viewport. */}
         <DeckGL
-          initialViewState={initialView}
+          initialViewState={resolvedView}
           controller
           layers={layers}
           onViewStateChange={handleViewStateChange}
           onError={handleDeckError}
         >
           <MapGL
-            mapboxAccessToken={MAPBOX_TOKEN}
+            mapboxAccessToken={mapboxToken}
             mapStyle={mapStyle}
             onError={handleMapError}
           />

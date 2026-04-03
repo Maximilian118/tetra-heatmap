@@ -1,7 +1,8 @@
 import db from "./local.js";
 
-/* Shape of the persisted database and sync configuration */
+/* Shape of the persisted database, sync, and Mapbox configuration */
 export interface Settings {
+  mapboxToken: string;
   dbHost: string;
   dbPort: number;
   dbUser: string;
@@ -19,6 +20,7 @@ export const RETENTION_DAYS_MIN = 1;
 
 /* Sensible defaults for a fresh deployment with no saved settings */
 export const DEFAULT_SETTINGS: Settings = {
+  mapboxToken: "",
   dbHost: "",
   dbPort: 3306,
   dbUser: "",
@@ -33,6 +35,7 @@ export const DEFAULT_SETTINGS: Settings = {
 db.exec(`
   CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
+    mapbox_token TEXT NOT NULL DEFAULT '',
     db_host TEXT NOT NULL DEFAULT '',
     db_port INTEGER NOT NULL DEFAULT 3306,
     db_user TEXT NOT NULL DEFAULT '',
@@ -44,17 +47,23 @@ db.exec(`
   )
 `);
 
+/* Migration: add mapbox_token column for existing databases */
+try {
+  db.exec("ALTER TABLE settings ADD COLUMN mapbox_token TEXT NOT NULL DEFAULT ''");
+} catch { /* column already exists */ }
+
 /* Prepared statements for reading and writing settings */
 const selectStmt = db.prepare("SELECT * FROM settings WHERE id = 1");
 const upsertStmt = db.prepare(`
   INSERT OR REPLACE INTO settings
-    (id, db_host, db_port, db_user, db_password, db_name, sync_interval_ms, sync_batch_size, retention_days)
+    (id, mapbox_token, db_host, db_port, db_user, db_password, db_name, sync_interval_ms, sync_batch_size, retention_days)
   VALUES
-    (1, @dbHost, @dbPort, @dbUser, @dbPassword, @dbName, @syncIntervalMs, @syncBatchSize, @retentionDays)
+    (1, @mapboxToken, @dbHost, @dbPort, @dbUser, @dbPassword, @dbName, @syncIntervalMs, @syncBatchSize, @retentionDays)
 `);
 
 /* Map a database row to the Settings interface */
 interface SettingsRow {
+  mapbox_token: string;
   db_host: string;
   db_port: number;
   db_user: string;
@@ -66,6 +75,7 @@ interface SettingsRow {
 }
 
 const rowToSettings = (row: SettingsRow): Settings => ({
+  mapboxToken: row.mapbox_token,
   dbHost: row.db_host,
   dbPort: row.db_port,
   dbUser: row.db_user,
@@ -88,6 +98,12 @@ export const isConfigured = (): boolean => {
   return s.dbHost.trim() !== "" && s.dbUser.trim() !== "";
 };
 
+/* Returns true if a Mapbox access token has been configured */
+export const isMapboxConfigured = (): boolean => {
+  const s = getSettings();
+  return s.mapboxToken.trim() !== "";
+};
+
 /* Persist settings to the database (upsert via INSERT OR REPLACE) */
 export const saveSettings = (s: Settings): void => {
   upsertStmt.run(s);
@@ -104,6 +120,7 @@ export const getSafeSettings = (): Settings => {
 
 /* Coerce incoming fields to their expected types (guards against untyped JSON bodies) */
 export const coerceSettings = (raw: Record<string, unknown>): Settings => ({
+  mapboxToken: String(raw.mapboxToken ?? ""),
   dbHost: String(raw.dbHost ?? ""),
   dbPort: Number(raw.dbPort),
   dbUser: String(raw.dbUser ?? ""),

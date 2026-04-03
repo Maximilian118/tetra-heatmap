@@ -15,8 +15,9 @@ export interface Reading {
   direction: number | null;
 }
 
-/* Shape of database and sync settings */
+/* Shape of database, sync, and Mapbox configuration */
 export interface Settings {
+  mapboxToken: string;
   dbHost: string;
   dbPort: number;
   dbUser: string;

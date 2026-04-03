@@ -1,4 +1,4 @@
-import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
+import { useState, useEffect, useImperativeHandle, useRef, forwardRef } from "react";
 import {
   fetchSettings,
   saveSettings,
@@ -9,6 +9,7 @@ import "./DatabaseSettings.scss";
 
 /* Default form values before settings are loaded from the server */
 const DEFAULTS: Settings = {
+  mapboxToken: "",
   dbHost: "",
   dbPort: 3306,
   dbUser: "",
@@ -65,12 +66,14 @@ const DatabaseSettings = forwardRef<DatabaseSettingsHandle, DatabaseSettingsProp
     const [saving, setSaving] = useState(false);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const savedTokenRef = useRef("");
 
     /* Load current settings and test connection on mount */
     useEffect(() => {
       fetchSettings()
         .then((data) => {
           setSettings(data);
+          savedTokenRef.current = data.mapboxToken;
           setLoading(false);
         })
         .catch((err) => {
@@ -99,7 +102,8 @@ const DatabaseSettings = forwardRef<DatabaseSettingsHandle, DatabaseSettingsProp
       setSettings((prev) => ({ ...prev, [key]: value }));
     };
 
-    /* Save settings, test connection, and update status indicator */
+    /* Save settings, test connection, and update status indicator.
+       Reloads the page if the Mapbox token changed so the map picks it up. */
     const handleApply = async () => {
       setSaving(true);
       setStatusMessage(null);
@@ -110,6 +114,13 @@ const DatabaseSettings = forwardRef<DatabaseSettingsHandle, DatabaseSettingsProp
           setSaving(false);
           return;
         }
+
+        /* Reload so the map re-initialises with the new token */
+        if (settings.mapboxToken !== savedTokenRef.current) {
+          window.location.reload();
+          return;
+        }
+
         setConnected(result.connected);
         setStatusMessage(
           result.connected
@@ -195,6 +206,17 @@ const DatabaseSettings = forwardRef<DatabaseSettingsHandle, DatabaseSettingsProp
             type="number"
             value={settings.retentionDays}
             onChange={(v) => updateField("retentionDays", Number(v))}
+          />
+        </div>
+
+        {/* MapBox section */}
+        <div className="db-settings__section">
+          <span className="db-settings__label">MapBox</span>
+          <SettingsField
+            label="Access Token"
+            description="Create one at account.mapbox.com/access-tokens"
+            value={settings.mapboxToken}
+            onChange={(v) => updateField("mapboxToken", v)}
           />
         </div>
       </div>
