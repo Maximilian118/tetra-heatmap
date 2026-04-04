@@ -36,7 +36,24 @@ db.exec(`
     id INTEGER PRIMARY KEY CHECK (id = 1),
     sync_from TEXT
   );
+
+  /* SSI Register — subscriber metadata imported from the TetraFlex LogServer */
+  CREATE TABLE IF NOT EXISTS subscribers (
+    ssi INTEGER PRIMARY KEY,
+    description TEXT NOT NULL DEFAULT '',
+    organisation_id INTEGER,
+    organisation TEXT NOT NULL DEFAULT '',
+    profile_id INTEGER,
+    profile_name TEXT NOT NULL DEFAULT ''
+  );
 `);
+
+/* Migrations: add columns that may be missing on existing subscribers table */
+try { db.exec("ALTER TABLE subscribers ADD COLUMN description TEXT NOT NULL DEFAULT ''"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE subscribers ADD COLUMN organisation_id INTEGER"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE subscribers ADD COLUMN organisation TEXT NOT NULL DEFAULT ''"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE subscribers ADD COLUMN profile_id INTEGER"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE subscribers ADD COLUMN profile_name TEXT NOT NULL DEFAULT ''"); } catch { /* already exists */ }
 
 /* Reading shape matching the sdsdata + LIP decoded fields */
 export interface Reading {
@@ -112,6 +129,74 @@ export const setSyncFrom = (iso: string | null): void => {
   db.prepare(
     "INSERT OR REPLACE INTO sync_meta (id, sync_from) VALUES (1, ?)"
   ).run(iso);
+};
+
+/* ── Subscriber helpers ─────────────────────────────────────────────── */
+
+/* Shape of a subscriber row enriched with aggregated reading statistics */
+export interface Subscriber {
+  ssi: number;
+  description: string;
+  organisation_id: number | null;
+  organisation: string;
+  profile_id: number | null;
+  profile_name: string;
+  readings_count: number;
+  last_reading: string | null;
+}
+
+/* Return all subscribers joined with per-SSI reading counts and last timestamp */
+export const getAllSubscribers = (): Subscriber[] => {
+  return db
+    .prepare(
+      `SELECT s.ssi, s.description, s.organisation_id, s.organisation,
+              s.profile_id, s.profile_name,
+              COALESCE(r.cnt, 0) AS readings_count,
+              r.last_reading
+       FROM subscribers s
+       LEFT JOIN (
+         SELECT ssi, COUNT(*) AS cnt, MAX(timestamp) AS last_reading
+         FROM readings GROUP BY ssi
+       ) r ON s.ssi = r.ssi
+       ORDER BY r.cnt DESC, s.ssi ASC`
+    )
+    .all() as Subscriber[];
+};
+
+/* Batch upsert subscriber metadata (used by the Import action) */
+export const upsertSubscribers = (
+  rows: Omit<Subscriber, "readings_count" | "last_reading">[]
+): void => {
+  const stmt = db.prepare(`
+    INSERT OR REPLACE INTO subscribers
+      (ssi, description, organisation_id, organisation, profile_id, profile_name)
+    VALUES
+      (@ssi, @description, @organisation_id, @organisation, @profile_id, @profile_name)
+  `);
+
+  const insertMany = db.transaction(
+    (items: Omit<Subscriber, "readings_count" | "last_reading">[]) => {
+      for (const item of items) stmt.run(item);
+    }
+  );
+
+  insertMany(rows);
+};
+
+/* Ensure a minimal subscriber row exists for each SSI (INSERT OR IGNORE) */
+export const ensureSubscribersExist = (ssiList: number[]): void => {
+  const stmt = db.prepare("INSERT OR IGNORE INTO subscribers (ssi) VALUES (?)");
+
+  const insertMany = db.transaction((items: number[]) => {
+    for (const ssi of items) stmt.run(ssi);
+  });
+
+  insertMany(ssiList);
+};
+
+/* Remove all subscriber rows from the local database */
+export const clearSubscribers = (): number => {
+  return db.prepare("DELETE FROM subscribers").run().changes;
 };
 
 /* Gracefully close the SQLite database */

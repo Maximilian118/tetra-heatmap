@@ -75,6 +75,49 @@ export const testDbConnection = async (): Promise<ConnectionTestResult> => {
   return res.json();
 };
 
+/* ── Subscriber API ────────────────────────────────────────────────── */
+
+/* Shape of a subscriber row returned by the server */
+export interface Subscriber {
+  ssi: number;
+  description: string;
+  organisation_id: number | null;
+  organisation: string;
+  profile_id: number | null;
+  profile_name: string;
+  readings_count: number;
+  last_reading: string | null;
+}
+
+/* Fetch all subscribers with per-SSI reading statistics */
+export const fetchSubscribers = async (): Promise<Subscriber[]> => {
+  const res = await assertOk(await fetch(`${API_BASE}/subscribers`));
+  return res.json();
+};
+
+/* Import the full SSI Register from the remote TetraFlex LogServer */
+export const importSubscribers = async (): Promise<{
+  success: boolean;
+  imported?: number;
+  error?: string;
+}> => {
+  const res = await assertOk(
+    await fetch(`${API_BASE}/subscribers/import`, { method: "POST" })
+  );
+  return res.json();
+};
+
+/* Clear all local subscriber data */
+export const clearSubscribers = async (): Promise<{
+  success: boolean;
+  cleared: number;
+}> => {
+  const res = await assertOk(
+    await fetch(`${API_BASE}/subscribers/clear`, { method: "POST" })
+  );
+  return res.json();
+};
+
 /* Save new settings, test connection, and restart sync service */
 export const saveSettings = async (settings: Settings): Promise<SettingsResponse> => {
   const res = await assertOk(

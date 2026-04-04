@@ -4,6 +4,7 @@ import Confirm from "./Confirm/Confirm";
 import MapPresets from "./MapPresets/MapPresets";
 import type { LayerType } from "./MapPresets/MapPresets";
 import DataControls from "./DataControls/DataControls";
+import SsiFilter from "./SsiFilter/SsiFilter";
 import Customise from "./Customise/Customise";
 import type { LayerSettings } from "./Customise/Customise";
 import DatabaseSettings from "./DatabaseSettings/DatabaseSettings";
@@ -35,10 +36,11 @@ interface SidebarProps {
   onLoadData: (file: File) => void;
   onResumeLive: () => void;
   onReset: () => void;
+  onToggleRegister: () => void;
 }
 
 /* Left sidebar panel with Map and Database tabs */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("map");
   const [confirming, setConfirming] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -118,6 +120,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
               onLoad={onLoadData}
               onResumeLive={onResumeLive}
             />
+            <SsiFilter onToggleRegister={onToggleRegister} />
             <Customise
               layerType={layerType}
               settings={layerSettings}

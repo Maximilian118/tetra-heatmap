@@ -14,6 +14,7 @@ import { DEFAULT_LAYER_SETTINGS, type LayerSettings } from "./Sidebar/Customise/
 import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
 import Sidebar from "./Sidebar/Sidebar";
 import RssiLegend from "./RssiLegend/RssiLegend";
+import SsiRegister from "./SsiRegister/SsiRegister";
 import MapboxSetup from "./MapboxSetup/MapboxSetup";
 import "./Map.scss";
 
@@ -93,6 +94,8 @@ const Map = () => {
   const [fileReadings, setFileReadings] = useState<Reading[] | null>(null);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
+  const [registerOpen, setRegisterOpen] = useState(false);
+  const [dbConnected, setDbConnected] = useState(false);
 
   /* Use file data when loaded, otherwise fall back to live server data */
   const displayedReadings = fileReadings ?? readings;
@@ -149,10 +152,13 @@ const Map = () => {
     return () => clearInterval(id);
   }, [loadReadings]);
 
-  /* Fetch the Mapbox token from server settings on mount */
+  /* Fetch the Mapbox token and DB connection status from server settings on mount */
   useEffect(() => {
     fetchSettings()
-      .then((s) => setMapboxToken(s.mapboxToken || ""))
+      .then((s) => {
+        setMapboxToken(s.mapboxToken || "");
+        setDbConnected(s.dbHost.trim() !== "" && s.dbUser.trim() !== "");
+      })
       .catch((err) => console.error("[map] Failed to fetch settings:", err));
   }, []);
 
@@ -291,6 +297,11 @@ const Map = () => {
     setFileReadings(null);
   }, []);
 
+  /* Toggle the SSI Register overlay open/closed */
+  const handleToggleRegister = useCallback(() => {
+    setRegisterOpen((prev) => !prev);
+  }, []);
+
   /* Wipe the local cache, reset the view flag, and show a brief confirmation */
   const handleReset = async () => {
     setResetting(true);
@@ -340,6 +351,7 @@ const Map = () => {
         onLoadData={handleLoadData}
         onResumeLive={handleResumeLive}
         onReset={handleReset}
+        onToggleRegister={handleToggleRegister}
       />
 
       <div className="map-area">
@@ -361,6 +373,14 @@ const Map = () => {
 
         <Tooltip tooltip={tooltip} />
         <RssiLegend />
+
+        {/* SSI Register overlay — rendered on top of the map without unmounting it */}
+        {registerOpen && (
+          <SsiRegister
+            onClose={() => setRegisterOpen(false)}
+            dbConnected={dbConnected}
+          />
+        )}
       </div>
     </div>
   );

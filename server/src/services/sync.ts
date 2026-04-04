@@ -6,6 +6,7 @@ import {
   clearAllReadings,
   getSyncFrom,
   setSyncFrom,
+  ensureSubscribersExist,
 } from "../db/local.js";
 import type { Reading } from "../db/local.js";
 import type { RowDataPacket } from "mysql2";
@@ -110,6 +111,10 @@ const syncReadings = async () => {
 
       if (readings.length > 0) {
         insertReadings(readings);
+
+        /* Ensure every SSI seen in this batch has a row in the subscribers table */
+        const uniqueSsis = [...new Set(readings.map((r) => r.ssi))];
+        ensureSubscribersExist(uniqueSsis);
       }
 
       /* Log how many rows had valid GPS vs total fetched */
