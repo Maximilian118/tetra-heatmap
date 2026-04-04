@@ -1,3 +1,5 @@
+@use "../../../../styles/variables" as *;
+
 /* Map style preset selector */
 .map-presets {
   display: flex;
@@ -8,7 +10,7 @@
   &__label {
     font-size: 12px;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.6);
+    color: $text-tertiary;
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
@@ -19,33 +21,33 @@
     padding: 10px 16px;
     font-size: 13px;
     font-weight: 500;
-    color: #fff;
-    background: rgba(50, 50, 50, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: $text-primary;
+    background: $bg-element;
+    border: 1px solid $border-default;
     border-radius: 4px;
     cursor: pointer;
     transition: background 0.15s;
     appearance: none;
 
     /* Custom dropdown arrow */
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='rgba(255,255,255,0.6)' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a1a1a1' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
     padding-right: 32px;
 
     &:hover {
-      background-color: rgba(70, 70, 70, 0.9);
+      background-color: $bg-element-hover;
     }
 
     &:focus {
       outline: none;
-      border-color: rgba(255, 255, 255, 0.3);
+      border-color: $border-active;
     }
 
     /* Style the dropdown options */
     option {
-      background: #1a1a1a;
-      color: #fff;
+      background: $bg-overlay;
+      color: $text-primary;
     }
   }
 
@@ -62,22 +64,22 @@
     padding: 8px 0;
     font-size: 12px;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.5);
+    color: $text-muted;
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid $border-subtle;
     border-radius: 4px;
     cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
 
     &:hover {
-      color: rgba(255, 255, 255, 0.7);
+      color: $text-secondary;
     }
 
     /* Active / selected state */
     &--active {
-      color: #fff;
-      border-color: rgba(255, 255, 255, 0.3);
-      background: rgba(50, 50, 50, 0.5);
+      color: $text-primary;
+      border-color: $border-active;
+      background: $bg-element-dim;
     }
   }
 }

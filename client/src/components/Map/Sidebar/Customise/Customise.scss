@@ -1,3 +1,5 @@
+@use "../../../../styles/variables" as *;
+
 /* Customise section — adjustable layer styling sliders */
 .customise {
   display: flex;
@@ -8,7 +10,7 @@
   &__label {
     font-size: 12px;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.6);
+    color: $text-tertiary;
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
@@ -31,14 +33,14 @@
   /* Slider parameter name */
   &__slider-name {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.5);
+    color: $text-muted;
   }
 
   /* Current value readout */
   &__slider-value {
     font-size: 12px;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.8);
+    color: $text-secondary;
     min-width: 32px;
     text-align: right;
   }
@@ -48,7 +50,7 @@
     width: 100%;
     height: 4px;
     appearance: none;
-    background: rgba(255, 255, 255, 0.1);
+    background: $border-subtle;
     border-radius: 2px;
     outline: none;
     cursor: pointer;
@@ -59,7 +61,7 @@
       width: 14px;
       height: 14px;
       border-radius: 50%;
-      background: #fff;
+      background: $text-primary;
       border: none;
       cursor: pointer;
       transition: transform 0.1s;
@@ -74,7 +76,7 @@
       width: 14px;
       height: 14px;
       border-radius: 50%;
-      background: #fff;
+      background: $text-primary;
       border: none;
       cursor: pointer;
 
@@ -86,7 +88,7 @@
     /* Track — Firefox */
     &::-moz-range-track {
       height: 4px;
-      background: rgba(255, 255, 255, 0.1);
+      background: $border-subtle;
       border-radius: 2px;
     }
   }

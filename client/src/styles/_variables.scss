@@ -1,3 +1,48 @@
-/* Shared background for floating map overlays (hamburger toggle, RSSI legend, etc.).
-   Matches the sidebar's base rgb(20, 20, 20) at overlay-appropriate opacity. */
-$overlay-bg: rgba(20, 20, 20, 0.85);
+// ── Backgrounds ──────────────────────────────────────
+$bg:                  #202020;   // Sidebar, panels, tooltips
+$bg-overlay:          #141414;   // Confirm overlay
+$bg-element:          #2d2d2d;   // Buttons, inputs, selects
+$bg-element-dim:      #232323;   // Active tab, subdued element backgrounds
+$bg-element-hover:    #414141;   // Hover state for buttons/inputs/selects
+$backdrop:            rgba(0,0,0,0.5);   // Transparent mobile sidebar backdrop
+
+// ── Text ─────────────────────────────────────────────
+$text-primary:        #ffffff;   // Headings, active labels, button text
+$text-secondary:      #cccccc;   // Field labels, hover text, prominent values
+$text-tertiary:       #a1a1a1;   // Body labels, descriptions, close button
+$text-muted:          #808080;   // Inactive tabs, counts, slider names
+$text-subtle:         #666666;   // Hints, subtitles, field descriptions
+
+// ── Borders ──────────────────────────────────────────
+$border-subtle:       #323232;   // Slider tracks, inactive tab/element borders
+$border-default:      #373737;   // Standard element borders
+$border-active:       #5a5a5a;   // Focus/active state borders
+
+// ── Accent: Blue ─────────────────────────────────────
+$accent-blue:         #1b4c88;   // Primary action button background
+$accent-blue-hover:   #1d5ca9;   // Primary action button hover
+$accent-blue-border:  #1c4464;   // Primary action button border
+$accent-blue-link:    #589cdc;   // Hyperlinks
+
+// ── Accent: Red ──────────────────────────────────────
+$accent-red:          #f87171;   // Error text, disconnected status
+$accent-red-bg:       #9c2525;   // Destructive confirm button background
+$accent-red-bg-hover: #b62f2f;   // Destructive confirm button hover
+$accent-red-border:   #642424;   // Destructive confirm button border
+
+// ── Accent: Green ────────────────────────────────────
+$accent-green:        #4ade80;   // Connected status
+
+// ── RSSI Gradient (signal strength data colors) ──────
+$rssi-1:  #500000;   // Very poor
+$rssi-2:  #b2182b;   // Poor
+$rssi-3:  #e6460a;   // Weak
+$rssi-4:  #ffa500;   // Fair
+$rssi-5:  #c8d200;   // Good
+$rssi-6:  #64d228;   // Very good
+$rssi-7:  #32be32;   // Excellent
+$rssi-8:  #22a028;   // Strong
+$rssi-9:  #19821e;   // Very strong
+$rssi-10: #197d46;   // Exceptional
+$rssi-11: #1e64b9;   // Best
+$rssi-12: #1e50dc;   // Perfect

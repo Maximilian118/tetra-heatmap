@@ -1,4 +1,6 @@
 /* Global reset and full-viewport layout */
+@use "../styles/variables" as *;
+
 *,
 *::before,
 *::after {
@@ -20,4 +22,5 @@ body {
   font-family: 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: $bg;
 }
