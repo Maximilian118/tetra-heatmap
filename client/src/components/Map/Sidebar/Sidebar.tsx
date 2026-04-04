@@ -37,10 +37,11 @@ interface SidebarProps {
   onResumeLive: () => void;
   onReset: () => void;
   onToggleRegister: () => void;
+  selectedSsis: Set<number>;
 }
 
 /* Left sidebar panel with Map and Database tabs */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("map");
   const [confirming, setConfirming] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -120,7 +121,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
               onLoad={onLoadData}
               onResumeLive={onResumeLive}
             />
-            <SsiFilter onToggleRegister={onToggleRegister} />
+            <SsiFilter onToggleRegister={onToggleRegister} selectedSsis={selectedSsis} />
             <Customise
               layerType={layerType}
               settings={layerSettings}

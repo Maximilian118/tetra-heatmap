@@ -96,6 +96,7 @@ const Map = () => {
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [dbConnected, setDbConnected] = useState(false);
+  const [selectedSsis, setSelectedSsis] = useState<Set<number>>(new Set());
 
   /* Use file data when loaded, otherwise fall back to live server data */
   const displayedReadings = fileReadings ?? readings;
@@ -162,10 +163,18 @@ const Map = () => {
       .catch((err) => console.error("[map] Failed to fetch settings:", err));
   }, []);
 
+  /* When ISSIs are selected in the SSI Register, only show their readings */
+  const filteredReadings = useMemo(
+    () => selectedSsis.size > 0
+      ? displayedReadings.filter((r) => selectedSsis.has(r.ssi))
+      : displayedReadings,
+    [displayedReadings, selectedSsis]
+  );
+
   /* Filter out readings without a valid RSSI — they can't be visualised */
   const validReadings = useMemo(
-    () => displayedReadings.filter((r) => r.rssi !== null),
-    [displayedReadings]
+    () => filteredReadings.filter((r) => r.rssi !== null),
+    [filteredReadings]
   );
 
   /* Pre-compute line segments when in line mode (memoised to avoid re-grouping on every render) */
@@ -302,6 +311,21 @@ const Map = () => {
     setRegisterOpen((prev) => !prev);
   }, []);
 
+  /* Toggle a single SSI in the selection set */
+  const handleToggleSsi = useCallback((ssi: number) => {
+    setSelectedSsis((prev) => {
+      const next = new Set(prev);
+      if (next.has(ssi)) next.delete(ssi);
+      else next.add(ssi);
+      return next;
+    });
+  }, []);
+
+  /* Clear all SSI selections — show all readings again */
+  const handleResetSsiFilter = useCallback(() => {
+    setSelectedSsis(new Set());
+  }, []);
+
   /* Wipe the local cache, reset the view flag, and show a brief confirmation */
   const handleReset = async () => {
     setResetting(true);
@@ -352,6 +376,7 @@ const Map = () => {
         onResumeLive={handleResumeLive}
         onReset={handleReset}
         onToggleRegister={handleToggleRegister}
+        selectedSsis={selectedSsis}
       />
 
       <div className="map-area">
@@ -379,6 +404,9 @@ const Map = () => {
           <SsiRegister
             onClose={() => setRegisterOpen(false)}
             dbConnected={dbConnected}
+            selectedSsis={selectedSsis}
+            onToggleSsi={handleToggleSsi}
+            onResetFilter={handleResetSsiFilter}
           />
         )}
       </div>

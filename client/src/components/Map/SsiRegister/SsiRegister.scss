@@ -87,6 +87,25 @@
     flex: 1;
   }
 
+  /* Reset filter button — neutral style, only shown when ISSIs are selected */
+  &__btn--reset {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: $text-primary;
+    background: $bg-element;
+    border: 1px solid $border-default;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+    flex-shrink: 0;
+
+    &:hover {
+      background: $bg-element-hover;
+    }
+  }
+
   /* Import button — blue accent like the Apply button */
   &__btn--import {
     padding: 8px 16px;
@@ -171,8 +190,25 @@
       border-bottom: 1px solid $border-subtle;
     }
 
-    tbody tr:hover {
-      background: $bg-element;
+    tbody tr {
+      cursor: pointer;
+
+      &:hover {
+        background: $bg-element;
+      }
+    }
+  }
+
+  /* Highlighted row for selected ISSIs */
+  &__row--selected {
+    background: $accent-blue;
+
+    &:hover {
+      background: $accent-blue-hover !important;
+    }
+
+    td {
+      color: $text-primary !important;
     }
   }
 

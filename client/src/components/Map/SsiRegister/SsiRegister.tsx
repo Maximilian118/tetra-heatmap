@@ -13,9 +13,12 @@ const SEARCH_SHOW_ALL_THRESHOLD = 50;
 interface SsiRegisterProps {
   onClose: () => void;
   dbConnected: boolean;
+  selectedSsis: Set<number>;
+  onToggleSsi: (ssi: number) => void;
+  onResetFilter: () => void;
 }
 
-/* Format a "ID - Description" display string, showing "-" when data is unknown */
+/* Format a "ID - Description" display string, showing em dash when data is unknown */
 const formatIdDesc = (id: number | null, desc: string): string => {
   if (!id && !desc) return "—";
   if (!id) return desc;
@@ -23,14 +26,14 @@ const formatIdDesc = (id: number | null, desc: string): string => {
   return `${id} - ${desc}`;
 };
 
-/* Format an ISO timestamp to a compact locale string, showing "-" when unknown */
+/* Format an ISO timestamp to a compact locale string, showing em dash when unknown */
 const formatTimestamp = (iso: string | null): string => {
   if (!iso) return "—";
   return new Date(iso).toLocaleString();
 };
 
 /* Full-screen overlay displaying the SSI Register table with search, import, and filtering */
-const SsiRegister = ({ onClose, dbConnected }: SsiRegisterProps) => {
+const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetFilter }: SsiRegisterProps) => {
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
@@ -119,6 +122,16 @@ const SsiRegister = ({ onClose, dbConnected }: SsiRegisterProps) => {
     return [...withReadings, ...withoutReadings];
   }, [subscribers, search, showAll]);
 
+  const hasSelection = selectedSsis.size > 0;
+
+  /* Build row class name based on selection and readings state */
+  const rowClassName = (s: Subscriber): string => {
+    const classes: string[] = [];
+    if (selectedSsis.has(s.ssi)) classes.push("ssi-register__row--selected");
+    if (s.readings_count === 0) classes.push("ssi-register__row--dim");
+    return classes.join(" ");
+  };
+
   return (
     <div className="ssi-register">
       {/* Toolbar */}
@@ -144,8 +157,15 @@ const SsiRegister = ({ onClose, dbConnected }: SsiRegisterProps) => {
           Show All
         </label>
 
-        {/* Spacer pushes Import and Clear to the far right */}
+        {/* Spacer pushes action buttons to the far right */}
         <div className="ssi-register__spacer" />
+
+        {/* Reset filter — only visible when ISSIs are selected */}
+        {hasSelection && (
+          <button className="ssi-register__btn--reset" onClick={onResetFilter}>
+            Reset
+          </button>
+        )}
 
         <button
           className="ssi-register__btn--import"
@@ -179,7 +199,11 @@ const SsiRegister = ({ onClose, dbConnected }: SsiRegisterProps) => {
           </thead>
           <tbody>
             {filteredSubscribers.map((s) => (
-              <tr key={s.ssi} className={s.readings_count === 0 ? "ssi-register__row--dim" : ""}>
+              <tr
+                key={s.ssi}
+                className={rowClassName(s)}
+                onClick={() => onToggleSsi(s.ssi)}
+              >
                 <td>{s.ssi}</td>
                 <td className="ssi-register__cell--ellipsis">{s.description || "—"}</td>
                 <td className="ssi-register__cell--ellipsis">
