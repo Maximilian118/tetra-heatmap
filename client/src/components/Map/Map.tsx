@@ -293,7 +293,7 @@ const Map = () => {
         console.error("[map] Failed to fetch subscribers for save:", err);
       }
 
-      saveDataset(displayedReadings, savedView ?? undefined, mapStyle, subscribers);
+      await saveDataset(displayedReadings, savedView ?? undefined, mapStyle, subscribers);
     } finally {
       savingRef.current = false;
     }

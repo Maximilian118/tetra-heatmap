@@ -53,7 +53,7 @@ const DataControls = ({ readings, isFileMode, onSave, onLoad, onResumeLive }: Da
       <input
         ref={fileInput}
         type="file"
-        accept=".json"
+        accept=".json,.thm"
         className="data-controls__file-input"
         onChange={handleFileChange}
       />

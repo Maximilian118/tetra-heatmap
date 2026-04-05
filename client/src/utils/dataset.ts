@@ -1,7 +1,15 @@
 import type { Reading, Subscriber } from "./api";
 
-/* Version identifier for the dataset file format */
-const FORMAT_VERSION = 1;
+/* ── Format versions ──────────────────────────────────────────────────── */
+
+/* v2: gzip-compressed columnar JSON (.thm) */
+const FORMAT_VERSION = 2;
+
+/* Gzip magic bytes used to auto-detect compressed files */
+const GZIP_MAGIC_0 = 0x1f;
+const GZIP_MAGIC_1 = 0x8b;
+
+/* ── Public types ─────────────────────────────────────────────────────── */
 
 /* Saved map viewport included in the dataset file */
 export interface SavedViewState {
@@ -12,8 +20,67 @@ export interface SavedViewState {
   pitch: number;
 }
 
-/* Shape of the exported JSON file */
-interface DatasetEnvelope {
+/* What loadDataset returns — readings plus optional view/style/subscriber metadata */
+export interface DatasetResult {
+  readings: Reading[];
+  viewState?: SavedViewState;
+  mapStyle?: string;
+  subscribers?: Subscriber[];
+}
+
+/* ── Columnar types (v2 internal format) ──────────────────────────────── */
+
+/* Readings stored as parallel arrays — one array per field */
+interface ColumnarReadings {
+  id: number[];
+  ts: string[];
+  ssi: number[];
+  rssi: (number | null)[];
+  msd: (number | null)[];
+  lat: number[];
+  lon: number[];
+  pe: (number | null)[];
+  vel: (number | null)[];
+  dir: (number | null)[];
+}
+
+/* Subscribers stored as parallel arrays */
+interface ColumnarSubscribers {
+  ssi: number[];
+  desc: string[];
+  oid: (number | null)[];
+  org: string[];
+  pid: (number | null)[];
+  pn: string[];
+  rc: number[];
+  lr: (string | null)[];
+  ll: (string | null)[];
+}
+
+/* Abbreviated view state for the compressed envelope */
+interface CompressedViewState {
+  ln: number;
+  lt: number;
+  z: number;
+  b: number;
+  p: number;
+}
+
+/* Shape of the gzip-compressed JSON payload */
+interface CompressedEnvelope {
+  v: typeof FORMAT_VERSION;
+  at: string;
+  n: number;
+  vs?: CompressedViewState;
+  ms?: string;
+  r: ColumnarReadings;
+  s?: ColumnarSubscribers;
+}
+
+/* ── Legacy v1 types ──────────────────────────────────────────────────── */
+
+/* Shape of the legacy JSON file */
+interface LegacyEnvelope {
   version: number;
   exportedAt: string;
   readingCount: number;
@@ -23,13 +90,133 @@ interface DatasetEnvelope {
   subscribers?: Subscriber[];
 }
 
-/* What loadDataset returns — readings plus optional view/style/subscriber metadata */
-export interface DatasetResult {
-  readings: Reading[];
-  viewState?: SavedViewState;
-  mapStyle?: string;
-  subscribers?: Subscriber[];
-}
+/* ── Columnar conversion helpers ──────────────────────────────────────── */
+
+/* Transpose an array of reading objects into parallel column arrays */
+const readingsToColumnar = (readings: Reading[]): ColumnarReadings => {
+  const n = readings.length;
+  const cols: ColumnarReadings = {
+    id: new Array(n),
+    ts: new Array(n),
+    ssi: new Array(n),
+    rssi: new Array(n),
+    msd: new Array(n),
+    lat: new Array(n),
+    lon: new Array(n),
+    pe: new Array(n),
+    vel: new Array(n),
+    dir: new Array(n),
+  };
+
+  for (let i = 0; i < n; i++) {
+    const r = readings[i];
+    cols.id[i] = r.id;
+    cols.ts[i] = r.timestamp;
+    cols.ssi[i] = r.ssi;
+    cols.rssi[i] = r.rssi;
+    cols.msd[i] = r.ms_distance;
+    cols.lat[i] = r.latitude;
+    cols.lon[i] = r.longitude;
+    cols.pe[i] = r.position_error;
+    cols.vel[i] = r.velocity;
+    cols.dir[i] = r.direction;
+  }
+
+  return cols;
+};
+
+/* Transpose parallel column arrays back into an array of reading objects */
+const columnarToReadings = (cols: ColumnarReadings): Reading[] => {
+  const n = cols.id.length;
+  const readings: Reading[] = new Array(n);
+
+  for (let i = 0; i < n; i++) {
+    readings[i] = {
+      id: cols.id[i],
+      timestamp: cols.ts[i],
+      ssi: cols.ssi[i],
+      rssi: cols.rssi[i],
+      ms_distance: cols.msd[i],
+      latitude: cols.lat[i],
+      longitude: cols.lon[i],
+      position_error: cols.pe[i],
+      velocity: cols.vel[i],
+      direction: cols.dir[i],
+    };
+  }
+
+  return readings;
+};
+
+/* Transpose an array of subscriber objects into parallel column arrays */
+const subscribersToColumnar = (subs: Subscriber[]): ColumnarSubscribers => {
+  const n = subs.length;
+  const cols: ColumnarSubscribers = {
+    ssi: new Array(n),
+    desc: new Array(n),
+    oid: new Array(n),
+    org: new Array(n),
+    pid: new Array(n),
+    pn: new Array(n),
+    rc: new Array(n),
+    lr: new Array(n),
+    ll: new Array(n),
+  };
+
+  for (let i = 0; i < n; i++) {
+    const s = subs[i];
+    cols.ssi[i] = s.ssi;
+    cols.desc[i] = s.description;
+    cols.oid[i] = s.organisation_id;
+    cols.org[i] = s.organisation;
+    cols.pid[i] = s.profile_id;
+    cols.pn[i] = s.profile_name;
+    cols.rc[i] = s.readings_count;
+    cols.lr[i] = s.last_reading;
+    cols.ll[i] = s.last_location;
+  }
+
+  return cols;
+};
+
+/* Transpose parallel column arrays back into an array of subscriber objects */
+const columnarToSubscribers = (cols: ColumnarSubscribers): Subscriber[] => {
+  const n = cols.ssi.length;
+  const subs: Subscriber[] = new Array(n);
+
+  for (let i = 0; i < n; i++) {
+    subs[i] = {
+      ssi: cols.ssi[i],
+      description: cols.desc[i],
+      organisation_id: cols.oid[i],
+      organisation: cols.org[i],
+      profile_id: cols.pid[i],
+      profile_name: cols.pn[i],
+      readings_count: cols.rc[i],
+      last_reading: cols.lr[i],
+      last_location: cols.ll[i],
+    };
+  }
+
+  return subs;
+};
+
+/* ── Compression helpers (browser-native gzip) ────────────────────────── */
+
+/* Compress a JSON string into a gzip blob using the browser CompressionStream API */
+const compressToGzip = async (json: string): Promise<Blob> => {
+  const blob = new Blob([json]);
+  const stream = blob.stream().pipeThrough(new CompressionStream("gzip"));
+  return new Response(stream).blob();
+};
+
+/* Decompress a gzip blob back into a JSON string using the browser DecompressionStream API */
+const decompressFromGzip = async (blob: Blob): Promise<string> => {
+  const stream = blob.stream().pipeThrough(new DecompressionStream("gzip"));
+  return new Response(stream).text();
+};
+
+/* ── Filename helpers ─────────────────────────────────────────────────── */
 
 /* Build a zero-padded date string for the default filename */
 const datestamp = (): string => {
@@ -40,33 +227,51 @@ const datestamp = (): string => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-/* Trigger a browser file download with the given readings as a JSON file */
-export const saveDataset = (
+/* ── Save ──────────────────────────────────────────────────────────────── */
+
+/* Build a compressed .thm file and trigger a browser download */
+export const saveDataset = async (
   readings: Reading[],
   viewState?: SavedViewState,
   mapStyle?: string,
   subscribers?: Subscriber[],
-): void => {
-  const envelope: DatasetEnvelope = {
-    version: FORMAT_VERSION,
-    exportedAt: new Date().toISOString(),
-    readingCount: readings.length,
-    readings,
-    viewState,
-    mapStyle,
-    subscribers,
+): Promise<void> => {
+  /* Build the compressed columnar envelope */
+  const envelope: CompressedEnvelope = {
+    v: FORMAT_VERSION,
+    at: new Date().toISOString(),
+    n: readings.length,
+    r: readingsToColumnar(readings),
   };
 
-  const blob = new Blob([JSON.stringify(envelope, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
+  /* Include view state with abbreviated keys */
+  if (viewState) {
+    envelope.vs = {
+      ln: viewState.longitude,
+      lt: viewState.latitude,
+      z: viewState.zoom,
+      b: viewState.bearing,
+      p: viewState.pitch,
+    };
+  }
 
+  if (mapStyle) envelope.ms = mapStyle;
+  if (subscribers?.length) envelope.s = subscribersToColumnar(subscribers);
+
+  /* Serialize to compact JSON (no indentation) then gzip compress */
+  const json = JSON.stringify(envelope);
+  const compressed = await compressToGzip(json);
+
+  /* Trigger browser download */
+  const url = URL.createObjectURL(compressed);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `tetra-heatmap-${datestamp()}.json`;
+  a.download = `tetra-heatmap-${datestamp()}.thm`;
   a.click();
-
   URL.revokeObjectURL(url);
 };
+
+/* ── Load ──────────────────────────────────────────────────────────────── */
 
 /* Per-SSI stats accumulated when deriving subscriber entries from readings */
 interface DerivedStats {
@@ -135,36 +340,63 @@ const isValidReading = (r: unknown): r is Reading => {
   );
 };
 
-/* Read a JSON dataset file and return validated readings with optional view metadata */
-export const loadDataset = (file: File): Promise<DatasetResult> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
+/* Parse a legacy v1 JSON envelope into a DatasetResult */
+const parseLegacyEnvelope = (text: string): DatasetResult => {
+  const parsed = JSON.parse(text) as LegacyEnvelope;
 
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(reader.result as string) as DatasetEnvelope;
+  if (!Array.isArray(parsed.readings)) {
+    throw new Error("Invalid dataset: missing readings array");
+  }
 
-        if (!Array.isArray(parsed.readings)) {
-          throw new Error("Invalid dataset: missing readings array");
-        }
+  /* Validate every reading in the file */
+  const invalid = parsed.readings.findIndex((r) => !isValidReading(r));
+  if (invalid !== -1) {
+    throw new Error(`Invalid reading at index ${invalid}: missing required fields`);
+  }
 
-        /* Validate every reading in the file */
-        const invalid = parsed.readings.findIndex((r) => !isValidReading(r));
-        if (invalid !== -1) {
-          throw new Error(`Invalid reading at index ${invalid}: missing required fields`);
-        }
+  return {
+    readings: parsed.readings,
+    viewState: parsed.viewState,
+    mapStyle: parsed.mapStyle,
+    subscribers: parsed.subscribers,
+  };
+};
 
-        resolve({
-          readings: parsed.readings,
-          viewState: parsed.viewState,
-          mapStyle: parsed.mapStyle,
-          subscribers: parsed.subscribers,
-        });
-      } catch (err) {
-        reject(err instanceof Error ? err : new Error("Failed to parse dataset file"));
-      }
-    };
+/* Parse a v2 compressed columnar envelope into a DatasetResult */
+const parseCompressedEnvelope = (text: string): DatasetResult => {
+  const parsed = JSON.parse(text) as CompressedEnvelope;
 
-    reader.onerror = () => reject(new Error("Failed to read file"));
-    reader.readAsText(file);
-  });
+  if (!parsed.r || !Array.isArray(parsed.r.id)) {
+    throw new Error("Invalid compressed dataset: missing columnar readings");
+  }
+
+  const readings = columnarToReadings(parsed.r);
+
+  /* Reconstruct full view state from abbreviated keys */
+  const viewState: SavedViewState | undefined = parsed.vs
+    ? { longitude: parsed.vs.ln, latitude: parsed.vs.lt, zoom: parsed.vs.z, bearing: parsed.vs.b, pitch: parsed.vs.p }
+    : undefined;
+
+  /* Reconstruct subscribers from columnar format */
+  const subscribers = parsed.s ? columnarToSubscribers(parsed.s) : undefined;
+
+  return { readings, viewState, mapStyle: parsed.ms, subscribers };
+};
+
+/* Read a dataset file (.thm or legacy .json) and return validated readings with optional metadata.
+   Auto-detects format by checking for gzip magic bytes at the start of the file. */
+export const loadDataset = async (file: File): Promise<DatasetResult> => {
+  /* Peek at first 2 bytes to detect gzip magic number (0x1f 0x8b) */
+  const header = new Uint8Array(await file.slice(0, 2).arrayBuffer());
+  const isGzip = header[0] === GZIP_MAGIC_0 && header[1] === GZIP_MAGIC_1;
+
+  if (isGzip) {
+    /* v2 compressed format — decompress then parse columnar JSON */
+    const json = await decompressFromGzip(file);
+    return parseCompressedEnvelope(json);
+  }
+
+  /* Legacy v1 plain JSON — read as text and parse row-oriented format */
+  const text = await file.text();
+  return parseLegacyEnvelope(text);
+};
