@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 import express from "express";
+import compression from "compression";
 import cors from "cors";
 import rssiRoutes from "./routes/rssi.js";
 import settingsRoutes from "./routes/settings.js";
@@ -21,6 +22,7 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || "localhost";
 
+app.use(compression());
 app.use(cors());
 app.use(express.json());
 
@@ -32,8 +34,9 @@ app.use("/api", subscriberRoutes);
 
 /* Serve the built Vite client as static files (production mode) */
 const clientDist = path.resolve(__dirname, "../../client/dist");
-app.use(express.static(clientDist));
+app.use(express.static(clientDist, { maxAge: "1y", immutable: true }));
 app.get("/{*splat}", (_req, res) => {
+  res.setHeader("Cache-Control", "no-cache");
   res.sendFile(path.join(clientDist, "index.html"));
 });
 
