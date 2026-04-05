@@ -245,7 +245,8 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
             ))}
             {filteredSubscribers.length === 0 && (
               <tr>
-                <td colSpan={6} className="ssi-register__empty">
+                {/* colSpan 99 is clamped by the browser to the actual visible column count */}
+              <td colSpan={99} className="ssi-register__empty">
                   {subscribers.length === 0
                     ? "No subscribers — use Import or wait for readings"
                     : "No matching subscribers"}

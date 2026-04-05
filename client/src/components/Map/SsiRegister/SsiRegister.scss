@@ -344,3 +344,42 @@
     }
   }
 }
+
+/* ── Mobile overrides — trim table to essential columns and simplify toolbar ── */
+@media (max-width: 768px) {
+  .ssi-register {
+
+    /* Hide Description, Organisation, and Profile columns */
+    &__table {
+      th:nth-child(2),
+      td:nth-child(2),
+      th:nth-child(3),
+      td:nth-child(3),
+      th:nth-child(4),
+      td:nth-child(4) {
+        display: none;
+      }
+
+      /* Rebalance visible columns for 3-column mobile layout */
+      th:nth-child(1) { width: 20%; }  /* ISSI */
+      th:nth-child(5) { width: 30%; }  /* Readings */
+      th:nth-child(6) { width: 50%; }  /* Last Reading */
+    }
+
+    /* Keep only close button, search bar, and Show All checkbox */
+    &__spacer,
+    &__btn--reset,
+    &__btn--import,
+    &__btn--clear,
+    &__snapshot-notice {
+      display: none;
+    }
+
+    /* Search input fills available toolbar space */
+    &__search {
+      width: auto;
+      flex: 1;
+      flex-shrink: 1;
+    }
+  }
+}
