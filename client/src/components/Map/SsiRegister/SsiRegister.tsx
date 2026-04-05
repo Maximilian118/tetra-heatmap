@@ -272,7 +272,7 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
       {confirmingImport && (
         <Confirm
           title="Import Subscribers"
-          message="This will pull all subscriber metadata (descriptions, organisations, profiles) from the remote TetraFlex LogServer into the local database. Existing subscriber data will be updated."
+          message="This will pull all subscriber metadata from the remote TetraFlex LogServer. Any missing ISSIs will be added to the local register and existing subscriber data will be updated."
           confirmLabel="Import"
           variant="overlay"
           confirmColor="blue"
