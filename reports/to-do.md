@@ -3,7 +3,7 @@
 [ ] - SSI Register styling for mobile viewports
 [ ] - logserver disk usage monitoring and client alerts
 [ ] - logserver load monitoring and client alerts
-[ ] - Data age slider
+[X] - Data age slider
 [ ] - Map data display optimisation
 [ ] - ISSI poll button (Might not be needed)
 [ ] - Add trips deck.gl layer for live ISSI movement

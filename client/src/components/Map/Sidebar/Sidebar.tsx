@@ -38,10 +38,13 @@ interface SidebarProps {
   onReset: () => void;
   onToggleRegister: () => void;
   selectedSsis: Set<number>;
+  dataAgeMinutes: number | null;
+  onDataAgeChange: (minutes: number | null) => void;
+  retentionDays: number;
 }
 
 /* Left sidebar panel with Map and Database tabs */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("map");
   const [confirming, setConfirming] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -121,7 +124,13 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
               onLoad={onLoadData}
               onResumeLive={onResumeLive}
             />
-            <SsiFilter onToggleRegister={onToggleRegister} selectedSsis={selectedSsis} />
+            <SsiFilter
+              onToggleRegister={onToggleRegister}
+              selectedSsis={selectedSsis}
+              dataAgeMinutes={dataAgeMinutes}
+              onDataAgeChange={onDataAgeChange}
+              retentionDays={retentionDays}
+            />
             <Customise
               layerType={layerType}
               settings={layerSettings}

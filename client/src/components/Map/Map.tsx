@@ -99,6 +99,8 @@ const Map = () => {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [dbConnected, setDbConnected] = useState(false);
   const [selectedSsis, setSelectedSsis] = useState<Set<number>>(new Set());
+  const [dataAgeMinutes, setDataAgeMinutes] = useState<number | null>(null);
+  const [retentionDays, setRetentionDays] = useState(5);
 
   /* Use file data when loaded, otherwise fall back to live server data */
   const displayedReadings = fileReadings ?? readings;
@@ -161,16 +163,35 @@ const Map = () => {
       .then((s) => {
         setMapboxToken(s.mapboxToken || "");
         setDbConnected(s.dbHost.trim() !== "" && s.dbUser.trim() !== "");
+        if (s.retentionDays > 0) setRetentionDays(s.retentionDays);
       })
       .catch((err) => console.error("[map] Failed to fetch settings:", err));
   }, []);
 
+  /* Filter readings by data age — cutoff is relative to newest reading (file mode) or now (live) */
+  const ageFilteredReadings = useMemo(() => {
+    if (dataAgeMinutes === null) return displayedReadings;
+    const cutoffMs = dataAgeMinutes * 60_000;
+    let refTime: number;
+    if (fileReadings !== null && displayedReadings.length > 0) {
+      refTime = -Infinity;
+      for (const r of displayedReadings) {
+        const t = new Date(r.timestamp).getTime();
+        if (t > refTime) refTime = t;
+      }
+    } else {
+      refTime = Date.now();
+    }
+    const threshold = refTime - cutoffMs;
+    return displayedReadings.filter((r) => new Date(r.timestamp).getTime() >= threshold);
+  }, [displayedReadings, dataAgeMinutes, fileReadings]);
+
   /* When ISSIs are selected in the SSI Register, only show their readings */
   const filteredReadings = useMemo(
     () => selectedSsis.size > 0
-      ? displayedReadings.filter((r) => selectedSsis.has(r.ssi))
-      : displayedReadings,
-    [displayedReadings, selectedSsis]
+      ? ageFilteredReadings.filter((r) => selectedSsis.has(r.ssi))
+      : ageFilteredReadings,
+    [ageFilteredReadings, selectedSsis]
   );
 
   /* Filter out readings without a valid RSSI — they can't be visualised */
@@ -303,6 +324,7 @@ const Map = () => {
   const handleLoadData = useCallback(async (file: File) => {
     try {
       const { readings: data, viewState, mapStyle: style, subscribers } = await loadDataset(file);
+      setDataAgeMinutes(null);
       setFileReadings(data);
 
       /* Use saved subscribers if present, otherwise derive from readings and geocode */
@@ -421,6 +443,9 @@ const Map = () => {
         onReset={handleReset}
         onToggleRegister={handleToggleRegister}
         selectedSsis={selectedSsis}
+        dataAgeMinutes={dataAgeMinutes}
+        onDataAgeChange={setDataAgeMinutes}
+        retentionDays={retentionDays}
       />
 
       <div className="map-area">
