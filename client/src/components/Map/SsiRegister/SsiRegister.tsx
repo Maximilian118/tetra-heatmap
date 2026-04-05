@@ -231,18 +231,11 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
                 onClick={() => onToggleSsi(s.ssi)}
               >
                 <td>{s.ssi}</td>
-                <td className="ssi-register__cell--ellipsis">{s.description || "—"}</td>
-                <td className="ssi-register__cell--ellipsis">
-                  {formatIdDesc(s.organisation_id, s.organisation)}
-                </td>
-                <td className="ssi-register__cell--ellipsis">
-                  {formatIdDesc(s.profile_id, s.profile_name)}
-                </td>
+                <td>{s.description || "—"}</td>
+                <td>{formatIdDesc(s.organisation_id, s.organisation)}</td>
+                <td>{formatIdDesc(s.profile_id, s.profile_name)}</td>
                 <td>{s.readings_count || "—"}</td>
-                <td
-                  className="ssi-register__cell--ellipsis"
-                  title={formatLastReading(s.last_reading, s.last_location)}
-                >
+                <td title={formatLastReading(s.last_reading, s.last_location)}>
                   {formatLastReading(s.last_reading, s.last_location)}
                 </td>
               </tr>

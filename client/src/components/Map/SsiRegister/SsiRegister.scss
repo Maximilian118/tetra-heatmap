@@ -178,13 +178,24 @@
   &__table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
     font-size: 13px;
+
+    /* Column widths — adjust percentages here to rebalance */
+    th:nth-child(1) { width: 6%; }   /* ISSI */
+    th:nth-child(2) { width: 15%; }  /* Description */
+    th:nth-child(3) { width: 15%; }  /* Organisation */
+    th:nth-child(4) { width: 15%; }  /* Profile */
+    th:nth-child(5) { width: 12%; }  /* Readings */
+    th:nth-child(6) { width: 37%; }  /* Last Reading */
 
     th,
     td {
       padding: 8px 16px;
       text-align: left;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     th {
@@ -226,13 +237,6 @@
     }
   }
 
-  /* Ellipsis overflow for long text cells (Description, Organisation, Profile) */
-  &__cell--ellipsis {
-    max-width: 220px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 
   /* Dimmed rows for subscribers with no readings */
   &__row--dim td {
