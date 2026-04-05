@@ -232,4 +232,97 @@
     padding: 32px 12px !important;
     font-style: italic;
   }
+
+  /* ── Info button ──────────────────────────────────── */
+  &__info-btn {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    color: $text-primary;
+    background: $bg-element;
+    border: 1px solid $border-default;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover {
+      background: $bg-element-hover;
+    }
+  }
+
+  /* ── Info overlay ─────────────────────────────────── */
+  &__info {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    background: $bg-overlay;
+    overflow-y: auto;
+
+    /* Reuse the existing close button inside the overlay */
+    .ssi-register__close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+    }
+  }
+
+  /* Scrollable text content inside the info overlay */
+  &__info-content {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 48px 32px;
+
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: $text-primary;
+      margin: 0 0 16px;
+    }
+
+    h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: $text-primary;
+      margin: 24px 0 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    p {
+      font-size: 14px;
+      line-height: 1.7;
+      color: $text-secondary;
+      margin: 0 0 12px;
+    }
+
+    dl {
+      margin: 0 0 8px;
+    }
+
+    dt {
+      font-size: 13px;
+      font-weight: 600;
+      color: $text-primary;
+      margin-top: 12px;
+    }
+
+    dd {
+      font-size: 13px;
+      line-height: 1.6;
+      color: $text-tertiary;
+      margin: 2px 0 0;
+    }
+
+    strong {
+      color: $text-primary;
+    }
+  }
 }
