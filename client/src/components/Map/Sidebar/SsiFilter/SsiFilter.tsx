@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import "./SsiFilter.scss";
 
 interface SsiFilterProps {
@@ -56,15 +57,36 @@ const formatAge = (minutes: number | null): string => {
   return `${Math.round(minutes)} min`;
 };
 
+/* How long to wait after the last slider movement before updating the map (ms) */
+const DEBOUNCE_MS = 200;
+
 /* Sidebar section for opening the SSI Register overlay and filtering by data age */
 const SsiFilter = ({ onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays }: SsiFilterProps) => {
   const retentionMinutes = retentionDays * 1440;
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* Convert slider position to minutes and propagate to parent */
+  /* Local slider position — updates instantly for smooth dragging */
+  const [localPosition, setLocalPosition] = useState(() =>
+    minutesToSlider(dataAgeMinutes, retentionMinutes)
+  );
+
+  /* Sync local position when the parent resets the value (e.g. file load) */
+  useEffect(() => {
+    setLocalPosition(minutesToSlider(dataAgeMinutes, retentionMinutes));
+  }, [dataAgeMinutes, retentionMinutes]);
+
+  /* Update local state immediately, debounce the expensive parent callback */
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const position = parseInt(e.target.value, 10);
-    onDataAgeChange(sliderToMinutes(position, retentionMinutes));
+    setLocalPosition(position);
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      onDataAgeChange(sliderToMinutes(position, retentionMinutes));
+    }, DEBOUNCE_MS);
   };
+
+  /* Derive the label from local position so it updates instantly */
+  const localMinutes = sliderToMinutes(localPosition, retentionMinutes);
 
   return (
     <div className="ssi-filter">
@@ -78,7 +100,7 @@ const SsiFilter = ({ onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeCh
       <div className="ssi-filter__age">
         <div className="ssi-filter__age-header">
           <span className="ssi-filter__age-name">Data Age</span>
-          <span className="ssi-filter__age-value">{formatAge(dataAgeMinutes)}</span>
+          <span className="ssi-filter__age-value">{formatAge(localMinutes)}</span>
         </div>
         <input
           type="range"
@@ -86,10 +108,9 @@ const SsiFilter = ({ onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeCh
           min={0}
           max={SLIDER_MAX}
           step={1}
-          value={minutesToSlider(dataAgeMinutes, retentionMinutes)}
+          value={localPosition}
           onChange={handleSliderChange}
         />
-
       </div>
     </div>
   );
