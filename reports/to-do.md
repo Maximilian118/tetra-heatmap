@@ -1,6 +1,6 @@
 ## To Do
 
-- [ ] SSI Register styling for mobile viewports
+- [x] SSI Register styling for mobile viewports
 - [ ] LogServer disk usage monitoring and client alerts
 - [ ] LogServer load monitoring and client alerts
 - [x] Data age slider

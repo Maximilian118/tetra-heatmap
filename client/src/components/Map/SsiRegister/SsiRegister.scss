@@ -182,7 +182,7 @@
     font-size: 13px;
 
     /* Column widths — adjust percentages here to rebalance */
-    th:nth-child(1) { width: 6%; }   /* ISSI */
+    th:nth-child(1) { width: 80px; }   /* ISSI — fixed width to prevent truncation */
     th:nth-child(2) { width: 15%; }  /* Description */
     th:nth-child(3) { width: 15%; }  /* Organisation */
     th:nth-child(4) { width: 15%; }  /* Profile */
