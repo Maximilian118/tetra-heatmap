@@ -1,4 +1,4 @@
-import type { Reading } from "./api";
+import type { Reading, Subscriber } from "./api";
 
 /* Version identifier for the dataset file format */
 const FORMAT_VERSION = 1;
@@ -20,13 +20,15 @@ interface DatasetEnvelope {
   readings: Reading[];
   viewState?: SavedViewState;
   mapStyle?: string;
+  subscribers?: Subscriber[];
 }
 
-/* What loadDataset returns — readings plus optional view/style metadata */
+/* What loadDataset returns — readings plus optional view/style/subscriber metadata */
 export interface DatasetResult {
   readings: Reading[];
   viewState?: SavedViewState;
   mapStyle?: string;
+  subscribers?: Subscriber[];
 }
 
 /* Build a zero-padded date string for the default filename */
@@ -43,6 +45,7 @@ export const saveDataset = (
   readings: Reading[],
   viewState?: SavedViewState,
   mapStyle?: string,
+  subscribers?: Subscriber[],
 ): void => {
   const envelope: DatasetEnvelope = {
     version: FORMAT_VERSION,
@@ -51,6 +54,7 @@ export const saveDataset = (
     readings,
     viewState,
     mapStyle,
+    subscribers,
   };
 
   const blob = new Blob([JSON.stringify(envelope, null, 2)], { type: "application/json" });
@@ -62,6 +66,60 @@ export const saveDataset = (
   a.click();
 
   URL.revokeObjectURL(url);
+};
+
+/* Per-SSI stats accumulated when deriving subscriber entries from readings */
+interface DerivedStats {
+  count: number;
+  lastTs: string;
+  lastLat: number;
+  lastLon: number;
+}
+
+/* Result from deriveSubscribersFromReadings — subscribers plus coordinates that need geocoding */
+export interface DerivedSubscribers {
+  subscribers: Subscriber[];
+  toGeocode: { index: number; latitude: number; longitude: number }[];
+}
+
+/* Derive basic subscriber entries from readings when a save file has no subscriber data.
+   Groups readings by SSI, computes count + last reading timestamp, and identifies
+   entries that need their last location geocoded. */
+export const deriveSubscribersFromReadings = (readings: Reading[]): DerivedSubscribers => {
+  const statsMap = new Map<number, DerivedStats>();
+  for (const r of readings) {
+    const existing = statsMap.get(r.ssi);
+    if (!existing) {
+      statsMap.set(r.ssi, { count: 1, lastTs: r.timestamp, lastLat: r.latitude, lastLon: r.longitude });
+    } else {
+      existing.count++;
+      if (r.timestamp > existing.lastTs) {
+        existing.lastTs = r.timestamp;
+        existing.lastLat = r.latitude;
+        existing.lastLon = r.longitude;
+      }
+    }
+  }
+
+  const subscribers: Subscriber[] = [];
+  const toGeocode: { index: number; latitude: number; longitude: number }[] = [];
+
+  for (const [ssi, stats] of statsMap) {
+    subscribers.push({
+      ssi,
+      description: "",
+      organisation_id: null,
+      organisation: "",
+      profile_id: null,
+      profile_name: "",
+      readings_count: stats.count,
+      last_reading: stats.lastTs,
+      last_location: null,
+    });
+    toGeocode.push({ index: subscribers.length - 1, latitude: stats.lastLat, longitude: stats.lastLon });
+  }
+
+  return { subscribers, toGeocode };
 };
 
 /* Validate that a reading has the minimum required fields */
@@ -100,6 +158,7 @@ export const loadDataset = (file: File): Promise<DatasetResult> =>
           readings: parsed.readings,
           viewState: parsed.viewState,
           mapStyle: parsed.mapStyle,
+          subscribers: parsed.subscribers,
         });
       } catch (err) {
         reject(err instanceof Error ? err : new Error("Failed to parse dataset file"));

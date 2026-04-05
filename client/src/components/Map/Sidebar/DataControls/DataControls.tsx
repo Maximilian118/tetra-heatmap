@@ -28,7 +28,11 @@ const DataControls = ({ readings, isFileMode, onSave, onLoad, onResumeLive }: Da
   return (
     <div className="data-controls">
       <span className="data-controls__label">Data</span>
-      <span className="data-controls__count">{formatReadingSummary(readings)}</span>
+      <span className="data-controls__count">
+        {isFileMode
+          ? `Viewing saved file — ${readings.length.toLocaleString()} readings`
+          : formatReadingSummary(readings)}
+      </span>
 
       {/* Save Data in live mode, Resume Live in file mode — same slot */}
       {isFileMode ? (

@@ -5,8 +5,8 @@ import { HeatmapLayer, HexagonLayer } from "@deck.gl/aggregation-layers";
 import { ScatterplotLayer, LineLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { fetchReadings, resetCache, fetchSettings, type Reading } from "../../utils/api";
-import { saveDataset, loadDataset, type SavedViewState } from "../../utils/dataset";
+import { fetchReadings, resetCache, fetchSettings, fetchSubscribers, geocodeCoordinates, type Reading, type Subscriber } from "../../utils/api";
+import { saveDataset, loadDataset, deriveSubscribersFromReadings, type SavedViewState } from "../../utils/dataset";
 import { readingsBounds } from "../../utils/geojson";
 import { normalizeRssi, rssiElevationWeight, rssiToColor, RSSI_COLOR_RANGE, buildLineSegments } from "../../utils/rssi";
 import type { LayerType } from "./Sidebar/MapPresets/MapPresets";
@@ -84,6 +84,7 @@ const loadSavedViewState = (): ViewState | null => {
 const Map = () => {
   const [initialView, setInitialView] = useState<ViewState | null>(() => loadSavedViewState());
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savingRef = useRef(false);
   const [readings, setReadings] = useState<Reading[]>([]);
   const [resetting, setResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
@@ -92,6 +93,7 @@ const Map = () => {
   const [layerType, setLayerType] = useState<LayerType>("heatmap");
   const [layerSettings, setLayerSettings] = useState<LayerSettings>(DEFAULT_LAYER_SETTINGS);
   const [fileReadings, setFileReadings] = useState<Reading[] | null>(null);
+  const [fileSubscribers, setFileSubscribers] = useState<Subscriber[] | null>(null);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
@@ -275,16 +277,57 @@ const Map = () => {
   }, [validReadings, layerType, lineSegments, layerSettings]);
 
   /* Download the currently displayed readings as a JSON file via the browser save dialog */
-  const handleSaveData = useCallback(() => {
-    const savedView = loadSavedViewState() as SavedViewState | undefined;
-    saveDataset(displayedReadings, savedView ?? undefined, mapStyle);
-  }, [displayedReadings, mapStyle]);
+  const handleSaveData = useCallback(async () => {
+    /* Prevent concurrent saves from rapid clicks */
+    if (savingRef.current) return;
+    savingRef.current = true;
+
+    try {
+      const savedView = loadSavedViewState() as SavedViewState | undefined;
+
+      /* Snapshot the current SSI Register: use file subscribers if loaded, otherwise fetch live */
+      let subscribers: Subscriber[] | undefined;
+      try {
+        subscribers = fileSubscribers ?? await fetchSubscribers();
+      } catch (err) {
+        console.error("[map] Failed to fetch subscribers for save:", err);
+      }
+
+      saveDataset(displayedReadings, savedView ?? undefined, mapStyle, subscribers);
+    } finally {
+      savingRef.current = false;
+    }
+  }, [displayedReadings, mapStyle, fileSubscribers]);
 
   /* Load readings from a user-selected JSON file and switch to file mode */
   const handleLoadData = useCallback(async (file: File) => {
     try {
-      const { readings: data, viewState, mapStyle: style } = await loadDataset(file);
+      const { readings: data, viewState, mapStyle: style, subscribers } = await loadDataset(file);
       setFileReadings(data);
+
+      /* Use saved subscribers if present, otherwise derive from readings and geocode */
+      if (subscribers?.length) {
+        setFileSubscribers(subscribers);
+      } else {
+        const { subscribers: derived, toGeocode } = deriveSubscribersFromReadings(data);
+        setFileSubscribers(derived);
+
+        /* Geocode last reading locations in the background */
+        if (toGeocode.length > 0) {
+          geocodeCoordinates(toGeocode.map(({ latitude, longitude }) => ({ latitude, longitude })))
+            .then((locations) => {
+              setFileSubscribers((prev) => {
+                if (!prev) return prev;
+                const updated = [...prev];
+                toGeocode.forEach(({ index }, i) => {
+                  if (locations[i]) updated[index] = { ...updated[index], last_location: locations[i] };
+                });
+                return updated;
+              });
+            })
+            .catch(() => { /* geocoding unavailable — locations stay empty */ });
+        }
+      }
 
       /* Restore saved view state from file, or fall back to data bounds */
       if (viewState) {
@@ -304,6 +347,7 @@ const Map = () => {
   /* Switch back to live server data by clearing the file overlay */
   const handleResumeLive = useCallback(() => {
     setFileReadings(null);
+    setFileSubscribers(null);
   }, []);
 
   /* Toggle the SSI Register overlay open/closed */
@@ -407,6 +451,8 @@ const Map = () => {
             selectedSsis={selectedSsis}
             onToggleSsi={handleToggleSsi}
             onResetFilter={handleResetSsiFilter}
+            fileSubscribers={fileSubscribers}
+            isFileMode={fileReadings !== null}
           />
         )}
       </div>

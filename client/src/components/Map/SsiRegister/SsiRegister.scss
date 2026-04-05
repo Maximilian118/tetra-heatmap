@@ -154,6 +154,20 @@
     }
   }
 
+  /* Snapshot notice — styled as a button to match Reset, replaces Import/Clear in file mode */
+  &__snapshot-notice {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: $text-primary;
+    background: $accent-blue;
+    border: 1px solid $accent-blue-border;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    cursor: default;
+  }
+
   /* ── Table ───────────────────────────────────────────── */
   &__table-wrap {
     flex: 1;

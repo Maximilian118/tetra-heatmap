@@ -9,6 +9,7 @@ import {
   updateLastLocation,
 } from "../db/local.js";
 import logger from "../utils/log.js";
+import { geocodeLocation } from "../utils/geocode.js";
 
 const router = Router();
 
@@ -18,33 +19,17 @@ router.get("/subscribers", (_req, res) => {
   res.json(subscribers);
 });
 
-/* Lazy-load the offline geocoder so a missing package never crashes the route */
-let getNearestCity: ((lat: number, lon: number) => { cityName?: string; countryName?: string }) | null = null;
-import("offline-geocode-city")
-  .then((mod) => { getNearestCity = mod.getNearestCity; })
-  .catch(() => { /* package unavailable — backfill disabled */ });
-
 /* Backfill missing location data for subscribers that have readings but no location */
 router.post("/subscribers/backfill-locations", (_req, res) => {
-  if (!getNearestCity) {
-    res.json({ success: true, updated: 0 });
-    return;
-  }
-
   const missing = getSubscribersMissingLocation();
   let updated = 0;
 
   for (const { ssi, latitude, longitude } of missing) {
-    try {
-      const result = getNearestCity(latitude, longitude);
-      if (result?.cityName) {
-        const location = result.countryName
-          ? `${result.cityName}, ${result.countryName}`
-          : result.cityName;
-        updateLastLocation(ssi, location);
-        updated++;
-      }
-    } catch { /* geocoding failure — skip this SSI */ }
+    const location = geocodeLocation(latitude, longitude);
+    if (location) {
+      updateLastLocation(ssi, location);
+      updated++;
+    }
   }
 
   if (updated > 0) {
@@ -52,6 +37,18 @@ router.post("/subscribers/backfill-locations", (_req, res) => {
   }
 
   res.json({ success: true, updated });
+});
+
+/* Batch reverse-geocode an array of coordinate pairs into location strings */
+router.post("/subscribers/geocode", (req, res) => {
+  const coords = req.body as { latitude: number; longitude: number }[];
+  if (!Array.isArray(coords)) {
+    res.status(400).json({ error: "Expected array of {latitude, longitude}" });
+    return;
+  }
+
+  const locations = coords.map(({ latitude, longitude }) => geocodeLocation(latitude, longitude));
+  res.json({ locations });
 });
 
 /* Shape of a row returned by the remote subscriber JOIN query */

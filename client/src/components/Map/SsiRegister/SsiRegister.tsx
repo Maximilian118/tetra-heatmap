@@ -18,6 +18,8 @@ interface SsiRegisterProps {
   selectedSsis: Set<number>;
   onToggleSsi: (ssi: number) => void;
   onResetFilter: () => void;
+  fileSubscribers: Subscriber[] | null;
+  isFileMode: boolean;
 }
 
 /* Format a "ID - Description" display string, showing em dash when data is unknown */
@@ -36,26 +38,30 @@ const formatLastReading = (iso: string | null, location: string | null): string 
 };
 
 /* Full-screen overlay displaying the SSI Register table with search, import, and filtering */
-const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetFilter }: SsiRegisterProps) => {
-  const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
+const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetFilter, fileSubscribers, isFileMode }: SsiRegisterProps) => {
+  const [liveSubscribers, setLiveSubscribers] = useState<Subscriber[]>([]);
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [importing, setImporting] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
 
+  /* Use file subscribers when viewing a saved snapshot, otherwise live data */
+  const subscribers = fileSubscribers ?? liveSubscribers;
+
   /* Fetch subscribers from the API */
   const loadSubscribers = useCallback(async () => {
     try {
       const data = await fetchSubscribers();
-      setSubscribers(data);
+      setLiveSubscribers(data);
     } catch (err) {
       console.error("[ssi-register] Failed to fetch subscribers:", err);
     }
   }, []);
 
-  /* Load subscribers on mount, then backfill any missing location data */
+  /* Load live subscribers on mount, then backfill any missing location data */
   useEffect(() => {
+    if (fileSubscribers) return;
     loadSubscribers().then(() => {
       backfillSubscriberLocations()
         .then(({ updated }) => {
@@ -63,7 +69,7 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
         })
         .catch(() => { /* backfill failed — locations stay empty */ });
     });
-  }, [loadSubscribers]);
+  }, [loadSubscribers, fileSubscribers]);
 
   /* Import the full SSI Register from the remote LogServer */
   const handleImport = async () => {
@@ -178,21 +184,30 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
           </button>
         )}
 
-        <button
-          className="ssi-register__btn--import"
-          onClick={handleImport}
-          disabled={!dbConnected || importing}
-        >
-          {importing ? "Importing..." : "Import"}
-        </button>
+        {/* In file mode show a snapshot notice; in live mode show Import/Clear */}
+        {isFileMode ? (
+          <span className="ssi-register__snapshot-notice">
+            Viewing saved snapshot
+          </span>
+        ) : (
+          <>
+            <button
+              className="ssi-register__btn--import"
+              onClick={handleImport}
+              disabled={!dbConnected || importing}
+            >
+              {importing ? "Importing..." : "Import"}
+            </button>
 
-        <button
-          className="ssi-register__btn--clear"
-          onClick={handleClear}
-          disabled={clearing}
-        >
-          {clearing ? "Clearing..." : "Clear"}
-        </button>
+            <button
+              className="ssi-register__btn--clear"
+              onClick={handleClear}
+              disabled={clearing}
+            >
+              {clearing ? "Clearing..." : "Clear"}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Subscriber table */}

@@ -119,6 +119,21 @@ export const backfillSubscriberLocations = async (): Promise<{
   return res.json();
 };
 
+/* Batch reverse-geocode coordinates into location strings */
+export const geocodeCoordinates = async (
+  coords: { latitude: number; longitude: number }[],
+): Promise<(string | null)[]> => {
+  const res = await assertOk(
+    await fetch(`${API_BASE}/subscribers/geocode`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(coords),
+    })
+  );
+  const data = await res.json();
+  return data.locations;
+};
+
 /* Clear all local subscriber data */
 export const clearSubscribers = async (): Promise<{
   success: boolean;
