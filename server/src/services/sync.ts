@@ -7,10 +7,17 @@ import {
   getSyncFrom,
   setSyncFrom,
   ensureSubscribersExist,
+  updateLastLocation,
 } from "../db/local.js";
 import type { Reading } from "../db/local.js";
 import type { RowDataPacket } from "mysql2";
 import { decodeLipReport } from "../utils/lip.js";
+
+/* Lazy-load the offline geocoder so a broken/missing package never crashes the sync service */
+let getNearestCity: ((lat: number, lon: number) => { cityName?: string; countryName?: string }) | null = null;
+import("offline-geocode-city")
+  .then((mod) => { getNearestCity = mod.getNearestCity; })
+  .catch(() => { /* package unavailable — location features disabled */ });
 import { getSettings, isConfigured } from "../db/settings.js";
 import logger from "../utils/log.js";
 
@@ -115,6 +122,25 @@ const syncReadings = async () => {
         /* Ensure every SSI seen in this batch has a row in the subscribers table */
         const uniqueSsis = [...new Set(readings.map((r) => r.ssi))];
         ensureSubscribersExist(uniqueSsis);
+
+        /* Pre-compute the last reading location for each SSI in this batch */
+        if (getNearestCity) {
+          for (const ssi of uniqueSsis) {
+            const latest = readings
+              .filter((r) => r.ssi === ssi)
+              .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
+            if (!latest || (latest.latitude === 0 && latest.longitude === 0)) continue;
+            try {
+              const result = getNearestCity(latest.latitude, latest.longitude);
+              if (result?.cityName) {
+                const location = result.countryName
+                  ? `${result.cityName}, ${result.countryName}`
+                  : result.cityName;
+                updateLastLocation(ssi, location);
+              }
+            } catch { /* geocoding failure — leave existing location unchanged */ }
+          }
+        }
       }
 
       /* Log how many rows had valid GPS vs total fetched */

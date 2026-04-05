@@ -11,6 +11,7 @@
     "dotenv": "^17.3.1",
     "express": "^5.1.0",
     "mysql2": "^3.20.0",
+    "offline-geocode-city": "^1.0.2",
     "winston": "^3.19.0"
   },
   "devDependencies": {

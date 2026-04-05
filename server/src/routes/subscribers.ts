@@ -5,15 +5,53 @@ import {
   getAllSubscribers,
   upsertSubscribers,
   clearSubscribers,
+  getSubscribersMissingLocation,
+  updateLastLocation,
 } from "../db/local.js";
 import logger from "../utils/log.js";
 
 const router = Router();
 
-/* Return all subscribers with per-SSI reading statistics */
+/* Return all subscribers with per-SSI reading statistics and pre-computed last location */
 router.get("/subscribers", (_req, res) => {
   const subscribers = getAllSubscribers();
   res.json(subscribers);
+});
+
+/* Lazy-load the offline geocoder so a missing package never crashes the route */
+let getNearestCity: ((lat: number, lon: number) => { cityName?: string; countryName?: string }) | null = null;
+import("offline-geocode-city")
+  .then((mod) => { getNearestCity = mod.getNearestCity; })
+  .catch(() => { /* package unavailable — backfill disabled */ });
+
+/* Backfill missing location data for subscribers that have readings but no location */
+router.post("/subscribers/backfill-locations", (_req, res) => {
+  if (!getNearestCity) {
+    res.json({ success: true, updated: 0 });
+    return;
+  }
+
+  const missing = getSubscribersMissingLocation();
+  let updated = 0;
+
+  for (const { ssi, latitude, longitude } of missing) {
+    try {
+      const result = getNearestCity(latitude, longitude);
+      if (result?.cityName) {
+        const location = result.countryName
+          ? `${result.cityName}, ${result.countryName}`
+          : result.cityName;
+        updateLastLocation(ssi, location);
+        updated++;
+      }
+    } catch { /* geocoding failure — skip this SSI */ }
+  }
+
+  if (updated > 0) {
+    logger.info(`Backfilled location for ${updated} subscriber(s)`);
+  }
+
+  res.json({ success: true, updated });
 });
 
 /* Shape of a row returned by the remote subscriber JOIN query */

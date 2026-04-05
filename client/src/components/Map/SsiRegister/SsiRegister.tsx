@@ -3,12 +3,14 @@ import {
   fetchSubscribers,
   importSubscribers,
   clearSubscribers,
+  backfillSubscriberLocations,
   type Subscriber,
 } from "../../../utils/api";
 import "./SsiRegister.scss";
 
 /* Threshold for showing 0-reading rows when searching */
 const SEARCH_SHOW_ALL_THRESHOLD = 50;
+
 
 interface SsiRegisterProps {
   onClose: () => void;
@@ -26,10 +28,11 @@ const formatIdDesc = (id: number | null, desc: string): string => {
   return `${id} - ${desc}`;
 };
 
-/* Format an ISO timestamp to a compact locale string, showing em dash when unknown */
-const formatTimestamp = (iso: string | null): string => {
+/* Format the Last Reading cell: timestamp with optional location suffix */
+const formatLastReading = (iso: string | null, location: string | null): string => {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString();
+  const ts = new Date(iso).toLocaleString();
+  return location ? `${ts} - ${location}` : ts;
 };
 
 /* Full-screen overlay displaying the SSI Register table with search, import, and filtering */
@@ -50,9 +53,15 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
     }
   }, []);
 
-  /* Load subscribers on mount */
+  /* Load subscribers on mount, then backfill any missing location data */
   useEffect(() => {
-    loadSubscribers();
+    loadSubscribers().then(() => {
+      backfillSubscriberLocations()
+        .then(({ updated }) => {
+          if (updated > 0) loadSubscribers();
+        })
+        .catch(() => { /* backfill failed — locations stay empty */ });
+    });
   }, [loadSubscribers]);
 
   /* Import the full SSI Register from the remote LogServer */
@@ -93,7 +102,8 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
         s.description.toLowerCase().includes(term) ||
         s.organisation.toLowerCase().includes(term) ||
         String(s.profile_id ?? "").includes(term) ||
-        s.profile_name.toLowerCase().includes(term)
+        s.profile_name.toLowerCase().includes(term) ||
+        (s.last_location ?? "").toLowerCase().includes(term)
       );
     };
 
@@ -213,7 +223,12 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
                   {formatIdDesc(s.profile_id, s.profile_name)}
                 </td>
                 <td>{s.readings_count || "—"}</td>
-                <td>{formatTimestamp(s.last_reading)}</td>
+                <td
+                  className="ssi-register__cell--ellipsis"
+                  title={formatLastReading(s.last_reading, s.last_location)}
+                >
+                  {formatLastReading(s.last_reading, s.last_location)}
+                </td>
               </tr>
             ))}
             {filteredSubscribers.length === 0 && (

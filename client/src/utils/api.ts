@@ -87,6 +87,7 @@ export interface Subscriber {
   profile_name: string;
   readings_count: number;
   last_reading: string | null;
+  last_location: string | null;
 }
 
 /* Fetch all subscribers with per-SSI reading statistics */
@@ -103,6 +104,17 @@ export const importSubscribers = async (): Promise<{
 }> => {
   const res = await assertOk(
     await fetch(`${API_BASE}/subscribers/import`, { method: "POST" })
+  );
+  return res.json();
+};
+
+/* Backfill missing location data for subscribers with readings but no location */
+export const backfillSubscriberLocations = async (): Promise<{
+  success: boolean;
+  updated: number;
+}> => {
+  const res = await assertOk(
+    await fetch(`${API_BASE}/subscribers/backfill-locations`, { method: "POST" })
   );
   return res.json();
 };

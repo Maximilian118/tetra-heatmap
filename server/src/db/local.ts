@@ -54,6 +54,7 @@ try { db.exec("ALTER TABLE subscribers ADD COLUMN organisation_id INTEGER"); } c
 try { db.exec("ALTER TABLE subscribers ADD COLUMN organisation TEXT NOT NULL DEFAULT ''"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE subscribers ADD COLUMN profile_id INTEGER"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE subscribers ADD COLUMN profile_name TEXT NOT NULL DEFAULT ''"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE subscribers ADD COLUMN last_location TEXT NOT NULL DEFAULT ''"); } catch { /* already exists */ }
 
 /* Reading shape matching the sdsdata + LIP decoded fields */
 export interface Reading {
@@ -143,6 +144,7 @@ export interface Subscriber {
   profile_name: string;
   readings_count: number;
   last_reading: string | null;
+  last_location: string;
 }
 
 /* Return all subscribers joined with per-SSI reading counts and last timestamp */
@@ -152,7 +154,8 @@ export const getAllSubscribers = (): Subscriber[] => {
       `SELECT s.ssi, s.description, s.organisation_id, s.organisation,
               s.profile_id, s.profile_name,
               COALESCE(r.cnt, 0) AS readings_count,
-              r.last_reading
+              r.last_reading,
+              s.last_location
        FROM subscribers s
        LEFT JOIN (
          SELECT ssi, COUNT(*) AS cnt, MAX(timestamp) AS last_reading
@@ -165,7 +168,7 @@ export const getAllSubscribers = (): Subscriber[] => {
 
 /* Batch upsert subscriber metadata (used by the Import action) */
 export const upsertSubscribers = (
-  rows: Omit<Subscriber, "readings_count" | "last_reading">[]
+  rows: Omit<Subscriber, "readings_count" | "last_reading" | "last_location">[]
 ): void => {
   const stmt = db.prepare(`
     INSERT OR REPLACE INTO subscribers
@@ -175,7 +178,7 @@ export const upsertSubscribers = (
   `);
 
   const insertMany = db.transaction(
-    (items: Omit<Subscriber, "readings_count" | "last_reading">[]) => {
+    (items: Omit<Subscriber, "readings_count" | "last_reading" | "last_location">[]) => {
       for (const item of items) stmt.run(item);
     }
   );
@@ -192,6 +195,31 @@ export const ensureSubscribersExist = (ssiList: number[]): void => {
   });
 
   insertMany(ssiList);
+};
+
+/* Find subscribers that have readings but no pre-computed location */
+export const getSubscribersMissingLocation = (): { ssi: number; latitude: number; longitude: number }[] => {
+  return db
+    .prepare(
+      `SELECT s.ssi, r.latitude, r.longitude
+       FROM subscribers s
+       INNER JOIN (
+         SELECT ssi, MAX(timestamp) AS last_reading, latitude, longitude
+         FROM readings GROUP BY ssi
+       ) r ON s.ssi = r.ssi
+       WHERE s.last_location = ''
+         AND r.latitude IS NOT NULL
+         AND NOT (r.latitude = 0 AND r.longitude = 0)`
+    )
+    .all() as { ssi: number; latitude: number; longitude: number }[];
+};
+
+/* Update the pre-computed last location string for a subscriber */
+export const updateLastLocation = (ssi: number, location: string): void => {
+  db.prepare("UPDATE subscribers SET last_location = ? WHERE ssi = ?").run(
+    location,
+    ssi
+  );
 };
 
 /* Remove all subscriber rows from the local database */
