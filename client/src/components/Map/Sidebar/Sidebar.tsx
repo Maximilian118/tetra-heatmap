@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { Menu, X, Map, Settings, RotateCcw, Check } from "lucide-react";
 import type { Reading } from "../../../utils/api";
 import Confirm from "../Confirm/Confirm";
 import MapPresets from "./MapPresets/MapPresets";
@@ -80,7 +81,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
     {/* Hamburger toggle — visible only on mobile when sidebar is closed */}
     {isMobile && !mobileOpen && (
       <button className="sidebar-toggle" onClick={() => setMobileOpen(true)} aria-label="Open menu">
-        <span /><span /><span />
+        <Menu size={20} />
       </button>
     )}
 
@@ -98,12 +99,14 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
           className={`sidebar__tab ${activeTab === "map" ? "sidebar__tab--active" : ""}`}
           onClick={() => setActiveTab("map")}
         >
+          <Map size={14} />
           Map
         </button>
         <button
           className={`sidebar__tab ${activeTab === "database" ? "sidebar__tab--active" : ""}`}
           onClick={() => setActiveTab("database")}
         >
+          <Settings size={14} />
           Settings
         </button>
       </div>
@@ -152,6 +155,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
             onClick={() => setConfirming(true)}
             disabled={resetting}
           >
+            <RotateCcw size={14} />
             {resetting ? "Resetting..." : "Reset Cache"}
           </button>
         </div>
@@ -163,6 +167,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
             onClick={() => dbRef.current?.apply()}
             disabled={dbSaving}
           >
+            <Check size={14} />
             {dbSaving ? "Applying..." : "Apply"}
           </button>
         </div>
@@ -174,6 +179,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
           message="This will clear all cached readings. New data will only be collected from this point onwards."
           detail={`Last reset: ${lastReset ? formatResetDate(lastReset) : "Never"}`}
           confirmLabel="Reset Cache"
+          confirmIcon={RotateCcw}
           onConfirm={handleConfirm}
           onCancel={() => setConfirming(false)}
         />
@@ -182,7 +188,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
       {/* Close button — visible only on mobile when sidebar is open */}
       {isMobile && mobileOpen && (
         <button className="sidebar__close" onClick={() => setMobileOpen(false)} aria-label="Close menu">
-          ✕
+          <X size={18} />
         </button>
       )}
     </aside>

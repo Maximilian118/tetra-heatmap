@@ -32,6 +32,10 @@
   /* Individual tab button */
   &__tab {
     flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
     padding: 8px 0;
     font-size: 13px;
     font-weight: 500;
@@ -74,6 +78,10 @@
   /* Reset cache button — full width at the bottom */
   &__reset-btn {
     width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     padding: 10px 16px;
     font-size: 13px;
     font-weight: 500;
@@ -97,6 +105,10 @@
   /* Apply button — blue accent, pinned to sidebar floor on Database tab */
   &__apply-btn {
     width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     padding: 10px 16px;
     font-size: 13px;
     font-weight: 500;
@@ -161,32 +173,22 @@
   }
 }
 
-/* Hamburger toggle button — positioned over the map on mobile */
+/* Menu toggle button — positioned over the map on mobile */
 .sidebar-toggle {
   position: absolute;
   top: 12px;
   left: 12px;
   z-index: 3;
   display: flex;
-  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 5px;
   width: 40px;
   height: 40px;
-  padding: 8px;
+  color: $text-primary;
   background: $bg;
   border: 1px solid $border-default;
   border-radius: 6px;
   cursor: pointer;
-
-  /* Three horizontal bars */
-  span {
-    display: block;
-    height: 2px;
-    width: 100%;
-    background: $text-primary;
-    border-radius: 1px;
-  }
 }
 
 /* Transparent backdrop behind the sidebar on mobile */

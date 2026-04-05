@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { X, Info, RotateCcw, Download, Trash2 } from "lucide-react";
 import {
   fetchSubscribers,
   importSubscribers,
@@ -157,7 +158,7 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
       {/* Toolbar */}
       <div className="ssi-register__toolbar">
         <button className="ssi-register__close" onClick={onClose} aria-label="Close SSI Register">
-          ✕
+          <X size={18} />
         </button>
 
         <input
@@ -183,6 +184,7 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
         {/* Reset filter — only visible when ISSIs are selected */}
         {hasSelection && (
           <button className="ssi-register__btn--reset" onClick={onResetFilter}>
+            <RotateCcw size={14} />
             Reset
           </button>
         )}
@@ -199,6 +201,7 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
               onClick={() => setConfirmingImport(true)}
               disabled={!dbConnected || importing}
             >
+              <Download size={14} />
               {importing ? "Importing..." : "Import"}
             </button>
 
@@ -207,6 +210,7 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
               onClick={() => setConfirmingClear(true)}
               disabled={clearing}
             >
+              <Trash2 size={14} />
               {clearing ? "Clearing..." : "Clear"}
             </button>
           </>
@@ -263,10 +267,7 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
         onClick={() => setShowInfo(true)}
         aria-label="About SSI Register"
       >
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.5" />
-          <text x="10" y="14.5" textAnchor="middle" fill="currentColor" fontSize="12" fontWeight="600" fontFamily="serif">i</text>
-        </svg>
+        <Info size={20} />
       </button>
 
       {/* Confirm overlay for Import action */}
@@ -275,6 +276,7 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
           title="Import Subscribers"
           message="This will pull all subscriber metadata from the remote TetraFlex LogServer. Any missing ISSIs will be added to the local register and existing subscriber data will be updated."
           confirmLabel="Import"
+          confirmIcon={Download}
           variant="overlay"
           confirmColor="blue"
           onConfirm={() => { setConfirmingImport(false); handleImport(); }}
@@ -288,6 +290,7 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
           title="Clear Subscribers"
           message="This will remove all subscriber metadata from the local database. Reading data and heatmap points are not affected. You can re-import at any time to restore subscriber information."
           confirmLabel="Clear"
+          confirmIcon={Trash2}
           variant="overlay"
           onConfirm={() => { setConfirmingClear(false); handleClear(); }}
           onCancel={() => setConfirmingClear(false)}
@@ -302,7 +305,7 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
             onClick={() => setShowInfo(false)}
             aria-label="Close info panel"
           >
-            ✕
+            <X size={18} />
           </button>
 
           <div className="ssi-register__info-content">

@@ -1,3 +1,5 @@
+import type { LucideIcon } from "lucide-react";
+import { X } from "lucide-react";
 import "./Confirm.scss";
 
 interface ConfirmProps {
@@ -7,6 +9,7 @@ interface ConfirmProps {
   onCancel: () => void;
   detail?: string;
   confirmLabel?: string;
+  confirmIcon?: LucideIcon;
   variant?: "sidebar" | "overlay";
   confirmColor?: "red" | "blue";
 }
@@ -19,6 +22,7 @@ const Confirm = ({
   onCancel,
   detail,
   confirmLabel = "Confirm",
+  confirmIcon: ConfirmIcon,
   variant = "sidebar",
   confirmColor = "red",
 }: ConfirmProps) => {
@@ -40,9 +44,11 @@ const Confirm = ({
 
       <div className="confirm-overlay__actions">
         <button className="confirm-overlay__btn confirm-overlay__btn--cancel" onClick={onCancel}>
+          <X size={14} />
           Cancel
         </button>
         <button className={confirmBtnClass} onClick={onConfirm}>
+          {ConfirmIcon && <ConfirmIcon size={14} />}
           {confirmLabel}
         </button>
       </div>

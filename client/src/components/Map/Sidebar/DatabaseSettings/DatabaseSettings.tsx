@@ -1,4 +1,5 @@
 import { useState, useEffect, useImperativeHandle, useRef, forwardRef } from "react";
+import { CircleCheck, CircleX } from "lucide-react";
 import {
   fetchSettings,
   saveSettings,
@@ -151,6 +152,7 @@ const DatabaseSettings = forwardRef<DatabaseSettingsHandle, DatabaseSettingsProp
         {/* Connection section */}
         <div className="db-settings__section">
           <span className={`db-settings__status db-settings__status--${statusModifier}`}>
+            {isConnected ? <CircleCheck size={14} /> : <CircleX size={14} />}
             {statusLabel}
           </span>
           <span className="db-settings__subtitle">TetraFlex Logserver Version 8.x</span>

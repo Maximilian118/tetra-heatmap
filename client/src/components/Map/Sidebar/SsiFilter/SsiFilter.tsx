@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Users } from "lucide-react";
 import "./SsiFilter.scss";
 
 interface SsiFilterProps {
@@ -93,6 +94,7 @@ const SsiFilter = ({ onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeCh
       <span className="ssi-filter__label">Filter</span>
       <span className="ssi-filter__count">{formatFilterSummary(selectedSsis)}</span>
       <button className="ssi-filter__btn" onClick={onToggleRegister}>
+        <Users size={14} />
         SSI Register
       </button>
 

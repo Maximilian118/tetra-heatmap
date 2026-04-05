@@ -1,13 +1,14 @@
+import { Flame, Hexagon, Activity, type LucideIcon } from "lucide-react";
 import "./MapPresets.scss";
 
 /* The three available deck.gl visualisation modes */
 export type LayerType = "heatmap" | "hexagon" | "line";
 
 /* Button definitions for the layer toggle row */
-const LAYER_OPTIONS: { type: LayerType; label: string }[] = [
-  { type: "heatmap", label: "Heat" },
-  { type: "hexagon", label: "Hex" },
-  { type: "line", label: "Line" },
+const LAYER_OPTIONS: { type: LayerType; label: string; icon: LucideIcon }[] = [
+  { type: "heatmap", label: "Heat", icon: Flame },
+  { type: "hexagon", label: "Hex", icon: Hexagon },
+  { type: "line", label: "Line", icon: Activity },
 ];
 
 /* All available MapBox GL style presets */
@@ -62,6 +63,7 @@ const MapPresets = ({ mapStyle, layerType, onStyleChange, onLayerTypeChange }: M
           className={`map-presets__layer-btn ${layerType === opt.type ? "map-presets__layer-btn--active" : ""}`}
           onClick={() => onLayerTypeChange(opt.type)}
         >
+          <opt.icon size={14} />
           {opt.label}
         </button>
       ))}

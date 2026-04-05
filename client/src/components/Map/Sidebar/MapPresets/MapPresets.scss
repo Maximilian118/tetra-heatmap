@@ -61,6 +61,10 @@
   /* Individual layer toggle button — equal width, separated with gap */
   &__layer-btn {
     flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
     padding: 8px 0;
     font-size: 12px;
     font-weight: 500;

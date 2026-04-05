@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { Save, FolderOpen, Radio } from "lucide-react";
 import type { Reading } from "../../../../utils/api";
 import { formatReadingSummary } from "../../../../utils/format";
 import "./DataControls.scss";
@@ -37,15 +38,18 @@ const DataControls = ({ readings, isFileMode, onSave, onLoad, onResumeLive }: Da
       {/* Save Data in live mode, Resume Live in file mode — same slot */}
       {isFileMode ? (
         <button className="data-controls__btn data-controls__btn--live" onClick={onResumeLive}>
+          <Radio size={14} />
           Resume Live
         </button>
       ) : (
         <button className="data-controls__btn" onClick={onSave} disabled={readings.length === 0}>
+          <Save size={14} />
           Save Data
         </button>
       )}
 
       <button className="data-controls__btn" onClick={handleLoadClick}>
+        <FolderOpen size={14} />
         Load Data
       </button>
 

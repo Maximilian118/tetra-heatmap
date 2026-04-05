@@ -25,6 +25,10 @@
   /* Full-width action buttons matching sidebar style */
   &__btn {
     width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     padding: 10px 16px;
     font-size: 13px;
     font-weight: 500;
