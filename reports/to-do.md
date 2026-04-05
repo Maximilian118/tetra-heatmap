@@ -8,6 +8,6 @@
 [ ] - ISSI poll button (Might not be needed)
 [ ] - Add trips deck.gl layer for live ISSI movement
 [ ] - 3D map (Does the SDS data include Z/height?)
-[ ] - Hover RSSI level toolip for the legend
+[X] - Hover RSSI level toolip for the legend
 [ ] - Add Lucide icons
 [ ] - Add spinner for loading states (Is it needed?)
