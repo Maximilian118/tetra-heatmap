@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { Reading } from "../../../utils/api";
-import Confirm from "./Confirm/Confirm";
+import Confirm from "../Confirm/Confirm";
 import MapPresets from "./MapPresets/MapPresets";
 import type { LayerType } from "./MapPresets/MapPresets";
 import DataControls from "./DataControls/DataControls";

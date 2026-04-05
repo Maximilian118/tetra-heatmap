@@ -6,6 +6,7 @@ import {
   backfillSubscriberLocations,
   type Subscriber,
 } from "../../../utils/api";
+import Confirm from "../Confirm/Confirm";
 import "./SsiRegister.scss";
 
 /* Threshold for showing 0-reading rows when searching */
@@ -44,6 +45,8 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
   const [showAll, setShowAll] = useState(false);
   const [importing, setImporting] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [confirmingImport, setConfirmingImport] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
 
   /* Use file subscribers when viewing a saved snapshot, otherwise live data */
@@ -193,7 +196,7 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
           <>
             <button
               className="ssi-register__btn--import"
-              onClick={handleImport}
+              onClick={() => setConfirmingImport(true)}
               disabled={!dbConnected || importing}
             >
               {importing ? "Importing..." : "Import"}
@@ -201,7 +204,7 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
 
             <button
               className="ssi-register__btn--clear"
-              onClick={handleClear}
+              onClick={() => setConfirmingClear(true)}
               disabled={clearing}
             >
               {clearing ? "Clearing..." : "Clear"}
@@ -264,6 +267,31 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
           <text x="10" y="14.5" textAnchor="middle" fill="currentColor" fontSize="12" fontWeight="600" fontFamily="serif">i</text>
         </svg>
       </button>
+
+      {/* Confirm overlay for Import action */}
+      {confirmingImport && (
+        <Confirm
+          title="Import Subscribers"
+          message="This will pull all subscriber metadata (descriptions, organisations, profiles) from the remote TetraFlex LogServer into the local database. Existing subscriber data will be updated."
+          confirmLabel="Import"
+          variant="overlay"
+          confirmColor="blue"
+          onConfirm={() => { setConfirmingImport(false); handleImport(); }}
+          onCancel={() => setConfirmingImport(false)}
+        />
+      )}
+
+      {/* Confirm overlay for Clear action */}
+      {confirmingClear && (
+        <Confirm
+          title="Clear Subscribers"
+          message="This will remove all subscriber metadata from the local database. Reading data and heatmap points are not affected. You can re-import at any time to restore subscriber information."
+          confirmLabel="Clear"
+          variant="overlay"
+          onConfirm={() => { setConfirmingClear(false); handleClear(); }}
+          onCancel={() => setConfirmingClear(false)}
+        />
+      )}
 
       {/* Info overlay — explains the SSI Register in detail */}
       {showInfo && (
