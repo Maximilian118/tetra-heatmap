@@ -2,13 +2,13 @@ import { Flame, Hexagon, Activity, type LucideIcon } from "lucide-react";
 import "./MapPresets.scss";
 
 /* The three available deck.gl visualisation modes */
-export type LayerType = "heatmap" | "hexagon" | "line";
+export type LayerType = "heatmap" | "hexagon" | "path";
 
 /* Button definitions for the layer toggle row */
 const LAYER_OPTIONS: { type: LayerType; label: string; icon: LucideIcon }[] = [
   { type: "heatmap", label: "Heat", icon: Flame },
   { type: "hexagon", label: "Hex", icon: Hexagon },
-  { type: "line", label: "Line", icon: Activity },
+  { type: "path", label: "Path", icon: Activity },
 ];
 
 /* All available MapBox GL style presets */

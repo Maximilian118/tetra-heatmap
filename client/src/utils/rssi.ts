@@ -71,6 +71,42 @@ export const buildLineSegments = (readings: Reading[]): LineSegment[] => {
   return segments;
 };
 
+/* A continuous path for a single radio, with per-vertex RSSI colouring */
+export interface RadioPath {
+  ssi: number;
+  path: [number, number][];
+  colors: [number, number, number, number][];
+}
+
+/* Build continuous paths from readings, one per radio (SSI).
+   Each radio's readings are sorted by timestamp and joined into a single
+   polyline with per-vertex colours derived from the RSSI at each point. */
+export const buildPaths = (readings: Reading[]): RadioPath[] => {
+  /* Group readings by radio SSI */
+  const bySSI = new Map<number, Reading[]>();
+  for (const r of readings) {
+    const group = bySSI.get(r.ssi);
+    if (group) group.push(r);
+    else bySSI.set(r.ssi, [r]);
+  }
+
+  const paths: RadioPath[] = [];
+
+  /* For each radio, sort by timestamp and build a single path */
+  for (const [ssi, group] of bySSI.entries()) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
+    paths.push({
+      ssi,
+      path: group.map((r) => [r.longitude, r.latitude]),
+      colors: group.map((r) => rssiToColor(r.rssi!)),
+    });
+  }
+
+  return paths;
+};
+
 /* 21-stop colour ramp calibrated to TETRA signal quality thresholds.
    Each stop spans ~4.5 dB across -110 to -20 dBm.
    Red (unusable) → orange (adequate) → green (strong) → blue (over-strong).

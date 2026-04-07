@@ -56,16 +56,16 @@ const HEXAGON_SLIDERS: SliderConfig[] = [
   { key: "elevationScale", label: "Elevation", min: 0.1, max: 10, step: 0.1, format: dec1 },
 ];
 
-/* Sliders specific to the line layer */
-const LINE_SLIDERS: SliderConfig[] = [
-  { key: "lineWidth", label: "Line Width", min: 1, max: 20, step: 1, format: int },
+/* Sliders specific to the path layer */
+const PATH_SLIDERS: SliderConfig[] = [
+  { key: "lineWidth", label: "Path Width", min: 1, max: 20, step: 1, format: int },
 ];
 
 /* Map layer type to its specific sliders */
 const LAYER_SLIDERS: Record<LayerType, SliderConfig[]> = {
   heatmap: HEATMAP_SLIDERS,
   hexagon: HEXAGON_SLIDERS,
-  line: LINE_SLIDERS,
+  path: PATH_SLIDERS,
 };
 
 interface CustomiseProps {

@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import DeckGL from "@deck.gl/react";
 import { Map as MapGL } from "react-map-gl/mapbox";
 import { HeatmapLayer, HexagonLayer } from "@deck.gl/aggregation-layers";
-import { ScatterplotLayer, LineLayer } from "@deck.gl/layers";
+import { ScatterplotLayer, PathLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { fetchReadings, resetCache, fetchSettings, fetchSubscribers, geocodeCoordinates, type Reading, type Subscriber } from "../../utils/api";
 import { saveDataset, loadDataset, deriveSubscribersFromReadings, type SavedViewState } from "../../utils/dataset";
 import { readingsBounds } from "../../utils/geojson";
-import { normalizeRssi, rssiElevationWeight, rssiToColor, RSSI_COLOR_RANGE, buildLineSegments } from "../../utils/rssi";
+import { normalizeRssi, rssiElevationWeight, RSSI_COLOR_RANGE, buildPaths, type RadioPath } from "../../utils/rssi";
 import type { LayerType } from "./Sidebar/MapPresets/MapPresets";
 import { DEFAULT_LAYER_SETTINGS, type LayerSettings } from "./Sidebar/Customise/Customise";
 import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
@@ -200,9 +200,9 @@ const Map = () => {
     [filteredReadings]
   );
 
-  /* Pre-compute line segments when in line mode (memoised to avoid re-grouping on every render) */
-  const lineSegments = useMemo(
-    () => (layerType === "line" ? buildLineSegments(validReadings) : []),
+  /* Pre-compute paths when in line mode (memoised to avoid re-grouping on every render) */
+  const radioPaths = useMemo(
+    () => (layerType === "path" ? buildPaths(validReadings) : []),
     [validReadings, layerType]
   );
 
@@ -238,16 +238,17 @@ const Map = () => {
               specularColor: [51, 51, 51],
             },
           })
-        : layerType === "line"
-          ? /* Per-radio movement trails coloured by RSSI at each segment endpoint */
-            new LineLayer({
+        : layerType === "path"
+          ? /* Per-radio movement trails coloured by RSSI at each vertex */
+            new PathLayer<RadioPath>({
               id: "rssi-lines",
-              data: lineSegments,
-              getSourcePosition: (d) => d.sourcePosition,
-              getTargetPosition: (d) => d.targetPosition,
-              getColor: (d) => rssiToColor(d.rssi),
+              data: radioPaths,
+              getPath: (d) => d.path,
+              getColor: (d) => d.colors,
               getWidth: layerSettings.lineWidth,
               widthMinPixels: 1,
+              jointRounded: true,
+              capRounded: true,
               opacity: layerSettings.opacity,
             })
           : /* Smooth heatmap coloured by average RSSI value (not density).
@@ -295,7 +296,7 @@ const Map = () => {
         },
       }),
     ];
-  }, [validReadings, layerType, lineSegments, layerSettings]);
+  }, [validReadings, layerType, radioPaths, layerSettings]);
 
   /* Download the currently displayed readings as a JSON file via the browser save dialog */
   const handleSaveData = useCallback(async () => {
