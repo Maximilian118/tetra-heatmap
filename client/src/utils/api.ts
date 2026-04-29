@@ -102,9 +102,7 @@ export const importSubscribers = async (): Promise<{
   imported?: number;
   error?: string;
 }> => {
-  const res = await assertOk(
-    await fetch(`${API_BASE}/subscribers/import`, { method: "POST" })
-  );
+  const res = await fetch(`${API_BASE}/subscribers/import`, { method: "POST" });
   return res.json();
 };
 

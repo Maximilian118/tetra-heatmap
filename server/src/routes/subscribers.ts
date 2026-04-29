@@ -77,7 +77,7 @@ router.post("/subscribers/import", async (_req, res) => {
              COALESCE(o.DbId, 0)        AS OrganisationId,
              COALESCE(o.Description, '') AS Organisation
       FROM subscriber s
-      LEFT JOIN profile p      ON s.ProfileId = p.ProfileId
+      LEFT JOIN profile p      ON s.ProfileId = p.DbId
       LEFT JOIN organization o ON p.OrganizationId = o.DbId
       WHERE s.GroupSubscriber = 0
         AND s.MarkedForDeletion = 0

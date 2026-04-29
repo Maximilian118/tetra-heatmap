@@ -94,6 +94,16 @@
         background: $accent-blue-hover;
       }
     }
+
+    /* Green confirm button for success notices */
+    &--confirm-green {
+      background: $accent-green-bg;
+      border-color: $accent-green-border;
+
+      &:hover {
+        background: $accent-green-bg-hover;
+      }
+    }
   }
 
   /* Overlay variant — full map-area with side-by-side buttons */

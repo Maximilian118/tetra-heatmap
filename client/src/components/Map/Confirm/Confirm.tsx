@@ -5,13 +5,13 @@ import "./Confirm.scss";
 interface ConfirmProps {
   title: string;
   message: string;
-  onConfirm: () => void;
+  onConfirm?: () => void;
   onCancel: () => void;
   detail?: string;
   confirmLabel?: string;
   confirmIcon?: LucideIcon;
   variant?: "sidebar" | "overlay";
-  confirmColor?: "red" | "blue";
+  confirmColor?: "red" | "blue" | "green";
 }
 
 /* Full-area overlay asking the user to confirm a destructive or significant action */
@@ -33,7 +33,8 @@ const Confirm = ({
 
   const confirmBtnClass =
     "confirm-overlay__btn confirm-overlay__btn--confirm" +
-    (confirmColor === "blue" ? " confirm-overlay__btn--confirm-blue" : "");
+    (confirmColor === "blue" ? " confirm-overlay__btn--confirm-blue" : "") +
+    (confirmColor === "green" ? " confirm-overlay__btn--confirm-green" : "");
 
   return (
     <div className={rootClass}>
@@ -43,14 +44,23 @@ const Confirm = ({
       {detail && <span className="confirm-overlay__detail">{detail}</span>}
 
       <div className="confirm-overlay__actions">
-        <button className="confirm-overlay__btn confirm-overlay__btn--cancel" onClick={onCancel}>
-          <X size={14} />
-          Cancel
-        </button>
-        <button className={confirmBtnClass} onClick={onConfirm}>
-          {ConfirmIcon && <ConfirmIcon size={14} />}
-          {confirmLabel}
-        </button>
+        {onConfirm ? (
+          <>
+            <button className="confirm-overlay__btn confirm-overlay__btn--cancel" onClick={onCancel}>
+              <X size={14} />
+              Cancel
+            </button>
+            <button className={confirmBtnClass} onClick={onConfirm}>
+              {ConfirmIcon && <ConfirmIcon size={14} />}
+              {confirmLabel}
+            </button>
+          </>
+        ) : (
+          <button className="confirm-overlay__btn confirm-overlay__btn--cancel" onClick={onCancel}>
+            <X size={14} />
+            Close
+          </button>
+        )}
       </div>
     </div>
   );

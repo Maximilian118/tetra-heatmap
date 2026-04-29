@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { X, Info, RotateCcw, Download, Trash2 } from "lucide-react";
+import { X, Info, RotateCcw, Download, Trash2, CircleCheck, CircleX } from "lucide-react";
 import {
   fetchSubscribers,
   importSubscribers,
@@ -49,6 +49,7 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
   const [confirmingImport, setConfirmingImport] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [importResult, setImportResult] = useState<{ success: boolean; message: string } | null>(null);
 
   /* Use file subscribers when viewing a saved snapshot, otherwise live data */
   const subscribers = fileSubscribers ?? liveSubscribers;
@@ -79,10 +80,16 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
   const handleImport = async () => {
     setImporting(true);
     try {
-      await importSubscribers();
-      await loadSubscribers();
+      const result = await importSubscribers();
+      if (result.success) {
+        await loadSubscribers();
+        setImportResult({ success: true, message: `Successfully imported ${result.imported} subscribers.` });
+      } else {
+        setImportResult({ success: false, message: result.error ?? "Unknown error" });
+      }
     } catch (err) {
-      console.error("[ssi-register] Import failed:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      setImportResult({ success: false, message });
     } finally {
       setImporting(false);
     }
@@ -281,6 +288,17 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
           confirmColor="blue"
           onConfirm={() => { setConfirmingImport(false); handleImport(); }}
           onCancel={() => setConfirmingImport(false)}
+        />
+      )}
+
+      {/* Import result notice */}
+      {importResult && (
+        <Confirm
+          title={importResult.success ? "Import Succeeded" : "Import Failed"}
+          message={importResult.message}
+          confirmIcon={importResult.success ? CircleCheck : CircleX}
+          variant="overlay"
+          onCancel={() => setImportResult(null)}
         />
       )}
 
