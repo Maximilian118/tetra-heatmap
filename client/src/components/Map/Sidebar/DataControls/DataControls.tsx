@@ -10,10 +10,12 @@ interface DataControlsProps {
   onSave: () => void;
   onLoad: (file: File) => void;
   onResumeLive: () => void;
+  clockOffsetMs: number;
+  serverTzOffsetHours: number;
 }
 
 /* Save/Load buttons for exporting and importing heatmap datasets */
-const DataControls = ({ readings, isFileMode, onSave, onLoad, onResumeLive }: DataControlsProps) => {
+const DataControls = ({ readings, isFileMode, onSave, onLoad, onResumeLive, clockOffsetMs, serverTzOffsetHours }: DataControlsProps) => {
   const fileInput = useRef<HTMLInputElement>(null);
 
   /* Open the native file picker when Load Data is clicked */
@@ -32,7 +34,7 @@ const DataControls = ({ readings, isFileMode, onSave, onLoad, onResumeLive }: Da
       <span className="data-controls__count">
         {isFileMode
           ? `Viewing saved file — ${readings.length.toLocaleString()} readings`
-          : formatReadingSummary(readings)}
+          : formatReadingSummary(readings, clockOffsetMs, serverTzOffsetHours)}
       </span>
 
       {/* Save Data in live mode, Resume Live in file mode — same slot */}

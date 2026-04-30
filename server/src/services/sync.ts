@@ -38,6 +38,30 @@ const formatMetres = (m: number): string => (m >= 1000 ? `${m / 1000}km` : `${m}
 /* Tracks whether the last sync failed due to a connection error */
 let isDisconnected = false;
 
+/* ── Clock offset — measures the timezone/clock difference with the MySQL server ── */
+const OFFSET_REFRESH_MS = 10 * 60 * 1_000;
+let lastOffsetRefresh = 0;
+let cachedClockOffsetMs = 0;
+let cachedServerTzOffsetHours = 0;
+
+/* Query the MySQL server's clock and timezone, then cache the results */
+const refreshClockOffset = async (pool: ReturnType<typeof import("mysql2/promise").createPool>) => {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    "SELECT NOW() AS now, TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), NOW()) AS tz_offset"
+  );
+  const prev = cachedClockOffsetMs;
+  cachedClockOffsetMs = Date.now() - new Date(rows[0].now).getTime();
+  cachedServerTzOffsetHours = Math.round(rows[0].tz_offset / 3600);
+  lastOffsetRefresh = Date.now();
+  if (Math.abs(cachedClockOffsetMs - prev) > 5_000) {
+    const sign = cachedServerTzOffsetHours >= 0 ? "+" : "";
+    logger.info(`Clock offset: ${Math.round(cachedClockOffsetMs / 1000)}s, server TZ: UTC${sign}${cachedServerTzOffsetHours}`);
+  }
+};
+
+export const getClockOffsetMs = () => cachedClockOffsetMs;
+export const getServerTzOffsetHours = () => cachedServerTzOffsetHours;
+
 /* Connection error codes that indicate the database is unreachable */
 const CONNECTION_ERRORS = new Set([
   "ETIMEDOUT",
@@ -97,6 +121,11 @@ const syncReadings = async () => {
                FROM sdsdata WHERE ProtocolIdentifier = 10 AND Timestamp > DATE_SUB(NOW(), INTERVAL ? DAY)
                ORDER BY DbId ASC LIMIT ?`;
       params = [settings.retentionDays, settings.syncBatchSize];
+    }
+
+    /* Refresh the clock offset periodically (first sync + every 10 minutes) */
+    if (Date.now() - lastOffsetRefresh >= OFFSET_REFRESH_MS) {
+      await refreshClockOffset(pool);
     }
 
     const [rows] = await pool.query<SdsRow[]>(query, params);

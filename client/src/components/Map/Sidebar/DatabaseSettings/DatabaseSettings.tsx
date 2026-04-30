@@ -1,5 +1,5 @@
 import { useState, useEffect, useImperativeHandle, useRef, forwardRef } from "react";
-import { CircleCheck, CircleX } from "lucide-react";
+import { CircleCheck, CircleX, Info } from "lucide-react";
 import {
   fetchSettings,
   saveSettings,
@@ -57,11 +57,12 @@ export interface DatabaseSettingsHandle {
 
 interface DatabaseSettingsProps {
   onStateChange: (state: { saving: boolean; statusMessage: string | null }) => void;
+  onShowStats: () => void;
 }
 
 /* Database connection and sync settings panel with connection status indicator */
 const DatabaseSettings = forwardRef<DatabaseSettingsHandle, DatabaseSettingsProps>(
-  ({ onStateChange }, ref) => {
+  ({ onStateChange, onShowStats }, ref) => {
     const [settings, setSettings] = useState<Settings>(DEFAULTS);
     const [connected, setConnected] = useState<boolean | null>(null);
     const [saving, setSaving] = useState(false);
@@ -151,10 +152,17 @@ const DatabaseSettings = forwardRef<DatabaseSettingsHandle, DatabaseSettingsProp
       <div className="db-settings">
         {/* Connection section */}
         <div className="db-settings__section">
-          <span className={`db-settings__status db-settings__status--${statusModifier}`}>
-            {isConnected ? <CircleCheck size={14} /> : <CircleX size={14} />}
-            {statusLabel}
-          </span>
+          <div className="db-settings__status-row">
+            <span className={`db-settings__status db-settings__status--${statusModifier}`}>
+              {isConnected ? <CircleCheck size={14} /> : <CircleX size={14} />}
+              {statusLabel}
+            </span>
+            {isConnected && (
+              <button className="db-settings__info-btn" onClick={onShowStats} title="Logserver Stats">
+                <Info size={14} />
+              </button>
+            )}
+          </div>
           <span className="db-settings__subtitle">TetraFlex Logserver Version 8.x</span>
           <SettingsField
             label="Host"
@@ -221,6 +229,7 @@ const DatabaseSettings = forwardRef<DatabaseSettingsHandle, DatabaseSettingsProp
             onChange={(v) => updateField("mapboxToken", v)}
           />
         </div>
+
       </div>
     );
   }

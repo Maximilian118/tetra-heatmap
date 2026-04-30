@@ -1,4 +1,4 @@
-import { formatAccuracy } from "../../../utils/format";
+import { formatAccuracy, formatServerTime, formatTzLabel } from "../../../utils/format";
 import "./Tooltip.scss";
 
 /* State shape for a hovered reading */
@@ -14,10 +14,12 @@ export interface TooltipInfo {
 
 interface TooltipProps {
   tooltip: TooltipInfo | null;
+  clockOffsetMs: number;
+  serverTzOffsetHours: number;
 }
 
 /* Floating tooltip that follows the cursor over heatmap data points */
-const Tooltip = ({ tooltip }: TooltipProps) => {
+const Tooltip = ({ tooltip, clockOffsetMs, serverTzOffsetHours }: TooltipProps) => {
   if (!tooltip) return null;
 
   /* Show description alongside ISSI if available */
@@ -32,7 +34,7 @@ const Tooltip = ({ tooltip }: TooltipProps) => {
     >
       <div><strong>ISSI:</strong> {issiLabel}</div>
       <div><strong>RSSI:</strong> {tooltip.rssi} dBm</div>
-      <div><strong>Time:</strong> {new Date(tooltip.timestamp).toLocaleString()}</div>
+      <div><strong>Time:</strong> {formatServerTime(tooltip.timestamp, clockOffsetMs, serverTzOffsetHours)} {formatTzLabel(serverTzOffsetHours)}</div>
       <div><strong>GPS Accuracy:</strong> {formatAccuracy(tooltip.positionError)}</div>
     </div>
   );

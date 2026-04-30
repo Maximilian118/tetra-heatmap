@@ -51,10 +51,20 @@ const assertOk = async (res: Response): Promise<Response> => {
   return res;
 };
 
-/* Fetch all cached RSSI readings from the local database */
-export const fetchReadings = async (): Promise<Reading[]> => {
+/* Response shape from the /rssi endpoint — readings plus clock/timezone metadata */
+export interface RssiResponse {
+  readings: Reading[];
+  clockOffsetMs: number;
+  serverTzOffsetHours: number;
+}
+
+/* Fetch all cached RSSI readings and server clock metadata */
+export const fetchReadings = async (): Promise<RssiResponse> => {
   const res = await assertOk(await fetch(`${API_BASE}/rssi`));
-  return res.json();
+  const data = await res.json();
+  /* Support both the new object shape and a bare array (backward compat) */
+  if (Array.isArray(data)) return { readings: data, clockOffsetMs: 0, serverTzOffsetHours: 0 };
+  return data;
 };
 
 /* Clear the local RSSI cache and start collecting fresh data from now */

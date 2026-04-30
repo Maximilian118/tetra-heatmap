@@ -6,6 +6,7 @@ import "./SsiFilter.scss";
 interface SsiFilterProps {
   onToggleRegister: () => void;
   selectedSsis: Set<number>;
+  isFileMode: boolean;
   dataAgeMinutes: number | null;
   onDataAgeChange: (minutes: number | null) => void;
   retentionDays: number;
@@ -68,7 +69,7 @@ const ACCURACY_STOPS = [2, 20, 200, 2000] as const;
 const DEBOUNCE_MS = 200;
 
 /* Sidebar section for opening the SSI Register overlay and filtering by data age and accuracy */
-const SsiFilter = ({ onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange }: SsiFilterProps) => {
+const SsiFilter = ({ onToggleRegister, selectedSsis, isFileMode, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange }: SsiFilterProps) => {
   const retentionMinutes = retentionDays * 1440;
   const ageDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const accuracyDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -121,11 +122,11 @@ const SsiFilter = ({ onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeCh
         SSI Register
       </button>
 
-      {/* Data age slider — logarithmic scale from all readings down to 1 minute */}
-      <div className="ssi-filter__age">
+      {/* Data age slider — logarithmic scale from all readings down to 1 minute (disabled in file mode) */}
+      <div className={`ssi-filter__age${isFileMode ? " ssi-filter__age--disabled" : ""}`}>
         <div className="ssi-filter__age-header">
           <span className="ssi-filter__age-name">Data Age</span>
-          <span className="ssi-filter__age-value">{formatAge(localMinutes)}</span>
+          <span className="ssi-filter__age-value">{isFileMode ? "N/A" : formatAge(localMinutes)}</span>
         </div>
         <input
           type="range"
@@ -135,6 +136,7 @@ const SsiFilter = ({ onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeCh
           step={1}
           value={localPosition}
           onChange={handleSliderChange}
+          disabled={isFileMode}
         />
       </div>
 

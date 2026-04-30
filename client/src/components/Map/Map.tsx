@@ -13,6 +13,8 @@ import type { LayerType } from "./Sidebar/MapPresets/MapPresets";
 import { DEFAULT_LAYER_SETTINGS, type LayerSettings } from "./Sidebar/Customise/Customise";
 import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
 import Sidebar from "./Sidebar/Sidebar";
+import Confirm from "./Confirm/Confirm";
+import { formatTzLabel } from "../../utils/format";
 import RssiLegend from "./RssiLegend/RssiLegend";
 import SsiRegister from "./SsiRegister/SsiRegister";
 import MapboxSetup from "./MapboxSetup/MapboxSetup";
@@ -86,6 +88,8 @@ const Map = () => {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savingRef = useRef(false);
   const [readings, setReadings] = useState<Reading[]>([]);
+  const [clockOffsetMs, setClockOffsetMs] = useState(0);
+  const [serverTzOffsetHours, setServerTzOffsetHours] = useState(0);
   const [resetting, setResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [lastReset, setLastReset] = useState<string | null>(() => localStorage.getItem("lastCacheReset"));
@@ -103,6 +107,7 @@ const Map = () => {
   const [dataAgeMinutes, setDataAgeMinutes] = useState<number | null>(null);
   const [retentionDays, setRetentionDays] = useState(5);
   const [maxAccuracy, setMaxAccuracy] = useState(2);
+  const [showStats, setShowStats] = useState(false);
 
   /* Use file data when loaded, otherwise fall back to live server data */
   const displayedReadings = fileReadings ?? readings;
@@ -137,8 +142,10 @@ const Map = () => {
      already centred on the readings — no fly animation needed. */
   const loadReadings = useCallback(async () => {
     try {
-      const data = await fetchReadings();
+      const { readings: data, clockOffsetMs: offset, serverTzOffsetHours: tzOffset } = await fetchReadings();
       setReadings(data);
+      setClockOffsetMs(offset);
+      setServerTzOffsetHours(tzOffset);
 
       /* Set initial viewport from data bounds (first load only) */
       setInitialView((prev) => {
@@ -185,23 +192,13 @@ const Map = () => {
     return lookup;
   }, [fileSubscribers, liveSubscribers]);
 
-  /* Filter readings by data age — cutoff is relative to newest reading (file mode) or now (live) */
+  /* Filter readings by data age — adjusted for MySQL clock offset (disabled in file mode) */
   const ageFilteredReadings = useMemo(() => {
     if (dataAgeMinutes === null) return displayedReadings;
     const cutoffMs = dataAgeMinutes * 60_000;
-    let refTime: number;
-    if (fileReadings !== null && displayedReadings.length > 0) {
-      refTime = -Infinity;
-      for (const r of displayedReadings) {
-        const t = new Date(r.timestamp).getTime();
-        if (t > refTime) refTime = t;
-      }
-    } else {
-      refTime = Date.now();
-    }
-    const threshold = refTime - cutoffMs;
+    const threshold = (Date.now() - clockOffsetMs) - cutoffMs;
     return displayedReadings.filter((r) => new Date(r.timestamp).getTime() >= threshold);
-  }, [displayedReadings, dataAgeMinutes, fileReadings]);
+  }, [displayedReadings, dataAgeMinutes, clockOffsetMs]);
 
   /* When ISSIs are selected in the SSI Register, only show their readings */
   const filteredReadings = useMemo(
@@ -476,6 +473,9 @@ const Map = () => {
         retentionDays={retentionDays}
         maxAccuracy={maxAccuracy}
         onAccuracyChange={setMaxAccuracy}
+        clockOffsetMs={clockOffsetMs}
+        serverTzOffsetHours={serverTzOffsetHours}
+        onShowStats={() => setShowStats(true)}
       />
 
       <div className="map-area">
@@ -495,7 +495,7 @@ const Map = () => {
           />
         </DeckGL>
 
-        <Tooltip tooltip={tooltip} />
+        <Tooltip tooltip={tooltip} clockOffsetMs={clockOffsetMs} serverTzOffsetHours={serverTzOffsetHours} />
         <RssiLegend />
 
         {/* SSI Register overlay — rendered on top of the map without unmounting it */}
@@ -508,6 +508,18 @@ const Map = () => {
             onResetFilter={handleResetSsiFilter}
             fileSubscribers={fileSubscribers}
             isFileMode={fileReadings !== null}
+            clockOffsetMs={clockOffsetMs}
+            serverTzOffsetHours={serverTzOffsetHours}
+          />
+        )}
+
+        {/* Logserver stats overlay */}
+        {showStats && (
+          <Confirm
+            title="Logserver Stats"
+            message={`Server Timezone: ${formatTzLabel(serverTzOffsetHours)}`}
+            variant="overlay"
+            onCancel={() => setShowStats(false)}
           />
         )}
       </div>

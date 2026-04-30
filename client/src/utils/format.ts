@@ -7,6 +7,37 @@ export const formatAccuracy = (metres: number | null): string => {
   return `< ${metres}m`;
 };
 
+/* ── Timezone-aware timestamp formatting ────────────────────────────── */
+
+/* Recover the raw MySQL server time from a stored ISO timestamp and
+   format it in the server's timezone. The clockOffsetMs and tzOffsetHours
+   values come from the /rssi API response. */
+export const formatServerTime = (
+  iso: string,
+  clockOffsetMs: number,
+  serverTzOffsetHours: number,
+): string => {
+  const stored = new Date(iso).getTime();
+  const rawMysqlEpoch = stored + clockOffsetMs + serverTzOffsetHours * 3_600_000;
+  return new Date(rawMysqlEpoch).toLocaleString("en-GB", { timeZone: "UTC" });
+};
+
+/* Format a timezone label with the local offset, e.g. "UTC -4" or "UTC (+2) -6".
+   The local offset tells the user how many hours to add to get their local time.
+   When server and browser are in the same timezone, no offset is shown. */
+export const formatTzLabel = (serverTzOffsetHours: number): string => {
+  const browserOffsetHours = -new Date().getTimezoneOffset() / 60;
+  const diff = browserOffsetHours - serverTzOffsetHours;
+  const serverLabel = serverTzOffsetHours === 0
+    ? "UTC"
+    : `UTC (${serverTzOffsetHours > 0 ? "+" : ""}${serverTzOffsetHours})`;
+  if (diff === 0) return serverLabel;
+  const diffSign = diff > 0 ? "+" : "";
+  return `${serverLabel} ${diffSign}${diff}`;
+};
+
+/* ── Reading summary ────────────────────────────────────────────────── */
+
 /* Format a Date as DD/MM/YY */
 const toShortDate = (d: Date): string => {
   const dd = String(d.getDate()).padStart(2, "0");
@@ -15,18 +46,22 @@ const toShortDate = (d: Date): string => {
   return `${dd}/${mm}/${yy}`;
 };
 
-/* Format a Date as HH:MM:SS */
-const toTime = (d: Date): string =>
-  d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+/* Format a timestamp epoch in the MySQL server's timezone as HH:MM:SS */
+const toServerTime = (epoch: number, clockOffsetMs: number, serverTzOffsetHours: number): string => {
+  const raw = epoch + clockOffsetMs + serverTzOffsetHours * 3_600_000;
+  return new Date(raw).toLocaleTimeString("en-GB", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+};
 
 /**
  * Single-line summary combining count and time coverage.
- * - No readings                     → "No readings"
- * - Recent (< 24h)                  → "345 readings – Today 17:03:23"
- * - Older, single calendar day      → "208 readings – 28/03/26"
- * - Older, spans multiple days      → "208 readings – 26/03/26 – 28/03/26"
+ * clockOffsetMs adjusts the "Today" age check so shifted timestamps
+ * don't break the date-vs-time display heuristic.
  */
-export const formatReadingSummary = (readings: Reading[]): string => {
+export const formatReadingSummary = (
+  readings: Reading[],
+  clockOffsetMs = 0,
+  serverTzOffsetHours = 0,
+): string => {
   if (readings.length === 0) return "No readings";
 
   const count = `${readings.length.toLocaleString()} reading${readings.length !== 1 ? "s" : ""}`;
@@ -42,12 +77,12 @@ export const formatReadingSummary = (readings: Reading[]): string => {
 
   const latest = new Date(maxMs);
   const earliest = new Date(minMs);
-  const ageMs = Date.now() - maxMs;
+  const ageMs = (Date.now() - clockOffsetMs) - maxMs;
   const ONE_DAY = 24 * 60 * 60 * 1000;
 
-  /* Recent data — show time of last reading */
+  /* Recent data — show time of last reading in server timezone */
   if (ageMs < ONE_DAY) {
-    return `${count} – Today ${toTime(latest)}`;
+    return `${count} – Today ${toServerTime(maxMs, clockOffsetMs, serverTzOffsetHours)}`;
   }
 
   /* Older data — show date range */

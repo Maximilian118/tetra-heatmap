@@ -55,6 +55,12 @@
     flex-direction: column;
     gap: 10px;
     padding: 4px;
+
+    /* Greyed-out state when slider is not applicable (e.g. file mode) */
+    &--disabled {
+      opacity: 0.35;
+      pointer-events: none;
+    }
   }
 
   /* Label and value on the same row */

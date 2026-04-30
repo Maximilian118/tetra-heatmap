@@ -13,6 +13,32 @@
     gap: 10px;
   }
 
+  /* Row containing the status label and info icon */
+  &__status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Logserver info button — subtle icon aligned to the right of the status row */
+  &__info-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: $text-muted;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+
+    &:hover {
+      color: $text-primary;
+      border-color: $border-default;
+    }
+  }
+
   /* Connection status label — coloured to indicate state */
   &__status {
     display: inline-flex;
@@ -36,7 +62,7 @@
   &__subtitle {
     font-size: 11px;
     color: $text-subtle;
-    margin-top: -6px;
+    margin-top: -8px;
     margin-bottom: 10px;
   }
 

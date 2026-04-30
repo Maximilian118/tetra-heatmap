@@ -7,6 +7,7 @@ import {
   backfillSubscriberLocations,
   type Subscriber,
 } from "../../../utils/api";
+import { formatServerTime, formatTzLabel } from "../../../utils/format";
 import Confirm from "../Confirm/Confirm";
 import "./SsiRegister.scss";
 
@@ -22,6 +23,8 @@ interface SsiRegisterProps {
   onResetFilter: () => void;
   fileSubscribers: Subscriber[] | null;
   isFileMode: boolean;
+  clockOffsetMs: number;
+  serverTzOffsetHours: number;
 }
 
 /* Format a "ID - Description" display string, showing em dash when data is unknown */
@@ -32,15 +35,18 @@ const formatIdDesc = (id: number | null, desc: string): string => {
   return `${id} - ${desc}`;
 };
 
-/* Format the Last Reading cell: timestamp with optional location suffix */
-const formatLastReading = (iso: string | null, location: string | null): string => {
+/* Format the Last Reading cell: server-timezone timestamp with optional location suffix */
+const formatLastReading = (
+  iso: string | null, location: string | null,
+  clockOffsetMs: number, serverTzOffsetHours: number,
+): string => {
   if (!iso) return "—";
-  const ts = new Date(iso).toLocaleString();
+  const ts = `${formatServerTime(iso, clockOffsetMs, serverTzOffsetHours)} ${formatTzLabel(serverTzOffsetHours)}`;
   return location ? `${ts} - ${location}` : ts;
 };
 
 /* Full-screen overlay displaying the SSI Register table with search, import, and filtering */
-const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetFilter, fileSubscribers, isFileMode }: SsiRegisterProps) => {
+const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetFilter, fileSubscribers, isFileMode, clockOffsetMs, serverTzOffsetHours }: SsiRegisterProps) => {
   const [liveSubscribers, setLiveSubscribers] = useState<Subscriber[]>([]);
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
@@ -249,8 +255,8 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
                 <td>{formatIdDesc(s.organisation_id, s.organisation)}</td>
                 <td>{formatIdDesc(s.profile_id, s.profile_name)}</td>
                 <td>{s.readings_count || "—"}</td>
-                <td title={formatLastReading(s.last_reading, s.last_location)}>
-                  {formatLastReading(s.last_reading, s.last_location)}
+                <td title={formatLastReading(s.last_reading, s.last_location, clockOffsetMs, serverTzOffsetHours)}>
+                  {formatLastReading(s.last_reading, s.last_location, clockOffsetMs, serverTzOffsetHours)}
                 </td>
               </tr>
             ))}

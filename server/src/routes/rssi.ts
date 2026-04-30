@@ -1,13 +1,16 @@
 import { Router } from "express";
 import { getAllReadings } from "../db/local.js";
-import { resetSync } from "../services/sync.js";
+import { resetSync, getClockOffsetMs, getServerTzOffsetHours } from "../services/sync.js";
 
 const router = Router();
 
-/* Return all cached RSSI readings from the local SQLite database */
+/* Return all cached RSSI readings along with clock/timezone metadata */
 router.get("/rssi", (_req, res) => {
-  const readings = getAllReadings();
-  res.json(readings);
+  res.json({
+    readings: getAllReadings(),
+    clockOffsetMs: getClockOffsetMs(),
+    serverTzOffsetHours: getServerTzOffsetHours(),
+  });
 });
 
 /* Wipe the local cache and start collecting fresh data from now */

@@ -44,10 +44,13 @@ interface SidebarProps {
   retentionDays: number;
   maxAccuracy: number;
   onAccuracyChange: (metres: number) => void;
+  clockOffsetMs: number;
+  serverTzOffsetHours: number;
+  onShowStats: () => void;
 }
 
 /* Left sidebar panel with Map and Database tabs */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("map");
   const [confirming, setConfirming] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -128,10 +131,13 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
               onSave={onSaveData}
               onLoad={onLoadData}
               onResumeLive={onResumeLive}
+              clockOffsetMs={clockOffsetMs}
+              serverTzOffsetHours={serverTzOffsetHours}
             />
             <SsiFilter
               onToggleRegister={onToggleRegister}
               selectedSsis={selectedSsis}
+              isFileMode={isFileMode}
               dataAgeMinutes={dataAgeMinutes}
               onDataAgeChange={onDataAgeChange}
               retentionDays={retentionDays}
@@ -145,7 +151,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
             />
           </>
         ) : (
-          <DatabaseSettings ref={dbRef} onStateChange={handleDbStateChange} />
+          <DatabaseSettings ref={dbRef} onStateChange={handleDbStateChange} onShowStats={onShowStats} />
         )}
       </div>
 
