@@ -13,8 +13,7 @@ import type { LayerType } from "./Sidebar/MapPresets/MapPresets";
 import { DEFAULT_LAYER_SETTINGS, type LayerSettings } from "./Sidebar/Customise/Customise";
 import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
 import Sidebar from "./Sidebar/Sidebar";
-import Confirm from "./Confirm/Confirm";
-import { formatTzLabel } from "../../utils/format";
+import LogserverStats from "./LogserverStats/LogserverStats";
 import RssiLegend from "./RssiLegend/RssiLegend";
 import SsiRegister from "./SsiRegister/SsiRegister";
 import MapboxSetup from "./MapboxSetup/MapboxSetup";
@@ -515,12 +514,7 @@ const Map = () => {
 
         {/* Logserver stats overlay */}
         {showStats && (
-          <Confirm
-            title="Logserver Stats"
-            message={`Server Timezone: ${formatTzLabel(serverTzOffsetHours)}`}
-            variant="overlay"
-            onCancel={() => setShowStats(false)}
-          />
+          <LogserverStats onClose={() => setShowStats(false)} />
         )}
       </div>
     </div>

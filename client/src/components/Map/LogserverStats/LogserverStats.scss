@@ -1,0 +1,170 @@
+@use "../../../styles/variables" as *;
+
+/* Full-area overlay displaying comprehensive LogServer statistics */
+.ls-stats {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: $bg-overlay;
+  z-index: 6;
+
+  /* ── Header with title and close button ──────────────── */
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid $border-subtle;
+  }
+
+  &__title {
+    font-size: 18px;
+    font-weight: 700;
+    color: $text-primary;
+    margin: 0;
+  }
+
+  &__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: $text-tertiary;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+
+    &:hover {
+      background: $bg-element-hover;
+      color: $text-primary;
+    }
+  }
+
+  /* ── Scrollable body ─────────────────────────────────── */
+  &__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 20px 24px;
+  }
+
+  /* ── Loading / error states ──────────────────────────── */
+  &__loading,
+  &__error {
+    text-align: center;
+    padding: 48px 16px;
+    font-size: 14px;
+    color: $text-muted;
+  }
+
+  &__error {
+    color: $accent-red;
+  }
+
+  /* ── Section group ───────────────────────────────────── */
+  &__section {
+    margin-bottom: 16px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  &__section-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: $text-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid $border-subtle;
+  }
+
+  /* ── Key-value row ───────────────────────────────────── */
+  &__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    min-height: 26px;
+
+    /* Indented sub-rows for node list */
+    &--indent {
+      padding-left: 16px;
+    }
+  }
+
+  &__label {
+    font-size: 13px;
+    color: $text-tertiary;
+    white-space: nowrap;
+    margin-right: 12px;
+  }
+
+  &__value {
+    font-size: 13px;
+    font-weight: 500;
+    color: $text-secondary;
+    text-align: right;
+    word-break: break-word;
+  }
+
+  /* ── On/Off badge ────────────────────────────────────── */
+  &__badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+
+    &--on {
+      background: $accent-green-bg;
+      color: $accent-green;
+      border: 1px solid $accent-green-border;
+    }
+
+    &--off {
+      background: $bg-element;
+      color: $text-muted;
+      border: 1px solid $border-default;
+    }
+  }
+
+  /* ── Usage bar (disk/memory) ─────────────────────────── */
+  &__usage {
+    padding: 4px 0;
+  }
+
+  &__usage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+
+  &__bar {
+    height: 6px;
+    background: $bg-element;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  &__bar-fill {
+    height: 100%;
+    background: $accent-blue;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+
+    /* Warn state when usage > 90% */
+    &--warn {
+      background: $accent-red;
+    }
+  }
+}

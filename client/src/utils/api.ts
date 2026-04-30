@@ -153,6 +153,65 @@ export const clearSubscribers = async (): Promise<{
   return res.json();
 };
 
+/* ── Stats API ────────────────────────────────────────────────────── */
+
+/* Shape of the logserver stats response */
+export interface LogserverStats {
+  server: {
+    version: string | null;
+    dbVersion: string | null;
+    mysqlVersion: string | null;
+    hostname: string | null;
+    startupTime: string | null;
+    timezone: number;
+  };
+  system: {
+    cpuLoad: number | null;
+    memUsageMB: number | null;
+    memPeakMB: number | null;
+    memAvailableMB: number | null;
+    diskFreeMB: number | null;
+    diskTotalMB: number | null;
+    dbSizeMB: number | null;
+  };
+  network: {
+    nodes: { nodeNo: number; description: string }[];
+    organizationCount: number;
+    individualSubscribers: number;
+    groupSubscribers: number;
+    registeredMs: number;
+  };
+  activity: {
+    groupCalls: number;
+    individualCalls: number;
+    pttEvents: number;
+    sdsMessages: number;
+    lastGroupCall: string | null;
+    lastIndividualCall: string | null;
+    lastSds: string | null;
+    lastRegistration: string | null;
+  };
+  logging: {
+    infoLog: boolean;
+    sdsLog: boolean;
+    logAll: boolean;
+    voiceLogMax: number;
+  };
+  license: {
+    serial: number | null;
+    expiryDate: string | null;
+  };
+  alarms: {
+    last24h: number;
+  };
+}
+
+/* Fetch comprehensive logserver statistics */
+export const fetchStats = async (): Promise<LogserverStats> => {
+  const res = await assertOk(await fetch(`${API_BASE}/stats`));
+  return res.json();
+};
+
 /* Save new settings, test connection, and restart sync service */
 export const saveSettings = async (settings: Settings): Promise<SettingsResponse> => {
   const res = await assertOk(

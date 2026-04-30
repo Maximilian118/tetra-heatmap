@@ -12,6 +12,7 @@ import rssiRoutes from "./routes/rssi.js";
 import settingsRoutes from "./routes/settings.js";
 import configRoutes from "./routes/config.js";
 import subscriberRoutes from "./routes/subscribers.js";
+import statsRoutes from "./routes/stats.js";
 import { startSync, stopSync } from "./services/sync.js";
 import { createPool, closePool } from "./db/remote.js";
 import { closeDb } from "./db/local.js";
@@ -31,6 +32,7 @@ app.use("/api", rssiRoutes);
 app.use("/api", settingsRoutes);
 app.use("/api", configRoutes);
 app.use("/api", subscriberRoutes);
+app.use("/api", statsRoutes);
 
 /* Serve the built Vite client as static files (production mode) */
 const clientDist = path.resolve(__dirname, "../../client/dist");
