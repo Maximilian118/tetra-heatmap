@@ -11,7 +11,8 @@ import {
 } from "../db/local.js";
 import type { Reading } from "../db/local.js";
 import type { RowDataPacket } from "mysql2";
-import { decodeLipReport } from "../utils/lip.js";
+import { decodeLipReportDetailed } from "../utils/lip.js";
+import type { LipRejectReason } from "../utils/lip.js";
 
 /* Lazy-load the offline geocoder so a broken/missing package never crashes the sync service */
 let getNearestCity: ((lat: number, lon: number) => { cityName?: string; countryName?: string }) | null = null;
@@ -20,6 +21,19 @@ import("offline-geocode-city")
   .catch(() => { /* package unavailable — location features disabled */ });
 import { getSettings, isConfigured } from "../db/settings.js";
 import logger from "../utils/log.js";
+
+/* Human-readable labels for each LIP rejection reason */
+const REJECT_LABELS: Record<LipRejectReason, string> = {
+  buffer_too_short: "short buffer",
+  unsupported_pdu: "unsupported PDU",
+  insufficient_bits: "insufficient bits",
+  no_gps_fix: "no fix",
+  out_of_range: "out of range",
+  low_accuracy: "low accuracy",
+};
+
+/* Format a position error value in metres as a compact log label */
+const formatMetres = (m: number): string => (m >= 1000 ? `${m / 1000}km` : `${m}m`);
 
 /* Tracks whether the last sync failed due to a connection error */
 let isDisconnected = false;
@@ -94,13 +108,28 @@ const syncReadings = async () => {
       setSyncInterval(settings.syncIntervalMs);
     }
 
-    /* Decode LIP PDUs and filter out rows with no GPS fix */
+    /* Decode LIP PDUs, tally rejections and accuracy distribution */
     if (rows.length > 0) {
       const readings: Reading[] = [];
+      const rejectCounts: Record<LipRejectReason, number> = {
+        buffer_too_short: 0,
+        unsupported_pdu: 0,
+        insufficient_bits: 0,
+        no_gps_fix: 0,
+        out_of_range: 0,
+        low_accuracy: 0,
+      };
+      const accuracyCounts: Record<number, number> = {};
 
       for (const row of rows) {
-        const lip = decodeLipReport(row.UserData);
-        if (!lip) continue;
+        const result = decodeLipReportDetailed(row.UserData);
+
+        if (!result.ok) {
+          rejectCounts[result.reason]++;
+          continue;
+        }
+
+        const lip = result.report;
 
         readings.push({
           id: row.DbId,
@@ -114,6 +143,11 @@ const syncReadings = async () => {
           velocity: lip.velocity,
           direction: lip.direction,
         });
+
+        /* Tally accuracy distribution */
+        if (lip.positionError !== null) {
+          accuracyCounts[lip.positionError] = (accuracyCounts[lip.positionError] || 0) + 1;
+        }
       }
 
       if (readings.length > 0) {
@@ -143,12 +177,30 @@ const syncReadings = async () => {
         }
       }
 
-      /* Log how many rows had valid GPS vs total fetched */
+      /* Build the enhanced sync log line */
       const elapsed = Math.round(performance.now() - start);
-      const parts = [`${rows.length} LIP messages fetched`];
-      if (readings.length < rows.length) {
-        parts.push(`${readings.length} with GPS fix`);
+      const totalRejected = Object.values(rejectCounts).reduce((a, b) => a + b, 0);
+
+      /* Format accuracy distribution: "1x <2m, 1x <20m" or "<2m" when all the same */
+      const accuracyParts: string[] = [];
+      for (const m of [2, 20, 200, 2000]) {
+        const count = accuracyCounts[m];
+        if (!count) continue;
+        const label = `<${formatMetres(m)}`;
+        accuracyParts.push(count === 1 && readings.length === 1 ? label : `${count}x ${label}`);
       }
+      const accuracyStr = accuracyParts.length > 0 ? ` (${accuracyParts.join(", ")})` : "";
+
+      /* Format rejection breakdown: "29 no fix, 1 low accuracy" */
+      const rejectParts: string[] = [];
+      for (const [reason, count] of Object.entries(rejectCounts)) {
+        if (count > 0) rejectParts.push(`${count} ${REJECT_LABELS[reason as LipRejectReason]}`);
+      }
+
+      const parts = [`${rows.length} LIP fetched`];
+      if (readings.length > 0) parts.push(`${readings.length} stored${accuracyStr}`);
+      if (totalRejected > 0) parts.push(`${totalRejected} rejected (${rejectParts.join(", ")})`);
+
       const pruned = pruneOldReadings(settings.retentionDays);
       if (pruned > 0) parts.push(`${pruned} pruned`);
       logger.info(`Sync finished — ${parts.join(", ")} (${elapsed}ms)`);

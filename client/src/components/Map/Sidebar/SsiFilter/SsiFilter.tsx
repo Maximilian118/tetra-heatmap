@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Users } from "lucide-react";
+import { formatAccuracy } from "../../../../utils/format";
 import "./SsiFilter.scss";
 
 interface SsiFilterProps {
@@ -8,6 +9,8 @@ interface SsiFilterProps {
   dataAgeMinutes: number | null;
   onDataAgeChange: (minutes: number | null) => void;
   retentionDays: number;
+  maxAccuracy: number;
+  onAccuracyChange: (metres: number) => void;
 }
 
 /* Build the filter summary text based on the current SSI selection */
@@ -58,35 +61,55 @@ const formatAge = (minutes: number | null): string => {
   return `${Math.round(minutes)} min`;
 };
 
+/* Discrete accuracy stops — slider position maps to metres */
+const ACCURACY_STOPS = [2, 20, 200, 2000] as const;
+
 /* How long to wait after the last slider movement before updating the map (ms) */
 const DEBOUNCE_MS = 200;
 
-/* Sidebar section for opening the SSI Register overlay and filtering by data age */
-const SsiFilter = ({ onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays }: SsiFilterProps) => {
+/* Sidebar section for opening the SSI Register overlay and filtering by data age and accuracy */
+const SsiFilter = ({ onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange }: SsiFilterProps) => {
   const retentionMinutes = retentionDays * 1440;
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ageDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const accuracyDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* Local slider position — updates instantly for smooth dragging */
+  /* Local slider positions — update instantly for smooth dragging */
   const [localPosition, setLocalPosition] = useState(() =>
     minutesToSlider(dataAgeMinutes, retentionMinutes)
   );
+  const [localAccuracy, setLocalAccuracy] = useState(() =>
+    Math.max(0, ACCURACY_STOPS.indexOf(maxAccuracy as typeof ACCURACY_STOPS[number]))
+  );
 
-  /* Sync local position when the parent resets the value (e.g. file load) */
+  /* Sync local positions when the parent resets values (e.g. file load) */
   useEffect(() => {
     setLocalPosition(minutesToSlider(dataAgeMinutes, retentionMinutes));
   }, [dataAgeMinutes, retentionMinutes]);
+
+  useEffect(() => {
+    setLocalAccuracy(Math.max(0, ACCURACY_STOPS.indexOf(maxAccuracy as typeof ACCURACY_STOPS[number])));
+  }, [maxAccuracy]);
 
   /* Update local state immediately, debounce the expensive parent callback */
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const position = parseInt(e.target.value, 10);
     setLocalPosition(position);
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => {
+    if (ageDebounce.current) clearTimeout(ageDebounce.current);
+    ageDebounce.current = setTimeout(() => {
       onDataAgeChange(sliderToMinutes(position, retentionMinutes));
     }, DEBOUNCE_MS);
   };
 
-  /* Derive the label from local position so it updates instantly */
+  const handleAccuracyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const position = parseInt(e.target.value, 10);
+    setLocalAccuracy(position);
+    if (accuracyDebounce.current) clearTimeout(accuracyDebounce.current);
+    accuracyDebounce.current = setTimeout(() => {
+      onAccuracyChange(ACCURACY_STOPS[position]);
+    }, DEBOUNCE_MS);
+  };
+
+  /* Derive labels from local positions so they update instantly */
   const localMinutes = sliderToMinutes(localPosition, retentionMinutes);
 
   return (
@@ -112,6 +135,23 @@ const SsiFilter = ({ onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeCh
           step={1}
           value={localPosition}
           onChange={handleSliderChange}
+        />
+      </div>
+
+      {/* GPS accuracy slider — 4 discrete stops controlling which readings are displayed */}
+      <div className="ssi-filter__age">
+        <div className="ssi-filter__age-header">
+          <span className="ssi-filter__age-name">GPS Accuracy</span>
+          <span className="ssi-filter__age-value">{formatAccuracy(ACCURACY_STOPS[localAccuracy])}</span>
+        </div>
+        <input
+          type="range"
+          className="ssi-filter__age-slider ssi-filter__age-slider--discrete"
+          min={0}
+          max={ACCURACY_STOPS.length - 1}
+          step={1}
+          value={localAccuracy}
+          onChange={handleAccuracyChange}
         />
       </div>
     </div>

@@ -49,12 +49,12 @@
     }
   }
 
-  /* Data age slider group — matches Customise slider-group spacing */
+  /* Slider group — padding prevents the thumb from clipping on hover scale */
   &__age {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding-top: 4px;
+    padding: 4px;
   }
 
   /* Label and value on the same row */
@@ -127,5 +127,25 @@
     }
   }
 
+  /* Discrete slider variant — dots baked into the track background */
+  &__age-slider--discrete {
+    $dot: radial-gradient(circle, rgba($text-secondary, 0.35) 2px, transparent 2px);
 
+    background:
+      $dot 0% center / 4px 4px no-repeat,
+      $dot 33.33% center / 4px 4px no-repeat,
+      $dot 66.67% center / 4px 4px no-repeat,
+      $dot 100% center / 4px 4px no-repeat,
+      $border-subtle;
+    background-clip: padding-box;
+
+    &::-moz-range-track {
+      background:
+        $dot 0% center / 4px 4px no-repeat,
+        $dot 33.33% center / 4px 4px no-repeat,
+        $dot 66.67% center / 4px 4px no-repeat,
+        $dot 100% center / 4px 4px no-repeat,
+        $border-subtle;
+    }
+  }
 }

@@ -42,10 +42,12 @@ interface SidebarProps {
   dataAgeMinutes: number | null;
   onDataAgeChange: (minutes: number | null) => void;
   retentionDays: number;
+  maxAccuracy: number;
+  onAccuracyChange: (metres: number) => void;
 }
 
 /* Left sidebar panel with Map and Database tabs */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("map");
   const [confirming, setConfirming] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -133,6 +135,8 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
               dataAgeMinutes={dataAgeMinutes}
               onDataAgeChange={onDataAgeChange}
               retentionDays={retentionDays}
+              maxAccuracy={maxAccuracy}
+              onAccuracyChange={onAccuracyChange}
             />
             <Customise
               layerType={layerType}

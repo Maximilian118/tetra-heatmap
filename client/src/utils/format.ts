@@ -1,5 +1,12 @@
 import type { Reading } from "./api";
 
+/* Format a GPS position error in metres as a human-readable accuracy label */
+export const formatAccuracy = (metres: number | null): string => {
+  if (metres === null) return "Unknown";
+  if (metres >= 1000) return `< ${metres / 1000}km`;
+  return `< ${metres}m`;
+};
+
 /* Format a Date as DD/MM/YY */
 const toShortDate = (d: Date): string => {
   const dd = String(d.getDate()).padStart(2, "0");

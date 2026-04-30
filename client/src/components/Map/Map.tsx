@@ -98,9 +98,11 @@ const Map = () => {
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [dbConnected, setDbConnected] = useState(false);
+  const [liveSubscribers, setLiveSubscribers] = useState<Subscriber[]>([]);
   const [selectedSsis, setSelectedSsis] = useState<Set<number>>(new Set());
   const [dataAgeMinutes, setDataAgeMinutes] = useState<number | null>(null);
   const [retentionDays, setRetentionDays] = useState(5);
+  const [maxAccuracy, setMaxAccuracy] = useState(2);
 
   /* Use file data when loaded, otherwise fall back to live server data */
   const displayedReadings = fileReadings ?? readings;
@@ -130,9 +132,9 @@ const Map = () => {
     console.error("[mapbox] error:", e.error?.message ?? e);
   }, []);
 
-  /* Fetch readings from the API. On first successful load, derive the
-     initial viewport from the data bounding box so the map opens already
-     centred on the readings — no fly animation needed. */
+  /* Fetch readings and subscribers from the API. On first successful load,
+     derive the initial viewport from the data bounding box so the map opens
+     already centred on the readings — no fly animation needed. */
   const loadReadings = useCallback(async () => {
     try {
       const data = await fetchReadings();
@@ -148,6 +150,11 @@ const Map = () => {
     } catch (err) {
       console.error("[map] Failed to fetch readings:", err);
     }
+
+    /* Refresh subscriber descriptions for tooltip lookups */
+    try {
+      setLiveSubscribers(await fetchSubscribers());
+    } catch { /* subscriber fetch is non-critical */ }
   }, []);
 
   /* Poll the API on mount and at a regular interval */
@@ -167,6 +174,16 @@ const Map = () => {
       })
       .catch((err) => console.error("[map] Failed to fetch settings:", err));
   }, []);
+
+  /* Build an SSI → description lookup from whichever subscriber source is active */
+  const ssiDescriptionMap = useMemo(() => {
+    const subs = fileSubscribers ?? liveSubscribers;
+    const lookup = new globalThis.Map<number, string>();
+    for (const s of subs) {
+      if (s.description) lookup.set(s.ssi, s.description);
+    }
+    return lookup;
+  }, [fileSubscribers, liveSubscribers]);
 
   /* Filter readings by data age — cutoff is relative to newest reading (file mode) or now (live) */
   const ageFilteredReadings = useMemo(() => {
@@ -194,10 +211,18 @@ const Map = () => {
     [ageFilteredReadings, selectedSsis]
   );
 
+  /* Filter by GPS accuracy — only show readings within the selected accuracy threshold */
+  const accuracyFilteredReadings = useMemo(
+    () => filteredReadings.filter((r) =>
+      r.position_error !== null && r.position_error <= maxAccuracy
+    ),
+    [filteredReadings, maxAccuracy]
+  );
+
   /* Filter out readings without a valid RSSI — they can't be visualised */
   const validReadings = useMemo(
-    () => filteredReadings.filter((r) => r.rssi !== null),
-    [filteredReadings]
+    () => accuracyFilteredReadings.filter((r) => r.rssi !== null),
+    [accuracyFilteredReadings]
   );
 
   /* Pre-compute paths when in line mode (memoised to avoid re-grouping on every render) */
@@ -289,6 +314,8 @@ const Map = () => {
               ssi: info.object.ssi,
               rssi: info.object.rssi!,
               timestamp: info.object.timestamp,
+              positionError: info.object.position_error,
+              description: ssiDescriptionMap.get(info.object.ssi) ?? "",
             });
           } else {
             setTooltip(null);
@@ -296,7 +323,7 @@ const Map = () => {
         },
       }),
     ];
-  }, [validReadings, layerType, radioPaths, layerSettings]);
+  }, [validReadings, layerType, radioPaths, layerSettings, ssiDescriptionMap]);
 
   /* Download the currently displayed readings as a JSON file via the browser save dialog */
   const handleSaveData = useCallback(async () => {
@@ -447,6 +474,8 @@ const Map = () => {
         dataAgeMinutes={dataAgeMinutes}
         onDataAgeChange={setDataAgeMinutes}
         retentionDays={retentionDays}
+        maxAccuracy={maxAccuracy}
+        onAccuracyChange={setMaxAccuracy}
       />
 
       <div className="map-area">
