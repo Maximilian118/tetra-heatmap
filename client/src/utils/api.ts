@@ -97,8 +97,11 @@ export interface Subscriber {
   profile_id: number | null;
   profile_name: string;
   readings_count: number;
+  rejected_count: number;
   last_reading: string | null;
   last_location: string | null;
+  accuracy_breakdown: Record<number, number> | null;
+  rejection_breakdown: Record<string, number> | null;
 }
 
 /* Fetch all subscribers with per-SSI reading statistics */

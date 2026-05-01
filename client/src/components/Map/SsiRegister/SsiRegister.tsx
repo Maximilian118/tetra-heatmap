@@ -7,9 +7,23 @@ import {
   backfillSubscriberLocations,
   type Subscriber,
 } from "../../../utils/api";
-import { formatServerTime, formatTzLabel } from "../../../utils/format";
+import { formatServerTime, formatTzLabel, formatAccuracy } from "../../../utils/format";
 import Confirm from "../Confirm/Confirm";
 import "./SsiRegister.scss";
+
+/* Tooltip state for the accuracy/rejection breakdown popover */
+interface BreakdownTooltip {
+  x: number;
+  y: number;
+  type: "accepted" | "rejected";
+  lines: { label: string; count: number }[];
+}
+
+/* Human-readable labels for each LIP rejection reason */
+const REJECT_LABELS: Record<string, string> = {
+  low_accuracy: "Low accuracy",
+  out_of_range: "Out of range",
+};
 
 /* Threshold for showing 0-reading rows when searching */
 const SEARCH_SHOW_ALL_THRESHOLD = 50;
@@ -56,6 +70,7 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [importResult, setImportResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [breakdownTooltip, setBreakdownTooltip] = useState<BreakdownTooltip | null>(null);
 
   /* Use file subscribers when viewing a saved snapshot, otherwise live data */
   const subscribers = fileSubscribers ?? liveSubscribers;
@@ -156,6 +171,30 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
     return [...withReadings, ...withoutReadings];
   }, [subscribers, search, showAll]);
 
+  /* Show a tooltip with accuracy or rejection breakdown for a subscriber */
+  const showBreakdown = (e: React.MouseEvent, s: Subscriber, type: "accepted" | "rejected") => {
+    const lines: { label: string; count: number }[] = [];
+
+    if (type === "accepted" && s.accuracy_breakdown) {
+      /* Sort accuracy levels ascending (2, 20, 200, 2000) */
+      const sorted = Object.entries(s.accuracy_breakdown)
+        .map(([m, cnt]) => ({ metres: Number(m), count: cnt }))
+        .sort((a, b) => a.metres - b.metres);
+      for (const { metres, count } of sorted) {
+        lines.push({ label: formatAccuracy(metres), count });
+      }
+    } else if (type === "rejected" && s.rejection_breakdown) {
+      for (const [reason, count] of Object.entries(s.rejection_breakdown)) {
+        lines.push({ label: REJECT_LABELS[reason] ?? reason, count });
+      }
+    }
+
+    if (lines.length === 0) return;
+    setBreakdownTooltip({ x: e.clientX + 12, y: e.clientY - 12, type, lines });
+  };
+
+  const hideBreakdown = () => setBreakdownTooltip(null);
+
   const hasSelection = selectedSsis.size > 0;
 
   /* Build row class name based on selection and readings state */
@@ -254,7 +293,26 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
                 <td>{s.description || "—"}</td>
                 <td>{formatIdDesc(s.organisation_id, s.organisation)}</td>
                 <td>{formatIdDesc(s.profile_id, s.profile_name)}</td>
-                <td>{s.readings_count || "—"}</td>
+                <td className="ssi-register__readings">
+                  {s.readings_count > 0 ? (
+                    <span
+                      className="ssi-register__accepted"
+                      onMouseEnter={(e) => showBreakdown(e, s, "accepted")}
+                      onMouseLeave={hideBreakdown}
+                    >
+                      {s.readings_count}
+                    </span>
+                  ) : "—"}
+                  {s.rejected_count > 0 && (
+                    <span
+                      className="ssi-register__rejected"
+                      onMouseEnter={(e) => showBreakdown(e, s, "rejected")}
+                      onMouseLeave={hideBreakdown}
+                    >
+                      {s.rejected_count}
+                    </span>
+                  )}
+                </td>
                 <td title={formatLastReading(s.last_reading, s.last_location, clockOffsetMs, serverTzOffsetHours)}>
                   {formatLastReading(s.last_reading, s.last_location, clockOffsetMs, serverTzOffsetHours)}
                 </td>
@@ -321,6 +379,21 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
         />
       )}
 
+      {/* Accuracy / rejection breakdown tooltip */}
+      {breakdownTooltip && (
+        <div
+          className="ssi-register__breakdown-tooltip"
+          style={{ left: breakdownTooltip.x, top: breakdownTooltip.y }}
+        >
+          <div className={`ssi-register__breakdown-header ssi-register__breakdown-header--${breakdownTooltip.type}`}>
+            {breakdownTooltip.type === "accepted" ? "Accepted" : "Rejected"}
+          </div>
+          {breakdownTooltip.lines.map((line, i) => (
+            <div key={i}><strong>{line.label}:</strong> {line.count}</div>
+          ))}
+        </div>
+      )}
+
       {/* Info overlay — explains the SSI Register in detail */}
       {showInfo && (
         <div className="ssi-register__info">
@@ -357,7 +430,11 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
               <dd>The subscriber's TetraFlex profile, controlling permissions and features.</dd>
 
               <dt>Readings</dt>
-              <dd>The total number of RSSI readings received from this ISSI within the retention window.</dd>
+              <dd>
+                The number of accepted readings (green) and rejected readings (red) for this ISSI.
+                Hover over each count to see a breakdown — accepted readings show accuracy levels,
+                rejected readings show the rejection reason.
+              </dd>
 
               <dt>Last Reading</dt>
               <dd>

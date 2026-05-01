@@ -55,6 +55,7 @@ interface ColumnarSubscribers {
   pid: (number | null)[];
   pn: string[];
   rc: number[];
+  rjc: number[];
   lr: (string | null)[];
   ll: (string | null)[];
 }
@@ -163,6 +164,7 @@ const subscribersToColumnar = (subs: Subscriber[]): ColumnarSubscribers => {
     pid: new Array(n),
     pn: new Array(n),
     rc: new Array(n),
+    rjc: new Array(n),
     lr: new Array(n),
     ll: new Array(n),
   };
@@ -176,6 +178,7 @@ const subscribersToColumnar = (subs: Subscriber[]): ColumnarSubscribers => {
     cols.pid[i] = s.profile_id;
     cols.pn[i] = s.profile_name;
     cols.rc[i] = s.readings_count;
+    cols.rjc[i] = s.rejected_count;
     cols.lr[i] = s.last_reading;
     cols.ll[i] = s.last_location;
   }
@@ -197,8 +200,11 @@ const columnarToSubscribers = (cols: ColumnarSubscribers): Subscriber[] => {
       profile_id: cols.pid[i],
       profile_name: cols.pn[i],
       readings_count: cols.rc[i],
+      rejected_count: cols.rjc?.[i] ?? 0,
       last_reading: cols.lr[i],
       last_location: cols.ll[i],
+      accuracy_breakdown: null,
+      rejection_breakdown: null,
     };
   }
 
@@ -326,8 +332,11 @@ export const deriveSubscribersFromReadings = (readings: Reading[]): DerivedSubsc
       profile_id: null,
       profile_name: "",
       readings_count: stats.count,
+      rejected_count: 0,
       last_reading: stats.lastTs,
       last_location: null,
+      accuracy_breakdown: null,
+      rejection_breakdown: null,
     });
     toGeocode.push({ index: subscribers.length - 1, latitude: stats.lastLat, longitude: stats.lastLon });
   }

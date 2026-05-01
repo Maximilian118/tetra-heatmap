@@ -252,6 +252,48 @@
     color: $text-subtle;
   }
 
+  /* Readings cell: green accepted count + red rejected count side by side */
+  &__readings {
+    display: flex;
+    gap: 8px;
+  }
+
+  /* Accepted reading count — green */
+  &__accepted {
+    color: $accent-green;
+    cursor: default;
+  }
+
+  /* Rejected reading count — red */
+  &__rejected {
+    color: $accent-red;
+    cursor: default;
+  }
+
+  /* Tooltip header — coloured to match accepted (green) or rejected (red) */
+  &__breakdown-header {
+    font-weight: 600;
+    margin-bottom: 2px;
+
+    &--accepted { color: $accent-green; }
+    &--rejected { color: $accent-red; }
+  }
+
+  /* Hover tooltip for accuracy/rejection breakdown — matches .map-tooltip style */
+  &__breakdown-tooltip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 10;
+    padding: 8px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: $text-primary;
+    background: $bg;
+    border: 1px solid $border-default;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
   /* Empty state message — centred across all columns */
   &__empty {
     text-align: center !important;

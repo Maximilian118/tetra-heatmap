@@ -37,10 +37,12 @@ export type LipRejectReason =
   | "out_of_range"
   | "low_accuracy";
 
-/* Discriminated union result from the detailed decoder */
+/* Discriminated union result from the detailed decoder.
+   For low_accuracy and out_of_range rejections, the decoded report is still
+   attached so the caller can optionally persist the coordinates. */
 export type LipDecodeResult =
   | { ok: true; report: LipReport }
-  | { ok: false; reason: LipRejectReason };
+  | { ok: false; reason: LipRejectReason; report?: LipReport };
 
 /* Extract a signed (two's complement) integer from a bit offset within a buffer */
 const readSignedBits = (buf: Buffer, bitOffset: number, bitLength: number): number => {
@@ -72,10 +74,12 @@ const readUnsignedBits = (buf: Buffer, bitOffset: number, bitLength: number): nu
   return value;
 };
 
-/* Coordinate extraction result with rejection reason tracking */
+/* Coordinate extraction result with rejection reason tracking.
+   For out_of_range and low_accuracy, the computed coordinates are still
+   returned so callers can persist them for future re-evaluation. */
 type CoordResult =
   | { ok: true; latitude: number; longitude: number; positionError: number | null }
-  | { ok: false; reason: LipRejectReason };
+  | { ok: false; reason: LipRejectReason; coords?: { latitude: number; longitude: number; positionError: number | null } };
 
 /* Extract longitude, latitude, and position error starting at the given bit offset.
    Returns a rejection reason if the coordinates are invalid. */
@@ -102,7 +106,9 @@ const extractCoordinates = (
   if (rawLon === 0 || rawLat === 0) return { ok: false, reason: "no_gps_fix" };
 
   /* Validate coordinate ranges */
-  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return { ok: false, reason: "out_of_range" };
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+    return { ok: false, reason: "out_of_range", coords: { latitude, longitude, positionError: null } };
+  }
 
   /* Position error code (3 bits) */
   const errorCode = readUnsignedBits(data, posErrOffset, 3);
@@ -110,7 +116,7 @@ const extractCoordinates = (
 
   /* Reject readings with poor accuracy (above threshold, Infinity, or unknown) */
   if (positionError === null || positionError === Infinity || positionError > MAX_POSITION_ERROR_M) {
-    return { ok: false, reason: "low_accuracy" };
+    return { ok: false, reason: "low_accuracy", coords: { latitude, longitude, positionError } };
   }
 
   return { ok: true, latitude, longitude, positionError };
@@ -120,7 +126,14 @@ const extractCoordinates = (
    Format: pduType(2) + timeElapsed(2) + lon(25) + lat(24) + posErr(3) + vel(7) + dir(4) */
 const decodeLipShortReport = (data: Buffer): LipDecodeResult => {
   const coords = extractCoordinates(data, 4);
-  if (!coords.ok) return coords;
+  if (!coords.ok) {
+    /* Attach a partial report for rejections that have usable coordinates */
+    if (coords.coords) {
+      const { latitude, longitude, positionError } = coords.coords;
+      return { ...coords, report: { latitude, longitude, positionError, velocity: null, direction: null } };
+    }
+    return coords;
+  }
 
   /* Velocity: 7 bits at offset 56 */
   const rawVelocity = readUnsignedBits(data, 56, 7);
@@ -147,7 +160,13 @@ const decodeLipImmediateReport = (data: Buffer): LipDecodeResult => {
     /* Short embedded report — coordinates follow immediately after the 7-bit header
        with the standard short-report layout: timeElapsed(2) + lon(25) + lat(24) */
     const coords = extractCoordinates(data, 9);
-    if (!coords.ok) return coords;
+    if (!coords.ok) {
+      if (coords.coords) {
+        const { latitude, longitude, positionError } = coords.coords;
+        return { ...coords, report: { latitude, longitude, positionError, velocity: null, direction: null } };
+      }
+      return coords;
+    }
     const { latitude, longitude, positionError } = coords;
     return { ok: true, report: { latitude, longitude, positionError, velocity: null, direction: null } };
   }
@@ -159,7 +178,13 @@ const decodeLipImmediateReport = (data: Buffer): LipDecodeResult => {
   /* Longitude starts after: header(6) + reportType(1) + timeType(2) + timeData(var) */
   const lonOffset = 9 + timeBits;
   const coords = extractCoordinates(data, lonOffset);
-  if (!coords.ok) return coords;
+  if (!coords.ok) {
+    if (coords.coords) {
+      const { latitude, longitude, positionError } = coords.coords;
+      return { ...coords, report: { latitude, longitude, positionError, velocity: null, direction: null } };
+    }
+    return coords;
+  }
   const { latitude, longitude, positionError } = coords;
 
   return { ok: true, report: { latitude, longitude, positionError, velocity: null, direction: null } };

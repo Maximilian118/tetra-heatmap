@@ -156,6 +156,26 @@ const syncReadings = async () => {
 
         if (!result.ok) {
           rejectCounts[result.reason]++;
+
+          /* Persist low_accuracy and out_of_range rejections — they have valid
+             coordinates that may become useful if thresholds are changed later */
+          if ((result.reason === "low_accuracy" || result.reason === "out_of_range") && result.report) {
+            const lip = result.report;
+            readings.push({
+              id: row.DbId,
+              timestamp: new Date(row.Timestamp).toISOString(),
+              ssi: row.CallingSsi,
+              rssi: row.Rssi,
+              ms_distance: row.MsDistance,
+              latitude: lip.latitude,
+              longitude: lip.longitude,
+              position_error: lip.positionError,
+              velocity: lip.velocity,
+              direction: lip.direction,
+              reject_reason: result.reason,
+            });
+          }
+
           continue;
         }
 
@@ -187,10 +207,11 @@ const syncReadings = async () => {
         const uniqueSsis = [...new Set(readings.map((r) => r.ssi))];
         ensureSubscribersExist(uniqueSsis);
 
-        /* Pre-compute the last reading location for each SSI in this batch */
-        if (getNearestCity) {
+        /* Pre-compute the last reading location for each SSI in this batch (accepted only) */
+        const acceptedReadings = readings.filter((r) => !r.reject_reason);
+        if (getNearestCity && acceptedReadings.length > 0) {
           for (const ssi of uniqueSsis) {
-            const latest = readings
+            const latest = acceptedReadings
               .filter((r) => r.ssi === ssi)
               .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
             if (!latest || (latest.latitude === 0 && latest.longitude === 0)) continue;

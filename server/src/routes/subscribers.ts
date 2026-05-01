@@ -3,6 +3,8 @@ import type { RowDataPacket } from "mysql2";
 import { getPool } from "../db/remote.js";
 import {
   getAllSubscribers,
+  getAccuracyBreakdowns,
+  getRejectionBreakdowns,
   upsertSubscribers,
   clearSubscribers,
   getSubscribersMissingLocation,
@@ -13,10 +15,19 @@ import { geocodeLocation } from "../utils/geocode.js";
 
 const router = Router();
 
-/* Return all subscribers with per-SSI reading statistics and pre-computed last location */
+/* Return all subscribers with per-SSI reading statistics, breakdowns, and pre-computed last location */
 router.get("/subscribers", (_req, res) => {
   const subscribers = getAllSubscribers();
-  res.json(subscribers);
+  const accBreakdowns = getAccuracyBreakdowns();
+  const rejBreakdowns = getRejectionBreakdowns();
+
+  const enriched = subscribers.map((s) => ({
+    ...s,
+    accuracy_breakdown: accBreakdowns[s.ssi] ?? null,
+    rejection_breakdown: rejBreakdowns[s.ssi] ?? null,
+  }));
+
+  res.json(enriched);
 });
 
 /* Backfill missing location data for subscribers that have readings but no location */
