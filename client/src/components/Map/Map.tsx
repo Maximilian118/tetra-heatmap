@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import DeckGL from "@deck.gl/react";
 import { Map as MapGL } from "react-map-gl/mapbox";
 import { HeatmapLayer, HexagonLayer } from "@deck.gl/aggregation-layers";
-import { ScatterplotLayer, PathLayer } from "@deck.gl/layers";
+import { ScatterplotLayer, PathLayer, IconLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { fetchReadings, resetCache, fetchSettings, fetchSubscribers, geocodeCoordinates, type Reading, type Subscriber } from "../../utils/api";
+import { fetchReadings, resetCache, fetchSettings, fetchSubscribers, geocodeCoordinates, fetchSymbols, createSymbol, updateSymbolPosition, updateSymbolDirection, updateSymbolSize as apiUpdateSymbolSize, deleteSymbol as apiDeleteSymbol, type Reading, type Subscriber, type MapSymbol } from "../../utils/api";
 import { saveDataset, loadDataset, deriveSubscribersFromReadings, type SavedViewState } from "../../utils/dataset";
 import { readingsBounds } from "../../utils/geojson";
 import { normalizeRssi, rssiElevationWeight, RSSI_COLOR_RANGE, buildPaths, type RadioPath } from "../../utils/rssi";
+import { buildBgAtlas, buildFgAtlas, ICON_MAPPING } from "../../utils/symbols";
 import type { LayerType } from "./Sidebar/MapPresets/MapPresets";
 import { DEFAULT_LAYER_SETTINGS, type LayerSettings } from "./Sidebar/Customise/Customise";
 import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
@@ -107,6 +108,14 @@ const Map = () => {
   const [retentionDays, setRetentionDays] = useState(5);
   const [maxAccuracy, setMaxAccuracy] = useState(2);
   const [showStats, setShowStats] = useState(false);
+  const [symbols, setSymbols] = useState<MapSymbol[]>([]);
+  const [symbolSize, setSymbolSize] = useState(48);
+  const [selectedSymbolId, setSelectedSymbolId] = useState<string | null>(null);
+  const [draggingSymbolId, setDraggingSymbolId] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const deckRef = useRef<any>(null);
+  const bgAtlasUrl = useMemo(() => buildBgAtlas().toDataURL(), []);
+  const fgAtlasUrl = useMemo(() => buildFgAtlas().toDataURL(), []);
 
   /* Use file data when loaded, otherwise fall back to live server data */
   const displayedReadings = fileReadings ?? readings;
@@ -177,9 +186,21 @@ const Map = () => {
         setMapboxToken(s.mapboxToken || "");
         setDbConnected(s.dbHost.trim() !== "" && s.dbUser.trim() !== "");
         if (s.retentionDays > 0) setRetentionDays(s.retentionDays);
+        if (s.symbolSize > 0) setSymbolSize(s.symbolSize);
       })
       .catch((err) => console.error("[map] Failed to fetch settings:", err));
   }, []);
+
+  /* Load placed symbols from the server on mount */
+  const loadSymbols = useCallback(async () => {
+    try {
+      setSymbols(await fetchSymbols());
+    } catch (err) {
+      console.error("[map] Failed to fetch symbols:", err);
+    }
+  }, []);
+
+  useEffect(() => { loadSymbols(); }, [loadSymbols]);
 
   /* Build an SSI → description lookup from whichever subscriber source is active */
   const ssiDescriptionMap = useMemo(() => {
@@ -318,8 +339,87 @@ const Map = () => {
           }
         },
       }),
+
+      /* User-placed map symbols — rendered on top of everything else */
+      /* Highlight ring around the selected symbol */
+      new ScatterplotLayer<MapSymbol>({
+        id: "symbol-highlight",
+        data: symbols.filter((s) => s.id === selectedSymbolId),
+        getPosition: (d) => [d.longitude, d.latitude],
+        getRadius: 20,
+        radiusMinPixels: 20,
+        radiusMaxPixels: 30,
+        getFillColor: [0, 0, 0, 0],
+        getLineColor: [88, 156, 220, 200],
+        getLineWidth: 3,
+        stroked: true,
+        lineWidthMinPixels: 2,
+      }),
+
+      /* Symbol backgrounds — rotates for directional repeaters (wedge points in direction) */
+      new IconLayer<MapSymbol>({
+        id: "symbol-bg",
+        data: symbols,
+        getPosition: (d) => [d.longitude, d.latitude],
+        iconAtlas: bgAtlasUrl,
+        iconMapping: ICON_MAPPING,
+        getIcon: (d) => d.type,
+        getAngle: (d) => d.type === "repeater-directional" ? -(d.direction ?? 0) : 0,
+        getSize: (d) => d.id === selectedSymbolId ? symbolSize + 16 : symbolSize,
+        sizeMinPixels: 20,
+        sizeMaxPixels: 120,
+        pickable: true,
+        updateTriggers: {
+          getSize: [selectedSymbolId, symbolSize],
+        },
+        onClick: (info: PickingInfo<MapSymbol>) => {
+          if (info.object) {
+            setSelectedSymbolId((prev) => prev === info.object!.id ? null : info.object!.id);
+          }
+        },
+        onDragStart: (info: PickingInfo<MapSymbol>) => {
+          if (info.object) {
+            setDraggingSymbolId(info.object.id);
+          }
+        },
+        onDrag: (info: PickingInfo<MapSymbol>) => {
+          if (draggingSymbolId && info.coordinate) {
+            setSymbols((prev) =>
+              prev.map((s) =>
+                s.id === draggingSymbolId
+                  ? { ...s, longitude: info.coordinate![0], latitude: info.coordinate![1] }
+                  : s
+              )
+            );
+          }
+        },
+        onDragEnd: (info: PickingInfo<MapSymbol>) => {
+          if (draggingSymbolId && info.coordinate) {
+            updateSymbolPosition(draggingSymbolId, info.coordinate[0], info.coordinate[1]).catch(
+              (err) => console.error("[map] Failed to update symbol position:", err)
+            );
+            setDraggingSymbolId(null);
+          }
+        },
+      }),
+
+      /* Symbol icons — always upright, never rotates regardless of direction */
+      new IconLayer<MapSymbol>({
+        id: "symbol-fg",
+        data: symbols,
+        getPosition: (d) => [d.longitude, d.latitude],
+        iconAtlas: fgAtlasUrl,
+        iconMapping: ICON_MAPPING,
+        getIcon: (d) => d.type,
+        getSize: (d) => d.id === selectedSymbolId ? symbolSize + 16 : symbolSize,
+        sizeMinPixels: 20,
+        sizeMaxPixels: 120,
+        updateTriggers: {
+          getSize: [selectedSymbolId, symbolSize],
+        },
+      }),
     ];
-  }, [validReadings, layerType, radioPaths, layerSettings, ssiDescriptionMap]);
+  }, [validReadings, layerType, radioPaths, layerSettings, ssiDescriptionMap, symbols, bgAtlasUrl, fgAtlasUrl, draggingSymbolId, selectedSymbolId, symbolSize]);
 
   /* Download the currently displayed readings as a JSON file via the browser save dialog */
   const handleSaveData = useCallback(async () => {
@@ -338,16 +438,20 @@ const Map = () => {
         console.error("[map] Failed to fetch subscribers for save:", err);
       }
 
-      await saveDataset(displayedReadings, savedView ?? undefined, mapStyle, subscribers);
+      await saveDataset(displayedReadings, savedView ?? undefined, mapStyle, subscribers, symbols, symbolSize);
     } finally {
       savingRef.current = false;
     }
-  }, [displayedReadings, mapStyle, fileSubscribers]);
+  }, [displayedReadings, mapStyle, fileSubscribers, symbols, symbolSize]);
 
   /* Load readings from a user-selected JSON file and switch to file mode */
   const handleLoadData = useCallback(async (file: File) => {
     try {
-      const { readings: data, viewState, mapStyle: style, subscribers } = await loadDataset(file);
+      const { readings: data, viewState, mapStyle: style, subscribers, symbols: fileSyms, symbolSize: fileSymSize } = await loadDataset(file);
+
+      /* Restore symbols and symbol size from the file if present */
+      if (fileSyms?.length) setSymbols(fileSyms);
+      if (fileSymSize) setSymbolSize(fileSymSize);
       setDataAgeMinutes(null);
       setFileReadings(data);
 
@@ -394,7 +498,8 @@ const Map = () => {
   const handleResumeLive = useCallback(() => {
     setFileReadings(null);
     setFileSubscribers(null);
-  }, []);
+    loadSymbols();
+  }, [loadSymbols]);
 
   /* Toggle the SSI Register overlay open/closed */
   const handleToggleRegister = useCallback(() => {
@@ -433,6 +538,88 @@ const Map = () => {
       setResetting(false);
     }
   };
+
+  /* Delete a symbol and refresh the list */
+  const handleDeleteSymbol = useCallback(async (id: string) => {
+    try {
+      await apiDeleteSymbol(id);
+      setSymbols((prev) => prev.filter((s) => s.id !== id));
+    } catch (err) {
+      console.error("[map] Failed to delete symbol:", err);
+    }
+  }, []);
+
+  /* Fly the map to a specific coordinate, preserving current bearing and pitch */
+  const handleFlyTo = useCallback((longitude: number, latitude: number) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const vp = (deckRef.current as any)?.deck?.viewManager?.getViewports()?.[0];
+    setInitialView({
+      longitude,
+      latitude,
+      zoom: vp?.zoom ?? 16,
+      bearing: vp?.bearing ?? 0,
+      pitch: vp?.pitch ?? 0,
+    });
+  }, []);
+
+  /* Update the direction angle of a directional repeater symbol.
+     Local state updates immediately for responsive UI; API persist is debounced. */
+  const directionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleDirectionChange = useCallback((id: string, direction: number) => {
+    setSymbols((prev) => prev.map((s) => s.id === id ? { ...s, direction } : s));
+    if (directionTimer.current) clearTimeout(directionTimer.current);
+    directionTimer.current = setTimeout(() => {
+      updateSymbolDirection(id, direction).catch(
+        (err) => console.error("[map] Failed to update symbol direction:", err)
+      );
+    }, 300);
+  }, []);
+
+  /* Handle dropping a symbol from the sidebar palette onto the map */
+  const handleMapDrop = useCallback(async (e: React.DragEvent) => {
+    const symbolType = e.dataTransfer.getData("symbolType");
+    if (!symbolType) return;
+
+    e.preventDefault();
+
+    /* Convert drop pixel coordinates to lng/lat via DeckGL viewport */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const deck = (deckRef.current as any)?.deck;
+    if (!deck) return;
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const viewport = deck.getViewports()[0];
+    if (!viewport) return;
+
+    const [longitude, latitude] = viewport.unproject([x, y]);
+
+    const symbol: MapSymbol = {
+      id: crypto.randomUUID(),
+      type: symbolType,
+      label: "",
+      longitude,
+      latitude,
+      direction: null,
+      created_at: new Date().toISOString(),
+    };
+
+    try {
+      await createSymbol(symbol);
+      setSymbols((prev) => [symbol, ...prev]);
+    } catch (err) {
+      console.error("[map] Failed to create symbol:", err);
+    }
+  }, []);
+
+  /* Allow the map area to accept drops (browsers lowercase dataTransfer type keys) */
+  const handleMapDragOver = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes("symboltype")) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    }
+  }, []);
 
   /* Still loading settings from server */
   if (mapboxToken === null) {
@@ -475,17 +662,27 @@ const Map = () => {
         clockOffsetMs={clockOffsetMs}
         serverTzOffsetHours={serverTzOffsetHours}
         onShowStats={() => setShowStats(true)}
+        symbols={symbols}
+        symbolSize={symbolSize}
+        onSymbolSizeChange={(size: number) => { setSymbolSize(size); apiUpdateSymbolSize(size).catch((err) => console.error("[map] Failed to save symbol size:", err)); }}
+        selectedSymbolId={selectedSymbolId}
+        onSelectSymbol={setSelectedSymbolId}
+        onDeleteSymbol={handleDeleteSymbol}
+        onFlyTo={handleFlyTo}
+        onDirectionChange={handleDirectionChange}
       />
 
-      <div className="map-area">
+      <div className="map-area" onDragOver={handleMapDragOver} onDrop={handleMapDrop}>
         {/* DeckGL as root — owns canvas + interactions.
             MapGL is a child that renders tiles and follows DeckGL's viewport. */}
         <DeckGL
+          ref={deckRef}
           initialViewState={resolvedView}
-          controller
+          controller={{ dragPan: !draggingSymbolId }}
           layers={layers}
           onViewStateChange={handleViewStateChange}
           onError={handleDeckError}
+          onClick={(info) => { if (!info.object) setSelectedSymbolId(null); }}
         >
           <MapGL
             mapboxAccessToken={mapboxToken}

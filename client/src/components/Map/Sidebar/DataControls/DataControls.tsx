@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Save, FolderOpen, Radio } from "lucide-react";
+import { Save, FolderOpen, Radio, MapPin } from "lucide-react";
 import type { Reading } from "../../../../utils/api";
 import { formatReadingSummary } from "../../../../utils/format";
 import "./DataControls.scss";
@@ -10,12 +10,13 @@ interface DataControlsProps {
   onSave: () => void;
   onLoad: (file: File) => void;
   onResumeLive: () => void;
+  onOpenSymbols: () => void;
   clockOffsetMs: number;
   serverTzOffsetHours: number;
 }
 
 /* Save/Load buttons for exporting and importing heatmap datasets */
-const DataControls = ({ readings, isFileMode, onSave, onLoad, onResumeLive, clockOffsetMs, serverTzOffsetHours }: DataControlsProps) => {
+const DataControls = ({ readings, isFileMode, onSave, onLoad, onResumeLive, onOpenSymbols, clockOffsetMs, serverTzOffsetHours }: DataControlsProps) => {
   const fileInput = useRef<HTMLInputElement>(null);
 
   /* Open the native file picker when Load Data is clicked */
@@ -53,6 +54,11 @@ const DataControls = ({ readings, isFileMode, onSave, onLoad, onResumeLive, cloc
       <button className="data-controls__btn" onClick={handleLoadClick}>
         <FolderOpen size={14} />
         Load Data
+      </button>
+
+      <button className="data-controls__btn" onClick={onOpenSymbols}>
+        <MapPin size={14} />
+        Symbols
       </button>
 
       {/* Hidden file input for the load dialog */}

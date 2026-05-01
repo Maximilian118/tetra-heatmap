@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Menu, X, Map, Settings, RotateCcw, Check } from "lucide-react";
-import type { Reading } from "../../../utils/api";
+import type { Reading, MapSymbol } from "../../../utils/api";
 import Confirm from "../Confirm/Confirm";
 import MapPresets from "./MapPresets/MapPresets";
 import type { LayerType } from "./MapPresets/MapPresets";
@@ -10,6 +10,7 @@ import Customise from "./Customise/Customise";
 import type { LayerSettings } from "./Customise/Customise";
 import DatabaseSettings from "./DatabaseSettings/DatabaseSettings";
 import type { DatabaseSettingsHandle } from "./DatabaseSettings/DatabaseSettings";
+import Symbols from "./Symbols/Symbols";
 import "./Sidebar.scss";
 
 /* Breakpoint at which the sidebar collapses into a mobile overlay */
@@ -19,7 +20,7 @@ const MOBILE_BREAKPOINT = 768;
 const formatResetDate = (iso: string): string =>
   new Date(iso).toLocaleString();
 
-type SidebarTab = "map" | "database";
+type SidebarTab = "map" | "database" | "symbols";
 
 interface SidebarProps {
   resetting: boolean;
@@ -47,10 +48,18 @@ interface SidebarProps {
   clockOffsetMs: number;
   serverTzOffsetHours: number;
   onShowStats: () => void;
+  symbols: MapSymbol[];
+  symbolSize: number;
+  onSymbolSizeChange: (size: number) => void;
+  selectedSymbolId: string | null;
+  onSelectSymbol: (id: string | null) => void;
+  onDeleteSymbol: (id: string) => void;
+  onFlyTo: (longitude: number, latitude: number) => void;
+  onDirectionChange: (id: string, direction: number) => void;
 }
 
 /* Left sidebar panel with Map and Database tabs */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats, symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDeleteSymbol, onFlyTo, onDirectionChange }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("map");
   const [confirming, setConfirming] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -131,6 +140,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
               onSave={onSaveData}
               onLoad={onLoadData}
               onResumeLive={onResumeLive}
+              onOpenSymbols={() => setActiveTab("symbols")}
               clockOffsetMs={clockOffsetMs}
               serverTzOffsetHours={serverTzOffsetHours}
             />
@@ -150,12 +160,23 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
               onSettingsChange={onSettingsChange}
             />
           </>
+        ) : activeTab === "symbols" ? (
+          <Symbols
+            symbols={symbols}
+            symbolSize={symbolSize}
+            onSymbolSizeChange={onSymbolSizeChange}
+            selectedSymbolId={selectedSymbolId}
+            onSelectSymbol={onSelectSymbol}
+            onDelete={onDeleteSymbol}
+            onFlyTo={onFlyTo}
+            onDirectionChange={onDirectionChange}
+          />
         ) : (
           <DatabaseSettings ref={dbRef} onStateChange={handleDbStateChange} onShowStats={onShowStats} />
         )}
       </div>
 
-      {/* Footer — Map tab shows Reset Cache, Settings tab shows Apply */}
+      {/* Footer — Map tab shows Reset Cache, Symbols tab shows Close, Settings tab shows Apply */}
       {activeTab === "map" ? (
         <div className="sidebar__footer">
           <span className="sidebar__hint">Hold Shift + drag to rotate and tilt the map</span>
@@ -167,6 +188,16 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
           >
             <RotateCcw size={14} />
             {resetting ? "Resetting..." : "Reset Cache"}
+          </button>
+        </div>
+      ) : activeTab === "symbols" ? (
+        <div className="sidebar__footer">
+          <button
+            className="sidebar__reset-btn"
+            onClick={() => setActiveTab("map")}
+          >
+            <X size={14} />
+            Close
           </button>
         </div>
       ) : (

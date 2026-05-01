@@ -11,6 +11,7 @@ export interface Settings {
   syncIntervalMs: number;
   syncBatchSize: number;
   retentionDays: number;
+  symbolSize: number;
 }
 
 /* Validation limits to prevent excessive load on the logserver */
@@ -29,6 +30,7 @@ export const DEFAULT_SETTINGS: Settings = {
   syncIntervalMs: 60000,
   syncBatchSize: 10000,
   retentionDays: 5,
+  symbolSize: 48,
 };
 
 /* Create the settings table — single-row design enforced by CHECK constraint */
@@ -52,13 +54,18 @@ try {
   db.exec("ALTER TABLE settings ADD COLUMN mapbox_token TEXT NOT NULL DEFAULT ''");
 } catch { /* column already exists */ }
 
+/* Migration: add symbol_size column for existing databases */
+try {
+  db.exec("ALTER TABLE settings ADD COLUMN symbol_size INTEGER NOT NULL DEFAULT 48");
+} catch { /* column already exists */ }
+
 /* Prepared statements for reading and writing settings */
 const selectStmt = db.prepare("SELECT * FROM settings WHERE id = 1");
 const upsertStmt = db.prepare(`
   INSERT OR REPLACE INTO settings
-    (id, mapbox_token, db_host, db_port, db_user, db_password, db_name, sync_interval_ms, sync_batch_size, retention_days)
+    (id, mapbox_token, db_host, db_port, db_user, db_password, db_name, sync_interval_ms, sync_batch_size, retention_days, symbol_size)
   VALUES
-    (1, @mapboxToken, @dbHost, @dbPort, @dbUser, @dbPassword, @dbName, @syncIntervalMs, @syncBatchSize, @retentionDays)
+    (1, @mapboxToken, @dbHost, @dbPort, @dbUser, @dbPassword, @dbName, @syncIntervalMs, @syncBatchSize, @retentionDays, @symbolSize)
 `);
 
 /* Map a database row to the Settings interface */
@@ -72,6 +79,7 @@ interface SettingsRow {
   sync_interval_ms: number;
   sync_batch_size: number;
   retention_days: number;
+  symbol_size: number;
 }
 
 const rowToSettings = (row: SettingsRow): Settings => ({
@@ -84,6 +92,7 @@ const rowToSettings = (row: SettingsRow): Settings => ({
   syncIntervalMs: row.sync_interval_ms,
   syncBatchSize: row.sync_batch_size,
   retentionDays: row.retention_days,
+  symbolSize: row.symbol_size ?? 48,
 });
 
 /* Read settings from the database, returning defaults if no row exists */
@@ -109,6 +118,12 @@ export const saveSettings = (s: Settings): void => {
   upsertStmt.run(s);
 };
 
+/* Update only the symbol size setting without touching other fields */
+export const updateSymbolSize = (size: number): void => {
+  const current = getSettings();
+  saveSettings({ ...current, symbolSize: size });
+};
+
 /* Return settings with password masked for client consumption */
 export const getSafeSettings = (): Settings => {
   const s = getSettings();
@@ -129,6 +144,7 @@ export const coerceSettings = (raw: Record<string, unknown>): Settings => ({
   syncIntervalMs: Number(raw.syncIntervalMs),
   syncBatchSize: Number(raw.syncBatchSize),
   retentionDays: Number(raw.retentionDays),
+  symbolSize: Number(raw.symbolSize ?? 48),
 });
 
 /* Check that a value is a finite integer (rejects NaN, Infinity, floats) */

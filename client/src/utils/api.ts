@@ -26,6 +26,7 @@ export interface Settings {
   syncIntervalMs: number;
   syncBatchSize: number;
   retentionDays: number;
+  symbolSize: number;
 }
 
 /* Response from the connection test endpoint */
@@ -210,6 +211,76 @@ export interface LogserverStats {
 export const fetchStats = async (): Promise<LogserverStats> => {
   const res = await assertOk(await fetch(`${API_BASE}/stats`));
   return res.json();
+};
+
+/* Update the symbol display size setting */
+export const updateSymbolSize = async (symbolSize: number): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/settings/symbol-size`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbolSize }),
+    })
+  );
+};
+
+/* ── Symbols API ─────────────────────────────────────────────────── */
+
+/* Shape of a user-placed map symbol */
+export interface MapSymbol {
+  id: string;
+  type: string;
+  label: string;
+  longitude: number;
+  latitude: number;
+  direction: number | null;
+  created_at: string;
+}
+
+/* Fetch all placed map symbols */
+export const fetchSymbols = async (): Promise<MapSymbol[]> => {
+  const res = await assertOk(await fetch(`${API_BASE}/symbols`));
+  return res.json();
+};
+
+/* Create a new symbol on the map */
+export const createSymbol = async (symbol: MapSymbol): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/symbols`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(symbol),
+    })
+  );
+};
+
+/* Update only the position of an existing symbol */
+export const updateSymbolPosition = async (id: string, longitude: number, latitude: number): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/symbols/${id}/position`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ longitude, latitude }),
+    })
+  );
+};
+
+/* Update the direction angle of a symbol */
+export const updateSymbolDirection = async (id: string, direction: number | null): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/symbols/${id}/direction`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ direction }),
+    })
+  );
+};
+
+/* Delete a symbol from the map */
+export const deleteSymbol = async (id: string): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/symbols/${id}`, { method: "DELETE" })
+  );
 };
 
 /* Save new settings, test connection, and restart sync service */

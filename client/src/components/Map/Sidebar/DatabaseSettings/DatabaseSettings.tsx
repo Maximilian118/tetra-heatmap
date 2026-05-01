@@ -19,6 +19,7 @@ const DEFAULTS: Settings = {
   syncIntervalMs: 60000,
   syncBatchSize: 10000,
   retentionDays: 5,
+  symbolSize: 48,
 };
 
 /* Props for the reusable form field helper */

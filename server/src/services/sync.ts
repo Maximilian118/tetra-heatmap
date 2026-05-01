@@ -3,6 +3,7 @@ import {
   getLatestId,
   insertReadings,
   pruneOldReadings,
+  pruneOldSymbols,
   clearAllReadings,
   getSyncFrom,
   setSyncFrom,
@@ -231,11 +232,13 @@ const syncReadings = async () => {
       if (totalRejected > 0) parts.push(`${totalRejected} rejected (${rejectParts.join(", ")})`);
 
       const pruned = pruneOldReadings(settings.retentionDays);
+      pruneOldSymbols(settings.retentionDays);
       if (pruned > 0) parts.push(`${pruned} pruned`);
       logger.info(`Sync finished — ${parts.join(", ")} (${elapsed}ms)`);
     } else {
       /* Remove data older than the retention period */
       pruneOldReadings(settings.retentionDays);
+      pruneOldSymbols(settings.retentionDays);
 
       const elapsed = Math.round(performance.now() - start);
       logger.info(`Sync finished — no new readings (${elapsed}ms)`);

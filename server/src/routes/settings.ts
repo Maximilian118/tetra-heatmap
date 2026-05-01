@@ -6,6 +6,7 @@ import {
   validateSettings,
   coerceSettings,
   isConfigured,
+  updateSymbolSize,
 } from "../db/settings.js";
 import { testConnection } from "../utils/testConnection.js";
 import { recreatePool } from "../db/remote.js";
@@ -29,6 +30,17 @@ router.post("/settings/test", async (_req, res) => {
   const settings = getSettings();
   const result = await testConnection(settings);
   res.json({ connected: result.success, error: result.error ?? null });
+});
+
+/* Update just the symbol display size (called by the sidebar slider) */
+router.patch("/settings/symbol-size", (req, res) => {
+  const { symbolSize } = req.body;
+  if (typeof symbolSize !== "number" || symbolSize < 24 || symbolSize > 96) {
+    res.status(400).json({ error: "symbolSize must be a number 24–96" });
+    return;
+  }
+  updateSymbolSize(symbolSize);
+  res.json({ success: true });
 });
 
 /* Save new settings, test the connection, and restart the sync service */

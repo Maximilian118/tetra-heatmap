@@ -46,6 +46,16 @@ db.exec(`
     profile_id INTEGER,
     profile_name TEXT NOT NULL DEFAULT ''
   );
+
+  /* User-placed map symbols (base stations, repeaters, etc.) */
+  CREATE TABLE IF NOT EXISTS symbols (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    label TEXT NOT NULL DEFAULT '',
+    longitude REAL NOT NULL,
+    latitude REAL NOT NULL,
+    created_at TEXT NOT NULL
+  );
 `);
 
 /* Migrations: add columns that may be missing on existing subscribers table */
@@ -55,6 +65,10 @@ try { db.exec("ALTER TABLE subscribers ADD COLUMN organisation TEXT NOT NULL DEF
 try { db.exec("ALTER TABLE subscribers ADD COLUMN profile_id INTEGER"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE subscribers ADD COLUMN profile_name TEXT NOT NULL DEFAULT ''"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE subscribers ADD COLUMN last_location TEXT NOT NULL DEFAULT ''"); } catch { /* already exists */ }
+
+/* Migrations: add direction column to symbols table and migrate old repeater type */
+try { db.exec("ALTER TABLE symbols ADD COLUMN direction REAL"); } catch { /* already exists */ }
+db.exec("UPDATE symbols SET type = 'repeater-omni' WHERE type = 'repeater'");
 
 /* Reading shape matching the sdsdata + LIP decoded fields */
 export interface Reading {
@@ -225,6 +239,55 @@ export const updateLastLocation = (ssi: number, location: string): void => {
 /* Remove all subscriber rows from the local database */
 export const clearSubscribers = (): number => {
   return db.prepare("DELETE FROM subscribers").run().changes;
+};
+
+/* ── Symbol helpers ────────────────────────────────────────────────── */
+
+/* Shape of a user-placed map symbol */
+export interface MapSymbol {
+  id: string;
+  type: string;
+  label: string;
+  longitude: number;
+  latitude: number;
+  direction: number | null;
+  created_at: string;
+}
+
+/* Fetch all placed symbols */
+export const getAllSymbols = (): MapSymbol[] => {
+  return db.prepare("SELECT * FROM symbols ORDER BY created_at DESC").all() as MapSymbol[];
+};
+
+/* Insert a new symbol onto the map */
+export const insertSymbol = (symbol: MapSymbol): void => {
+  db.prepare(
+    `INSERT OR REPLACE INTO symbols (id, type, label, longitude, latitude, direction, created_at)
+     VALUES (@id, @type, @label, @longitude, @latitude, @direction, @created_at)`
+  ).run(symbol);
+};
+
+/* Update only the position of an existing symbol (drag-to-reposition) */
+export const updateSymbolPosition = (id: string, longitude: number, latitude: number): void => {
+  db.prepare("UPDATE symbols SET longitude = ?, latitude = ? WHERE id = ?").run(longitude, latitude, id);
+};
+
+/* Update the direction angle of an existing symbol (directional repeater rotation) */
+export const updateSymbolDirection = (id: string, direction: number | null): void => {
+  db.prepare("UPDATE symbols SET direction = ? WHERE id = ?").run(direction, id);
+};
+
+/* Remove a single symbol by id */
+export const deleteSymbol = (id: string): void => {
+  db.prepare("DELETE FROM symbols WHERE id = ?").run(id);
+};
+
+/* Remove symbols older than the specified retention period */
+export const pruneOldSymbols = (retentionDays: number): number => {
+  const result = db.prepare(
+    "DELETE FROM symbols WHERE created_at < datetime('now', '-' || ? || ' days')"
+  ).run(retentionDays);
+  return result.changes;
 };
 
 /* Gracefully close the SQLite database */

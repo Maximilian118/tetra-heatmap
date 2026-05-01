@@ -1,4 +1,4 @@
-import type { Reading, Subscriber } from "./api";
+import type { Reading, Subscriber, MapSymbol } from "./api";
 
 /* ── Format versions ──────────────────────────────────────────────────── */
 
@@ -20,12 +20,14 @@ export interface SavedViewState {
   pitch: number;
 }
 
-/* What loadDataset returns — readings plus optional view/style/subscriber metadata */
+/* What loadDataset returns — readings plus optional view/style/subscriber/symbol metadata */
 export interface DatasetResult {
   readings: Reading[];
   viewState?: SavedViewState;
   mapStyle?: string;
   subscribers?: Subscriber[];
+  symbols?: MapSymbol[];
+  symbolSize?: number;
 }
 
 /* ── Columnar types (v2 internal format) ──────────────────────────────── */
@@ -75,6 +77,8 @@ interface CompressedEnvelope {
   ms?: string;
   r: ColumnarReadings;
   s?: ColumnarSubscribers;
+  sym?: MapSymbol[];
+  ss?: number;
 }
 
 /* ── Legacy v1 types ──────────────────────────────────────────────────── */
@@ -235,6 +239,8 @@ export const saveDataset = async (
   viewState?: SavedViewState,
   mapStyle?: string,
   subscribers?: Subscriber[],
+  symbols?: MapSymbol[],
+  symbolSize?: number,
 ): Promise<void> => {
   /* Build the compressed columnar envelope */
   const envelope: CompressedEnvelope = {
@@ -257,6 +263,8 @@ export const saveDataset = async (
 
   if (mapStyle) envelope.ms = mapStyle;
   if (subscribers?.length) envelope.s = subscribersToColumnar(subscribers);
+  if (symbols?.length) envelope.sym = symbols;
+  if (symbolSize) envelope.ss = symbolSize;
 
   /* Serialize to compact JSON (no indentation) then gzip compress */
   const json = JSON.stringify(envelope);
@@ -380,7 +388,7 @@ const parseCompressedEnvelope = (text: string): DatasetResult => {
   /* Reconstruct subscribers from columnar format */
   const subscribers = parsed.s ? columnarToSubscribers(parsed.s) : undefined;
 
-  return { readings, viewState, mapStyle: parsed.ms, subscribers };
+  return { readings, viewState, mapStyle: parsed.ms, subscribers, symbols: parsed.sym, symbolSize: parsed.ss };
 };
 
 /* Read a dataset file (.thm or legacy .json) and return validated readings with optional metadata.
