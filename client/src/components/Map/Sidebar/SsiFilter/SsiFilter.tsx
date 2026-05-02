@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Users } from "lucide-react";
 import { formatAccuracy } from "../../../../utils/format";
+import Slider from "../../../Slider/Slider";
 import "./SsiFilter.scss";
 
 interface SsiFilterProps {
@@ -92,8 +93,7 @@ const SsiFilter = ({ onToggleRegister, selectedSsis, isFileMode, dataAgeMinutes,
   }, [maxAccuracy]);
 
   /* Update local state immediately, debounce the expensive parent callback */
-  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const position = parseInt(e.target.value, 10);
+  const handleAgeChange = (position: number) => {
     setLocalPosition(position);
     if (ageDebounce.current) clearTimeout(ageDebounce.current);
     ageDebounce.current = setTimeout(() => {
@@ -101,8 +101,7 @@ const SsiFilter = ({ onToggleRegister, selectedSsis, isFileMode, dataAgeMinutes,
     }, DEBOUNCE_MS);
   };
 
-  const handleAccuracyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const position = parseInt(e.target.value, 10);
+  const handleAccuracyChange = (position: number) => {
     setLocalAccuracy(position);
     if (accuracyDebounce.current) clearTimeout(accuracyDebounce.current);
     accuracyDebounce.current = setTimeout(() => {
@@ -122,40 +121,29 @@ const SsiFilter = ({ onToggleRegister, selectedSsis, isFileMode, dataAgeMinutes,
         SSI Register
       </button>
 
-      {/* Data age slider — logarithmic scale from all readings down to 1 minute (disabled in file mode) */}
-      <div className={`ssi-filter__age${isFileMode ? " ssi-filter__age--disabled" : ""}`}>
-        <div className="ssi-filter__age-header">
-          <span className="ssi-filter__age-name">Data Age</span>
-          <span className="ssi-filter__age-value">{isFileMode ? "N/A" : formatAge(localMinutes)}</span>
-        </div>
-        <input
-          type="range"
-          className="ssi-filter__age-slider"
-          min={0}
-          max={SLIDER_MAX}
-          step={1}
-          value={localPosition}
-          onChange={handleSliderChange}
-          disabled={isFileMode}
-        />
-      </div>
+      {/* Data age slider — logarithmic scale from all readings down to 1 minute */}
+      <Slider
+        label="Data Age"
+        displayValue={isFileMode ? "N/A" : formatAge(localMinutes)}
+        min={0}
+        max={SLIDER_MAX}
+        step={1}
+        value={localPosition}
+        onChange={handleAgeChange}
+        disabled={isFileMode}
+      />
 
       {/* GPS accuracy slider — 4 discrete stops controlling which readings are displayed */}
-      <div className="ssi-filter__age">
-        <div className="ssi-filter__age-header">
-          <span className="ssi-filter__age-name">GPS Accuracy</span>
-          <span className="ssi-filter__age-value">{formatAccuracy(ACCURACY_STOPS[localAccuracy])}</span>
-        </div>
-        <input
-          type="range"
-          className="ssi-filter__age-slider ssi-filter__age-slider--discrete"
-          min={0}
-          max={ACCURACY_STOPS.length - 1}
-          step={1}
-          value={localAccuracy}
-          onChange={handleAccuracyChange}
-        />
-      </div>
+      <Slider
+        label="GPS Accuracy"
+        displayValue={formatAccuracy(ACCURACY_STOPS[localAccuracy])}
+        min={0}
+        max={ACCURACY_STOPS.length - 1}
+        step={1}
+        value={localAccuracy}
+        onChange={handleAccuracyChange}
+        stops={ACCURACY_STOPS.length}
+      />
     </div>
   );
 };

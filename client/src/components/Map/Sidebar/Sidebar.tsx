@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Menu, X, Map, Settings, RotateCcw, Check } from "lucide-react";
 import type { Reading, MapSymbol } from "../../../utils/api";
+import type { KmlData } from "../../../utils/kml";
 import Confirm from "../Confirm/Confirm";
 import MapPresets from "./MapPresets/MapPresets";
 import type { LayerType } from "./MapPresets/MapPresets";
@@ -31,9 +32,12 @@ interface SidebarProps {
   layerSettings: LayerSettings;
   readings: Reading[];
   isFileMode: boolean;
+  kmlLoaded: boolean;
   onStyleChange: (style: string) => void;
   onLayerTypeChange: (type: LayerType) => void;
   onSettingsChange: (settings: LayerSettings) => void;
+  onKmlLoad: (data: KmlData) => void;
+  onScopeAdjusting: (adjusting: boolean) => void;
   onSaveData: () => void;
   onLoadData: (file: File) => void;
   onResumeLive: () => void;
@@ -59,7 +63,7 @@ interface SidebarProps {
 }
 
 /* Left sidebar panel with Map and Database tabs */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, onStyleChange, onLayerTypeChange, onSettingsChange, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats, symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDeleteSymbol, onFlyTo, onDirectionChange }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, kmlLoaded, onStyleChange, onLayerTypeChange, onSettingsChange, onKmlLoad, onScopeAdjusting, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats, symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDeleteSymbol, onFlyTo, onDirectionChange }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("map");
   const [confirming, setConfirming] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -131,8 +135,10 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
             <MapPresets
               mapStyle={mapStyle}
               layerType={layerType}
+              kmlLoaded={kmlLoaded}
               onStyleChange={onStyleChange}
               onLayerTypeChange={onLayerTypeChange}
+              onKmlLoad={onKmlLoad}
             />
             <DataControls
               readings={readings}
@@ -158,6 +164,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
               layerType={layerType}
               settings={layerSettings}
               onSettingsChange={onSettingsChange}
+              onScopeAdjusting={onScopeAdjusting}
             />
           </>
         ) : activeTab === "symbols" ? (

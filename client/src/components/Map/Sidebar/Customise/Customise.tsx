@@ -1,4 +1,5 @@
 import type { LayerType } from "../MapPresets/MapPresets";
+import Slider from "../../../Slider/Slider";
 import "./Customise.scss";
 
 /* Per-layer styling parameters exposed as sidebar controls */
@@ -9,6 +10,9 @@ export interface LayerSettings {
   coverage: number;
   elevationScale: number;
   lineWidth: number;
+  kmlLineWidth: number;
+  kmlLineShade: number;
+  scope: number;
 }
 
 export const DEFAULT_LAYER_SETTINGS: LayerSettings = {
@@ -18,6 +22,9 @@ export const DEFAULT_LAYER_SETTINGS: LayerSettings = {
   coverage: 0.85,
   elevationScale: 1,
   lineWidth: 10,
+  kmlLineWidth: 1,
+  kmlLineShade: 80,
+  scope: 5,
 };
 
 /* Slider configuration for each adjustable parameter */
@@ -28,6 +35,7 @@ interface SliderConfig {
   max: number;
   step: number;
   format: (v: number) => string;
+  trackBackground?: string;
 }
 
 /* Format a number as a percentage string */
@@ -38,6 +46,9 @@ const dec1 = (v: number) => v.toFixed(1);
 
 /* Format a number as a plain integer */
 const int = (v: number) => String(Math.round(v));
+
+/* Format a number as metres */
+const meters = (v: number) => `${Math.round(v)}m`;
 
 /* Sliders shown for every layer type */
 const SHARED_SLIDERS: SliderConfig[] = [
@@ -61,26 +72,30 @@ const PATH_SLIDERS: SliderConfig[] = [
   { key: "lineWidth", label: "Path Width", min: 1, max: 20, step: 1, format: int },
 ];
 
+/* Sliders specific to the KML layer */
+const KML_SLIDERS: SliderConfig[] = [
+  { key: "scope", label: "Scope", min: 5, max: 500, step: 5, format: meters },
+  { key: "kmlLineWidth", label: "Line Width", min: 1, max: 10, step: 0.5, format: dec1 },
+  { key: "kmlLineShade", label: "Line Shade", min: 0, max: 255, step: 1, format: int, trackBackground: "linear-gradient(to right, #000000, #ffffff)" },
+];
+
 /* Map layer type to its specific sliders */
 const LAYER_SLIDERS: Record<LayerType, SliderConfig[]> = {
   heatmap: HEATMAP_SLIDERS,
   hexagon: HEXAGON_SLIDERS,
   path: PATH_SLIDERS,
+  kml: KML_SLIDERS,
 };
 
 interface CustomiseProps {
   layerType: LayerType;
   settings: LayerSettings;
   onSettingsChange: (settings: LayerSettings) => void;
+  onScopeAdjusting?: (adjusting: boolean) => void;
 }
 
 /* Sidebar section with adjustable styling sliders that swap based on active layer type */
-const Customise = ({ layerType, settings, onSettingsChange }: CustomiseProps) => {
-  /* Build a change handler that updates a single setting key */
-  const handleChange = (key: keyof LayerSettings) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    onSettingsChange({ ...settings, [key]: parseFloat(e.target.value) });
-  };
-
+const Customise = ({ layerType, settings, onSettingsChange, onScopeAdjusting }: CustomiseProps) => {
   /* Combine shared sliders with the layer-specific ones */
   const sliders = [...SHARED_SLIDERS, ...LAYER_SLIDERS[layerType]];
 
@@ -89,21 +104,19 @@ const Customise = ({ layerType, settings, onSettingsChange }: CustomiseProps) =>
       <span className="customise__label">Customise</span>
 
       {sliders.map((s) => (
-        <div key={s.key} className="customise__slider-group">
-          <div className="customise__slider-header">
-            <span className="customise__slider-name">{s.label}</span>
-            <span className="customise__slider-value">{s.format(settings[s.key])}</span>
-          </div>
-          <input
-            type="range"
-            className="customise__slider"
-            min={s.min}
-            max={s.max}
-            step={s.step}
-            value={settings[s.key]}
-            onChange={handleChange(s.key)}
-          />
-        </div>
+        <Slider
+          key={s.key}
+          label={s.label}
+          displayValue={s.format(settings[s.key])}
+          min={s.min}
+          max={s.max}
+          step={s.step}
+          value={settings[s.key]}
+          trackBackground={s.trackBackground}
+          onChange={(v) => onSettingsChange({ ...settings, [s.key]: v })}
+          onPointerDown={s.key === "scope" ? () => onScopeAdjusting?.(true) : undefined}
+          onPointerUp={s.key === "scope" ? () => onScopeAdjusting?.(false) : undefined}
+        />
       ))}
     </div>
   );

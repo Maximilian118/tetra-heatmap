@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, useDeferredValue } from "react";
 import DeckGL from "@deck.gl/react";
 import { Map as MapGL } from "react-map-gl/mapbox";
 import { HeatmapLayer, HexagonLayer } from "@deck.gl/aggregation-layers";
-import { ScatterplotLayer, PathLayer, IconLayer } from "@deck.gl/layers";
+import { ScatterplotLayer, PathLayer, IconLayer, GeoJsonLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { fetchReadings, resetCache, fetchSettings, fetchSubscribers, geocodeCoordinates, fetchSymbols, createSymbol, updateSymbolPosition, updateSymbolDirection, updateSymbolSize as apiUpdateSymbolSize, deleteSymbol as apiDeleteSymbol, type Reading, type Subscriber, type MapSymbol } from "../../utils/api";
 import { saveDataset, loadDataset, deriveSubscribersFromReadings, type SavedViewState } from "../../utils/dataset";
 import { readingsBounds } from "../../utils/geojson";
-import { normalizeRssi, rssiElevationWeight, RSSI_COLOR_RANGE, buildPaths, type RadioPath } from "../../utils/rssi";
+import { normalizeRssi, rssiElevationWeight, RSSI_COLOR_RANGE, rssiToColor, buildPaths, type RadioPath } from "../../utils/rssi";
+import { buildKmlResult, type KmlData } from "../../utils/kml";
 import { buildBgAtlas, buildFgAtlas, ICON_MAPPING } from "../../utils/symbols";
 import type { LayerType } from "./Sidebar/MapPresets/MapPresets";
 import { DEFAULT_LAYER_SETTINGS, type LayerSettings } from "./Sidebar/Customise/Customise";
@@ -96,6 +97,8 @@ const Map = () => {
   const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/navigation-guidance-night-v4");
   const [layerType, setLayerType] = useState<LayerType>("heatmap");
   const [layerSettings, setLayerSettings] = useState<LayerSettings>(DEFAULT_LAYER_SETTINGS);
+  const [kmlData, setKmlData] = useState<KmlData | null>(null);
+  const [scopeAdjusting, setScopeAdjusting] = useState(false);
   const [fileReadings, setFileReadings] = useState<Reading[] | null>(null);
   const [fileSubscribers, setFileSubscribers] = useState<Subscriber[] | null>(null);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
@@ -248,72 +251,120 @@ const Map = () => {
     [validReadings, layerType]
   );
 
+  /* Deferred scope — React prioritises slider input over the geo-computation */
+  const deferredScope = useDeferredValue(layerSettings.scope);
+
+  /* Build coloured GeoJSON and scope-filtered readings in a single optimised pass */
+  const kmlResult = useMemo(() => {
+    if (layerType !== "kml" || !kmlData) return null;
+    return buildKmlResult(kmlData, validReadings, deferredScope, rssiToColor, scopeAdjusting);
+  }, [kmlData, validReadings, layerType, deferredScope, scopeAdjusting]);
+
+  const kmlGeoJson = kmlResult?.geoJson ?? null;
+  const kmlScopeReadings = kmlResult?.scopeReadings ?? [];
+
   /* Build deck.gl layers — the visualisation layer changes based on layerType,
      while the invisible scatterplot for hover tooltips is always present. */
   const layers = useMemo(() => {
-    /* Choose the primary visualisation layer based on the active layer type */
-    const vizLayer =
-      layerType === "hexagon"
-        ? /* 3D hexagonal bins — both colour and height encode average RSSI per hex */
-          new HexagonLayer<Reading>({
-            id: "rssi-hexagon",
-            data: validReadings,
-            gpuAggregation: false,
-            getPosition: (d) => [d.longitude, d.latitude],
-            getColorWeight: (d) => normalizeRssi(d.rssi!),
-            colorAggregation: "MEAN",
-            colorDomain: [0.1, 1.0],
-            colorRange: RSSI_COLOR_RANGE,
-            getElevationWeight: (d) => rssiElevationWeight(d.rssi!),
-            elevationAggregation: "MEAN",
-            elevationDomain: [0, 1],
-            elevationRange: [2, 80],
-            elevationScale: layerSettings.elevationScale,
-            upperPercentile: 100,
-            radius: layerSettings.hexRadius,
-            extruded: true,
-            coverage: layerSettings.coverage,
-            opacity: layerSettings.opacity,
-            material: {
-              ambient: 0.64,
-              diffuse: 0.6,
-              shininess: 32,
-              specularColor: [51, 51, 51],
-            },
-          })
-        : layerType === "path"
-          ? /* Per-radio movement trails coloured by RSSI at each vertex */
-            new PathLayer<RadioPath>({
-              id: "rssi-lines",
-              data: radioPaths,
-              getPath: (d) => d.path,
-              getColor: (d) => d.colors,
-              getWidth: layerSettings.lineWidth,
-              widthMinPixels: 1,
-              jointRounded: true,
-              capRounded: true,
+    /* Choose the primary visualisation layer(s) based on the active layer type */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const vizLayers: any[] =
+      layerType === "kml" && kmlGeoJson
+        ? /* KML sector polygons coloured by mean RSSI, with low-opacity GPS dots */
+          [
+            new GeoJsonLayer({
+              id: "kml-rssi-sectors",
+              data: kmlGeoJson,
+              stroked: true,
+              filled: true,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              getFillColor: (f: any) => f.properties.color,
+              getLineColor: [layerSettings.kmlLineShade, layerSettings.kmlLineShade, layerSettings.kmlLineShade, 255],
+              getLineWidth: layerSettings.kmlLineWidth,
+              lineWidthMinPixels: layerSettings.kmlLineWidth,
               opacity: layerSettings.opacity,
-            })
-          : /* Smooth heatmap coloured by average RSSI value (not density).
-               MEAN aggregation gives the weighted average RSSI at each pixel.
-               colorDomain [0.3, 1.0] ensures all readings render at full opacity —
-               colour alone conveys signal quality, no alpha fading for weak signals. */
-            new HeatmapLayer<Reading>({
-              id: "rssi-heatmap",
+              updateTriggers: {
+                getFillColor: [kmlGeoJson],
+                getLineColor: [layerSettings.kmlLineShade],
+              },
+            }),
+            /* RSSI-coloured dots visible only while the scope slider is being adjusted */
+            ...(scopeAdjusting
+              ? [
+                  new ScatterplotLayer<Reading>({
+                    id: "kml-scope-dots",
+                    data: kmlScopeReadings,
+                    getPosition: (d) => [d.longitude, d.latitude],
+                    getRadius: 4,
+                    radiusMinPixels: 2,
+                    radiusMaxPixels: 8,
+                    getFillColor: (d) => rssiToColor(d.rssi!),
+                    opacity: 0.35,
+                  }),
+                ]
+              : []),
+          ]
+        : layerType === "hexagon"
+          ? /* 3D hexagonal bins — both colour and height encode average RSSI per hex */
+            [new HexagonLayer<Reading>({
+              id: "rssi-hexagon",
               data: validReadings,
+              gpuAggregation: false,
               getPosition: (d) => [d.longitude, d.latitude],
-              getWeight: (d) => normalizeRssi(d.rssi!),
-              aggregation: "MEAN",
-              colorDomain: [0.3, 1.0],
+              getColorWeight: (d) => normalizeRssi(d.rssi!),
+              colorAggregation: "MEAN",
+              colorDomain: [0.1, 1.0],
               colorRange: RSSI_COLOR_RANGE,
-              radiusPixels: layerSettings.radiusPixels,
-              intensity: 1,
+              getElevationWeight: (d) => rssiElevationWeight(d.rssi!),
+              elevationAggregation: "MEAN",
+              elevationDomain: [0, 1],
+              elevationRange: [2, 80],
+              elevationScale: layerSettings.elevationScale,
+              upperPercentile: 100,
+              radius: layerSettings.hexRadius,
+              extruded: true,
+              coverage: layerSettings.coverage,
               opacity: layerSettings.opacity,
-              debounceTimeout: 500,
-            });
+              material: {
+                ambient: 0.64,
+                diffuse: 0.6,
+                shininess: 32,
+                specularColor: [51, 51, 51],
+              },
+            })]
+          : layerType === "path"
+            ? /* Per-radio movement trails coloured by RSSI at each vertex */
+              [new PathLayer<RadioPath>({
+                id: "rssi-lines",
+                data: radioPaths,
+                getPath: (d) => d.path,
+                getColor: (d) => d.colors,
+                getWidth: layerSettings.lineWidth,
+                widthMinPixels: 1,
+                jointRounded: true,
+                capRounded: true,
+                opacity: layerSettings.opacity,
+              })]
+            : /* Smooth heatmap coloured by average RSSI value (not density).
+                 MEAN aggregation gives the weighted average RSSI at each pixel.
+                 colorDomain [0.3, 1.0] ensures all readings render at full opacity —
+                 colour alone conveys signal quality, no alpha fading for weak signals. */
+              [new HeatmapLayer<Reading>({
+                id: "rssi-heatmap",
+                data: validReadings,
+                getPosition: (d) => [d.longitude, d.latitude],
+                getWeight: (d) => normalizeRssi(d.rssi!),
+                aggregation: "MEAN",
+                colorDomain: [0.3, 1.0],
+                colorRange: RSSI_COLOR_RANGE,
+                radiusPixels: layerSettings.radiusPixels,
+                intensity: 1,
+                opacity: layerSettings.opacity,
+                debounceTimeout: 500,
+              })];
 
     return [
-      vizLayer,
+      ...vizLayers,
 
       /* Invisible pickable dots for hover tooltips — active on all layer types */
       new ScatterplotLayer<Reading>({
@@ -423,7 +474,7 @@ const Map = () => {
         },
       }),
     ];
-  }, [validReadings, layerType, radioPaths, layerSettings, ssiDescriptionMap, symbols, bgAtlasUrl, fgAtlasUrl, draggingSymbolId, selectedSymbolId, symbolSize]);
+  }, [validReadings, layerType, radioPaths, layerSettings, ssiDescriptionMap, symbols, bgAtlasUrl, fgAtlasUrl, draggingSymbolId, selectedSymbolId, symbolSize, kmlGeoJson, kmlScopeReadings, scopeAdjusting]);
 
   /* Download the currently displayed readings as a JSON file via the browser save dialog */
   const handleSaveData = useCallback(async () => {
@@ -649,9 +700,12 @@ const Map = () => {
         layerSettings={layerSettings}
         readings={displayedReadings}
         isFileMode={fileReadings !== null}
+        kmlLoaded={kmlData !== null}
         onStyleChange={setMapStyle}
         onLayerTypeChange={setLayerType}
         onSettingsChange={setLayerSettings}
+        onKmlLoad={setKmlData}
+        onScopeAdjusting={setScopeAdjusting}
         onSaveData={handleSaveData}
         onLoadData={handleLoadData}
         onResumeLive={handleResumeLive}

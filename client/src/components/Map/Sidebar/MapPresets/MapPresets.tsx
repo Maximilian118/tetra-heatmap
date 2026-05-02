@@ -1,14 +1,17 @@
-import { Flame, Hexagon, Activity, type LucideIcon } from "lucide-react";
+import { useRef } from "react";
+import { Flame, Hexagon, Activity, FileText, type LucideIcon } from "lucide-react";
+import { parseKml, type KmlData } from "../../../../utils/kml";
 import "./MapPresets.scss";
 
-/* The three available deck.gl visualisation modes */
-export type LayerType = "heatmap" | "hexagon" | "path";
+/* The four available deck.gl visualisation modes */
+export type LayerType = "heatmap" | "hexagon" | "path" | "kml";
 
-/* Button definitions for the layer toggle row */
+/* Button definitions for the layer toggle grid */
 const LAYER_OPTIONS: { type: LayerType; label: string; icon: LucideIcon }[] = [
   { type: "heatmap", label: "Heat", icon: Flame },
   { type: "hexagon", label: "Hex", icon: Hexagon },
   { type: "path", label: "Path", icon: Activity },
+  { type: "kml", label: "KML", icon: FileText },
 ];
 
 /* All available MapBox GL style presets */
@@ -32,43 +35,96 @@ const MAP_STYLES = [
 interface MapPresetsProps {
   mapStyle: string;
   layerType: LayerType;
+  kmlLoaded: boolean;
   onStyleChange: (style: string) => void;
   onLayerTypeChange: (type: LayerType) => void;
+  onKmlLoad: (data: KmlData) => void;
 }
 
 /* Map style dropdown and layer type toggle for the sidebar */
-const MapPresets = ({ mapStyle, layerType, onStyleChange, onLayerTypeChange }: MapPresetsProps) => (
-  <div className="map-presets">
-    <label className="map-presets__label" htmlFor="map-style-select">
-      Map Style
-    </label>
-    <select
-      id="map-style-select"
-      className="map-presets__select"
-      value={mapStyle}
-      onChange={(e) => onStyleChange(e.target.value)}
-    >
-      {MAP_STYLES.map((s) => (
-        <option key={s.url} value={s.url}>
-          {s.label}
-        </option>
-      ))}
-    </select>
+const MapPresets = ({ mapStyle, layerType, kmlLoaded, onStyleChange, onLayerTypeChange, onKmlLoad }: MapPresetsProps) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-    {/* Layer type toggle — three equal-width connected buttons */}
-    <div className="map-presets__layers">
-      {LAYER_OPTIONS.map((opt) => (
-        <button
-          key={opt.type}
-          className={`map-presets__layer-btn ${layerType === opt.type ? "map-presets__layer-btn--active" : ""}`}
-          onClick={() => onLayerTypeChange(opt.type)}
-        >
-          <opt.icon size={14} />
-          {opt.label}
-        </button>
-      ))}
+  /* Handle KML file selection from the native file picker */
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = reader.result as string;
+      const kmlData = parseKml(text, file.name);
+
+      if (kmlData.polygons.length > 0) {
+        onKmlLoad(kmlData);
+        onLayerTypeChange("kml");
+      }
+    };
+    reader.readAsText(file);
+
+    /* Reset the input so the same file can be re-selected */
+    e.target.value = "";
+  };
+
+  /* Handle layer button click — KML opens file picker, others switch directly */
+  const handleLayerClick = (type: LayerType) => {
+    if (type === "kml") {
+      fileInputRef.current?.click();
+    } else {
+      onLayerTypeChange(type);
+    }
+  };
+
+  return (
+    <div className="map-presets">
+      <label className="map-presets__label" htmlFor="map-style-select">
+        Map Style
+      </label>
+      <select
+        id="map-style-select"
+        className="map-presets__select"
+        value={mapStyle}
+        onChange={(e) => onStyleChange(e.target.value)}
+      >
+        {MAP_STYLES.map((s) => (
+          <option key={s.url} value={s.url}>
+            {s.label}
+          </option>
+        ))}
+      </select>
+
+      {/* Layer type toggle — 2x2 grid of buttons */}
+      <div className="map-presets__layers">
+        {LAYER_OPTIONS.map((opt) => (
+          <button
+            key={opt.type}
+            className={`map-presets__layer-btn ${
+              opt.type === "kml"
+                ? layerType === "kml" && kmlLoaded
+                  ? "map-presets__layer-btn--active"
+                  : ""
+                : layerType === opt.type
+                  ? "map-presets__layer-btn--active"
+                  : ""
+            }`}
+            onClick={() => handleLayerClick(opt.type)}
+          >
+            <opt.icon size={14} />
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Hidden file input for KML selection */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".kml"
+        className="map-presets__file-input"
+        onChange={handleFileChange}
+      />
     </div>
-  </div>
-);
+  );
+};
 
 export default MapPresets;

@@ -2,6 +2,7 @@ import { Trash2, Navigation } from "lucide-react";
 import type { MapSymbol } from "../../../../utils/api";
 import { SYMBOL_TYPES, buildIconAtlas, ICON_MAPPING, degreesToCompass, type SymbolType } from "../../../../utils/symbols";
 import { useRef, useEffect, useMemo } from "react";
+import Slider from "../../../Slider/Slider";
 import "./Symbols.scss";
 
 interface SymbolsProps {
@@ -135,21 +136,15 @@ const Symbols = ({ symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, on
       </div>
 
       {/* Size slider */}
-      <div className="symbols__size">
-        <div className="symbols__size-header">
-          <span className="symbols__size-name">Size</span>
-          <span className="symbols__size-value">{symbolSize}px</span>
-        </div>
-        <input
-          type="range"
-          className="symbols__size-slider"
-          min={24}
-          max={96}
-          step={4}
-          value={symbolSize}
-          onChange={(e) => onSymbolSizeChange(Number(e.target.value))}
-        />
-      </div>
+      <Slider
+        label="Size"
+        displayValue={`${symbolSize}px`}
+        min={24}
+        max={96}
+        step={4}
+        value={symbolSize}
+        onChange={onSymbolSizeChange}
+      />
 
       {/* List of placed symbols grouped by category */}
       <span className="symbols__label">
@@ -195,20 +190,15 @@ const Symbols = ({ symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, on
 
                   {/* Direction slider — only for directional repeaters */}
                   {sym.type === "repeater-directional" && (
-                    <div className="symbols__direction">
-                      <input
-                        type="range"
-                        className="symbols__direction-slider"
-                        min={0}
-                        max={360}
-                        step={5}
-                        value={sym.direction ?? 0}
-                        onChange={(e) => onDirectionChange(sym.id, Number(e.target.value))}
-                      />
-                      <span className="symbols__direction-value">
-                        {sym.direction ?? 0}° {degreesToCompass(sym.direction ?? 0)}
-                      </span>
-                    </div>
+                    <Slider
+                      compact
+                      displayValue={`${sym.direction ?? 0}° ${degreesToCompass(sym.direction ?? 0)}`}
+                      min={0}
+                      max={360}
+                      step={5}
+                      value={sym.direction ?? 0}
+                      onChange={(v) => onDirectionChange(sym.id, v)}
+                    />
                   )}
                 </div>
               ))}

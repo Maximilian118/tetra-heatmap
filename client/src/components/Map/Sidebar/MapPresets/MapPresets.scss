@@ -51,16 +51,16 @@
     }
   }
 
-  /* Button group for switching deck.gl layer type */
+  /* Button grid for switching deck.gl layer type — 2x2 layout */
   &__layers {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 4px;
     margin-top: 4px;
   }
 
-  /* Individual layer toggle button — equal width, separated with gap */
+  /* Individual layer toggle button */
   &__layer-btn {
-    flex: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -85,5 +85,10 @@
       border-color: $border-active;
       background: $bg-element-dim;
     }
+  }
+
+  /* Hidden file input used by the KML button */
+  &__file-input {
+    display: none;
   }
 }
