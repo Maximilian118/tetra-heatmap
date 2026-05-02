@@ -14,7 +14,7 @@ export interface LayerSettings {
 export const DEFAULT_LAYER_SETTINGS: LayerSettings = {
   opacity: 0.8,
   radiusPixels: 20,
-  hexRadius: 3,
+  hexRadius: 8,
   coverage: 0.85,
   elevationScale: 1,
   lineWidth: 10,

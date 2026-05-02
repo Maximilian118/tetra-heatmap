@@ -258,6 +258,7 @@ const Map = () => {
           new HexagonLayer<Reading>({
             id: "rssi-hexagon",
             data: validReadings,
+            gpuAggregation: false,
             getPosition: (d) => [d.longitude, d.latitude],
             getColorWeight: (d) => normalizeRssi(d.rssi!),
             colorAggregation: "MEAN",
