@@ -355,6 +355,7 @@ const Map = () => {
         getLineWidth: 3,
         stroked: true,
         lineWidthMinPixels: 2,
+        parameters: { depthTest: false },
       }),
 
       /* Symbol backgrounds — rotates for directional repeaters (wedge points in direction) */
@@ -370,6 +371,7 @@ const Map = () => {
         sizeMinPixels: 20,
         sizeMaxPixels: 120,
         pickable: true,
+        parameters: { depthTest: false },
         updateTriggers: {
           getSize: [selectedSymbolId, symbolSize],
         },
@@ -415,6 +417,7 @@ const Map = () => {
         getSize: (d) => d.id === selectedSymbolId ? symbolSize + 16 : symbolSize,
         sizeMinPixels: 20,
         sizeMaxPixels: 120,
+        parameters: { depthTest: false },
         updateTriggers: {
           getSize: [selectedSymbolId, symbolSize],
         },
