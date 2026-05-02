@@ -171,6 +171,9 @@ function isWithinScope(
 export interface KmlGeoJsonProperties {
   name: string;
   meanRssi: number | null;
+  minRssi: number | null;
+  maxRssi: number | null;
+  count: number;
   color: [number, number, number, number];
 }
 
@@ -215,6 +218,8 @@ export function buildKmlResult(
   /* Per-polygon accumulators */
   const rssiSums = new Float64Array(polygons.length);
   const counts = new Uint32Array(polygons.length);
+  const rssiMins = new Float64Array(polygons.length).fill(Infinity);
+  const rssiMaxs = new Float64Array(polygons.length).fill(-Infinity);
 
   /* Track which readings are within scope of any polygon (avoid Set overhead) */
   const inScope = collectReadings ? new Uint8Array(readings.length) : null;
@@ -243,6 +248,8 @@ export function buildKmlResult(
       if (isWithinScope(px, py, poly, scopeMeters)) {
         rssiSums[pi] += r.rssi;
         counts[pi]++;
+        if (r.rssi < rssiMins[pi]) rssiMins[pi] = r.rssi;
+        if (r.rssi > rssiMaxs[pi]) rssiMaxs[pi] = r.rssi;
         if (inScope) inScope[ri] = 1;
       }
     }
@@ -251,13 +258,15 @@ export function buildKmlResult(
   /* Build GeoJSON features from accumulators */
   const features: GeoJsonFeature[] = polygons.map((poly, i) => {
     const meanRssi = counts[i] > 0 ? rssiSums[i] / counts[i] : null;
+    const minRssi = counts[i] > 0 ? rssiMins[i] : null;
+    const maxRssi = counts[i] > 0 ? rssiMaxs[i] : null;
     /* Use fully opaque fills so the deck.gl opacity prop has full control */
     const raw = meanRssi !== null ? rssiToColor(meanRssi) : NO_DATA_COLOR;
     const color: [number, number, number, number] = [raw[0], raw[1], raw[2], 255];
 
     return {
       type: "Feature",
-      properties: { name: poly.name, meanRssi, color },
+      properties: { name: poly.name, meanRssi, minRssi, maxRssi, count: counts[i], color },
       geometry: {
         type: "Polygon",
         coordinates: [poly.coordinates],

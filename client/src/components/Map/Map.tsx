@@ -9,11 +9,12 @@ import { fetchReadings, resetCache, fetchSettings, fetchSubscribers, geocodeCoor
 import { saveDataset, loadDataset, deriveSubscribersFromReadings, type SavedViewState } from "../../utils/dataset";
 import { readingsBounds } from "../../utils/geojson";
 import { normalizeRssi, rssiElevationWeight, RSSI_COLOR_RANGE, rssiToColor, buildPaths, type RadioPath } from "../../utils/rssi";
-import { buildKmlResult, type KmlData } from "../../utils/kml";
+import { buildKmlResult, type KmlData, type KmlGeoJsonProperties } from "../../utils/kml";
 import { buildBgAtlas, buildFgAtlas, ICON_MAPPING } from "../../utils/symbols";
 import type { LayerType } from "./Sidebar/MapPresets/MapPresets";
 import { DEFAULT_LAYER_SETTINGS, type LayerSettings } from "./Sidebar/Customise/Customise";
 import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
+import KmlTooltip, { type KmlTooltipInfo } from "./Tooltip/KmlTooltip";
 import Sidebar from "./Sidebar/Sidebar";
 import LogserverStats from "./LogserverStats/LogserverStats";
 import RssiLegend from "./RssiLegend/RssiLegend";
@@ -103,6 +104,7 @@ const Map = () => {
   const [fileSubscribers, setFileSubscribers] = useState<Subscriber[] | null>(null);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
+  const [kmlTooltip, setKmlTooltip] = useState<KmlTooltipInfo | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [dbConnected, setDbConnected] = useState(false);
   const [liveSubscribers, setLiveSubscribers] = useState<Subscriber[]>([]);
@@ -261,6 +263,11 @@ const Map = () => {
   }, [kmlData, validReadings, layerType, deferredScope, scopeAdjusting]);
 
   const kmlGeoJson = kmlResult?.geoJson ?? null;
+
+  /* Clear KML tooltip when switching away from KML layer */
+  useEffect(() => {
+    if (layerType !== "kml") setKmlTooltip(null);
+  }, [layerType]);
   const kmlScopeReadings = kmlResult?.scopeReadings ?? [];
 
   /* Build deck.gl layers — the visualisation layer changes based on layerType,
@@ -277,12 +284,31 @@ const Map = () => {
               data: kmlGeoJson,
               stroked: true,
               filled: true,
+              pickable: true,
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               getFillColor: (f: any) => f.properties.color,
               getLineColor: [layerSettings.kmlLineShade, layerSettings.kmlLineShade, layerSettings.kmlLineShade, 255],
               getLineWidth: layerSettings.kmlLineWidth,
               lineWidthMinPixels: layerSettings.kmlLineWidth,
               opacity: layerSettings.opacity,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              onHover: (info: PickingInfo<any>) => {
+                if (info.object) {
+                  const props = info.object.properties as KmlGeoJsonProperties;
+                  setKmlTooltip({
+                    x: info.x,
+                    y: info.y,
+                    name: props.name,
+                    meanRssi: props.meanRssi,
+                    minRssi: props.minRssi,
+                    maxRssi: props.maxRssi,
+                    count: props.count,
+                  });
+                  setTooltip(null);
+                } else {
+                  setKmlTooltip(null);
+                }
+              },
               updateTriggers: {
                 getFillColor: [kmlGeoJson],
                 getLineColor: [layerSettings.kmlLineShade],
@@ -366,7 +392,8 @@ const Map = () => {
     return [
       ...vizLayers,
 
-      /* Invisible pickable dots for hover tooltips — active on all layer types */
+      /* Invisible pickable dots for hover tooltips — disabled on KML layer
+         where the GeoJsonLayer handles its own hover detection */
       new ScatterplotLayer<Reading>({
         id: "rssi-tooltip-targets",
         data: validReadings,
@@ -374,7 +401,7 @@ const Map = () => {
         getRadius: 8,
         radiusMinPixels: 8,
         getFillColor: [0, 0, 0, 0],
-        pickable: true,
+        pickable: layerType !== "kml",
         onHover: (info: PickingInfo<Reading>) => {
           if (info.object) {
             setTooltip({
@@ -750,6 +777,7 @@ const Map = () => {
         </DeckGL>
 
         <Tooltip tooltip={tooltip} clockOffsetMs={clockOffsetMs} serverTzOffsetHours={serverTzOffsetHours} />
+        <KmlTooltip tooltip={kmlTooltip} />
         <RssiLegend />
 
         {/* SSI Register overlay — rendered on top of the map without unmounting it */}

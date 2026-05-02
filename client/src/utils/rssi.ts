@@ -31,6 +31,16 @@ export const rssiToColor = (rssi: number): [number, number, number, number] => {
   return [r, g, b, 200];
 };
 
+/* Map RSSI to a human-readable signal quality label aligned with the colour ramp */
+export const rssiQualityLabel = (rssi: number): string => {
+  if (rssi >= -35) return "Over-strong";
+  if (rssi >= -55) return "Strong";
+  if (rssi >= -75) return "Adequate";
+  if (rssi >= -90) return "Marginal";
+  if (rssi >= -105) return "Weak";
+  return "Unusable";
+};
+
 /* A single line segment connecting two consecutive positions from the same radio */
 export interface LineSegment {
   sourcePosition: [number, number];
