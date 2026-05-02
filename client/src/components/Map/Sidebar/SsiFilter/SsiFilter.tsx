@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Users } from "lucide-react";
 import { formatAccuracy } from "../../../../utils/format";
 import Slider from "../../../Slider/Slider";
+import SideBarButton from "../SideBarButton/SideBarButton";
 import "./SsiFilter.scss";
 
 interface SsiFilterProps {
@@ -116,10 +117,7 @@ const SsiFilter = ({ onToggleRegister, selectedSsis, isFileMode, dataAgeMinutes,
     <div className="ssi-filter">
       <span className="ssi-filter__label">Filter</span>
       <span className="ssi-filter__count">{formatFilterSummary(selectedSsis)}</span>
-      <button className="ssi-filter__btn" onClick={onToggleRegister}>
-        <Users size={14} />
-        SSI Register
-      </button>
+      <SideBarButton icon={Users} label="SSI Register" onClick={onToggleRegister} />
 
       {/* Data age slider — logarithmic scale from all readings down to 1 minute */}
       <Slider

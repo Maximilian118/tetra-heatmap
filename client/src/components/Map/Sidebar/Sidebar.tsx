@@ -12,6 +12,7 @@ import type { LayerSettings } from "./Customise/Customise";
 import DatabaseSettings from "./DatabaseSettings/DatabaseSettings";
 import type { DatabaseSettingsHandle } from "./DatabaseSettings/DatabaseSettings";
 import Symbols from "./Symbols/Symbols";
+import SideBarButton from "./SideBarButton/SideBarButton";
 import "./Sidebar.scss";
 
 /* Breakpoint at which the sidebar collapses into a mobile overlay */
@@ -188,36 +189,27 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
         <div className="sidebar__footer">
           <span className="sidebar__hint">Hold Shift + drag to rotate and tilt the map</span>
           {resetMessage && <span className="sidebar__message">{resetMessage}</span>}
-          <button
-            className="sidebar__reset-btn"
+          <SideBarButton
+            icon={RotateCcw}
+            label={resetting ? "Resetting..." : "Reset Cache"}
             onClick={() => setConfirming(true)}
             disabled={resetting}
-          >
-            <RotateCcw size={14} />
-            {resetting ? "Resetting..." : "Reset Cache"}
-          </button>
+          />
         </div>
       ) : activeTab === "symbols" ? (
         <div className="sidebar__footer">
-          <button
-            className="sidebar__reset-btn"
-            onClick={() => setActiveTab("map")}
-          >
-            <X size={14} />
-            Close
-          </button>
+          <SideBarButton icon={X} label="Close" onClick={() => setActiveTab("map")} />
         </div>
       ) : (
         <div className="sidebar__footer">
           {dbStatusMessage && <span className="sidebar__message">{dbStatusMessage}</span>}
-          <button
-            className="sidebar__apply-btn"
+          <SideBarButton
+            icon={Check}
+            label={dbSaving ? "Applying..." : "Apply"}
             onClick={() => dbRef.current?.apply()}
             disabled={dbSaving}
-          >
-            <Check size={14} />
-            {dbSaving ? "Applying..." : "Apply"}
-          </button>
+            variant="accent"
+          />
         </div>
       )}
 

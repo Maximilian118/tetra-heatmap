@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { Save, FolderOpen, Radio, MapPin } from "lucide-react";
 import type { Reading } from "../../../../utils/api";
 import { formatReadingSummary } from "../../../../utils/format";
+import SideBarButton from "../SideBarButton/SideBarButton";
 import "./DataControls.scss";
 
 interface DataControlsProps {
@@ -40,26 +41,13 @@ const DataControls = ({ readings, isFileMode, onSave, onLoad, onResumeLive, onOp
 
       {/* Save Data in live mode, Resume Live in file mode — same slot */}
       {isFileMode ? (
-        <button className="data-controls__btn data-controls__btn--live" onClick={onResumeLive}>
-          <Radio size={14} />
-          Resume Live
-        </button>
+        <SideBarButton icon={Radio} label="Resume Live" onClick={onResumeLive} variant="accent" />
       ) : (
-        <button className="data-controls__btn" onClick={onSave} disabled={readings.length === 0}>
-          <Save size={14} />
-          Save Data
-        </button>
+        <SideBarButton icon={Save} label="Save Data" onClick={onSave} disabled={readings.length === 0} />
       )}
 
-      <button className="data-controls__btn" onClick={handleLoadClick}>
-        <FolderOpen size={14} />
-        Load Data
-      </button>
-
-      <button className="data-controls__btn" onClick={onOpenSymbols}>
-        <MapPin size={14} />
-        Symbols
-      </button>
+      <SideBarButton icon={FolderOpen} label="Load Data" onClick={handleLoadClick} />
+      <SideBarButton icon={MapPin} label="Symbols" onClick={onOpenSymbols} />
 
       {/* Hidden file input for the load dialog */}
       <input

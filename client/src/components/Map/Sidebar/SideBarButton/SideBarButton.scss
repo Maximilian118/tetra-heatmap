@@ -1,0 +1,38 @@
+@use "../../../../styles/variables" as *;
+
+/* Full-width sidebar action button — default and accent variants */
+.sidebar-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: $text-primary;
+  background: $bg-element;
+  border: 1px solid $border-default;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) {
+    background: $bg-element-hover;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Blue accent variant for primary actions */
+  &--accent {
+    background: $accent-blue;
+    border-color: $accent-blue-border;
+
+    &:hover:not(:disabled) {
+      background: $accent-blue-hover;
+    }
+  }
+}

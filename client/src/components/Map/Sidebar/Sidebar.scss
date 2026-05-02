@@ -75,60 +75,6 @@
     gap: 8px;
   }
 
-  /* Reset cache button — full width at the bottom */
-  &__reset-btn {
-    width: 100%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px 16px;
-    font-size: 13px;
-    font-weight: 500;
-    color: $text-primary;
-    background: $bg-element;
-    border: 1px solid $border-default;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.15s;
-
-    &:hover:not(:disabled) {
-      background: $bg-element-hover;
-    }
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-  }
-
-  /* Apply button — blue accent, pinned to sidebar floor on Database tab */
-  &__apply-btn {
-    width: 100%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px 16px;
-    font-size: 13px;
-    font-weight: 500;
-    color: $text-primary;
-    background: $accent-blue;
-    border: 1px solid $accent-blue-border;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.15s;
-
-    &:hover:not(:disabled) {
-      background: $accent-blue-hover;
-    }
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-  }
-
   /* Subtle interaction hint above the footer buttons (hidden on touch devices) */
   &__hint {
     font-size: 11px;
