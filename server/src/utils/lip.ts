@@ -12,12 +12,14 @@ const MAX_POSITION_ERROR_M = 2_000;
 
 /* Number of time-data bits for each time-type value in a Long Immediate Location Report.
    Index = time-type field (2 bits at offset 7 in the PDU).
-   Note: Motorola MXP600 encoding differs from ETSI standard numbering.
-   - 0: no time information (0 bits)
-   - 1: time of position (25 bits) — CONFIRMED with live data
-   - 2: time elapsed (estimated 5 bits — unverified)
-   - 3: reserved (treated as 0) */
-const TIME_DATA_BITS: Record<number, number> = { 0: 0, 1: 25, 2: 5, 3: 0 };
+   The Motorola MXP600 always includes a 25-bit time field in Long reports regardless
+   of the CPS Plus "Basic Location Report Type" setting.  Different codeplug configs
+   produce different time-type values (0 or 1 observed) but the field width is always 25.
+   - 0: 25 bits — observed from MXP600 codeplugs without explicit time-type label
+   - 1: 25 bits — observed from MXP600 codeplugs with "Time of position"
+   - 2: 25 bits — not yet observed, assumed same fixed-width field
+   - 3: 25 bits — not yet observed, assumed same fixed-width field */
+const TIME_DATA_BITS: Record<number, number> = { 0: 25, 1: 25, 2: 25, 3: 25 };
 
 /* Decoded fields from a LIP Location Report */
 export interface LipReport {

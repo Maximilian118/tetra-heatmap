@@ -192,6 +192,7 @@ const syncReadings = async () => {
           position_error: lip.positionError,
           velocity: lip.velocity,
           direction: lip.direction,
+          reject_reason: null,
         });
 
         /* Tally accuracy distribution */
