@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Menu, X, Map, Settings, RotateCcw, Check } from "lucide-react";
+import { Menu, X, Map, Settings, RotateCcw, Check, FileText } from "lucide-react";
 import type { Reading, MapSymbol } from "../../../utils/api";
 import type { KmlData } from "../../../utils/kml";
 import Confirm from "../Confirm/Confirm";
@@ -190,10 +190,9 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
           <span className="sidebar__hint">Hold Shift + drag to rotate and tilt the map</span>
           {resetMessage && <span className="sidebar__message">{resetMessage}</span>}
           <SideBarButton
-            icon={RotateCcw}
-            label={resetting ? "Resetting..." : "Reset Cache"}
-            onClick={() => setConfirming(true)}
-            disabled={resetting}
+            icon={FileText}
+            label="Generate Report"
+            onClick={() => {}}
           />
         </div>
       ) : activeTab === "symbols" ? (
@@ -203,6 +202,12 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
       ) : (
         <div className="sidebar__footer">
           {dbStatusMessage && <span className="sidebar__message">{dbStatusMessage}</span>}
+          <SideBarButton
+            icon={RotateCcw}
+            label={resetting ? "Resetting..." : "Reset Cache"}
+            onClick={() => setConfirming(true)}
+            disabled={resetting}
+          />
           <SideBarButton
             icon={Check}
             label={dbSaving ? "Applying..." : "Apply"}
