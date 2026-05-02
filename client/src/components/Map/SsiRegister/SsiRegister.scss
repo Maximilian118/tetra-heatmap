@@ -217,6 +217,8 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
       border-bottom: 1px solid $border-subtle;
+      cursor: pointer;
+      user-select: none;
     }
 
     td {
@@ -230,6 +232,29 @@
       &:hover {
         background: $bg-element;
       }
+    }
+  }
+
+  /* Flex container inside th to align label + chevron */
+  &__th-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Sort chevron — always takes space, only visible when active */
+  &__sort-icon {
+    flex-shrink: 0;
+    visibility: hidden;
+    transition: transform 0.15s;
+
+    &--active {
+      visibility: visible;
+    }
+
+    /* Flip the chevron to point downward when sorting ascending (least first) */
+    &--asc {
+      transform: rotate(180deg);
     }
   }
 

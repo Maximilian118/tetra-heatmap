@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { X, Info, RotateCcw, Download, Trash2, CircleCheck, CircleX } from "lucide-react";
+import { X, Info, RotateCcw, Download, Trash2, CircleCheck, CircleX, ChevronUp } from "lucide-react";
 import {
   fetchSubscribers,
   importSubscribers,
@@ -28,6 +28,8 @@ const REJECT_LABELS: Record<string, string> = {
 /* Threshold for showing 0-reading rows when searching */
 const SEARCH_SHOW_ALL_THRESHOLD = 50;
 
+/* Sortable column identifiers */
+type SortColumn = "ssi" | "description" | "organisation" | "profile" | "readings" | "lastReading";
 
 interface SsiRegisterProps {
   onClose: () => void;
@@ -71,6 +73,8 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
   const [showInfo, setShowInfo] = useState(false);
   const [importResult, setImportResult] = useState<{ success: boolean; message: string } | null>(null);
   const [breakdownTooltip, setBreakdownTooltip] = useState<BreakdownTooltip | null>(null);
+  const [sortColumn, setSortColumn] = useState<SortColumn>("readings");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   /* Use file subscribers when viewing a saved snapshot, otherwise live data */
   const subscribers = fileSubscribers ?? liveSubscribers;
@@ -170,6 +174,48 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
 
     return [...withReadings, ...withoutReadings];
   }, [subscribers, search, showAll]);
+
+  /* Toggle sort column or reverse direction if already active */
+  const handleSort = (col: SortColumn) => {
+    if (sortColumn === col) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(col);
+      setSortDirection("desc");
+    }
+  };
+
+  /* Sort the filtered list by the active column and direction */
+  const sortedSubscribers = useMemo(() => {
+    const dir = sortDirection === "asc" ? 1 : -1;
+
+    return [...filteredSubscribers].sort((a, b) => {
+      switch (sortColumn) {
+        case "ssi":
+          return (a.ssi - b.ssi) * dir;
+        case "description":
+          return a.description.localeCompare(b.description) * dir;
+        case "organisation":
+          return formatIdDesc(a.organisation_id, a.organisation)
+            .localeCompare(formatIdDesc(b.organisation_id, b.organisation)) * dir;
+        case "profile":
+          return formatIdDesc(a.profile_id, a.profile_name)
+            .localeCompare(formatIdDesc(b.profile_id, b.profile_name)) * dir;
+        case "readings":
+          return (a.readings_count - b.readings_count) * dir;
+        case "lastReading": {
+          const aVal = a.last_reading ?? "";
+          const bVal = b.last_reading ?? "";
+          if (!aVal && !bVal) return 0;
+          if (!aVal) return 1;
+          if (!bVal) return -1;
+          return aVal.localeCompare(bVal) * dir;
+        }
+        default:
+          return 0;
+      }
+    });
+  }, [filteredSubscribers, sortColumn, sortDirection]);
 
   /* Show a tooltip with accuracy or rejection breakdown for a subscriber */
   const showBreakdown = (e: React.MouseEvent, s: Subscriber, type: "accepted" | "rejected") => {
@@ -274,16 +320,30 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
         <table className="ssi-register__table">
           <thead>
             <tr>
-              <th>ISSI</th>
-              <th>Description</th>
-              <th>Organisation</th>
-              <th>Profile</th>
-              <th>Readings</th>
-              <th>Last Reading</th>
+              {([
+                ["ssi", "ISSI"],
+                ["description", "Description"],
+                ["organisation", "Organisation"],
+                ["profile", "Profile"],
+                ["readings", "Readings"],
+                ["lastReading", "Last Reading"],
+              ] as [SortColumn, string][]).map(([col, label]) => (
+                <th key={col} onClick={() => handleSort(col)}>
+                  <span className="ssi-register__th-content">
+                    {label}
+                    <ChevronUp
+                      size={14}
+                      className={`ssi-register__sort-icon${
+                        sortColumn === col ? " ssi-register__sort-icon--active" : ""
+                      }${sortColumn === col && sortDirection === "asc" ? " ssi-register__sort-icon--asc" : ""}`}
+                    />
+                  </span>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {filteredSubscribers.map((s) => (
+            {sortedSubscribers.map((s) => (
               <tr
                 key={s.ssi}
                 className={rowClassName(s)}
@@ -318,7 +378,7 @@ const SsiRegister = ({ onClose, dbConnected, selectedSsis, onToggleSsi, onResetF
                 </td>
               </tr>
             ))}
-            {filteredSubscribers.length === 0 && (
+            {sortedSubscribers.length === 0 && (
               <tr>
                 {/* colSpan 99 is clamped by the browser to the actual visible column count */}
               <td colSpan={99} className="ssi-register__empty">
