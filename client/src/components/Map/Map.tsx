@@ -18,6 +18,7 @@ import KmlTooltip, { type KmlTooltipInfo } from "./Tooltip/KmlTooltip";
 import Sidebar from "./Sidebar/Sidebar";
 import LogserverStats from "./LogserverStats/LogserverStats";
 import RssiLegend from "./RssiLegend/RssiLegend";
+import NorthArrow from "./NorthArrow/NorthArrow";
 import SsiRegister from "./SsiRegister/SsiRegister";
 import MapboxSetup from "./MapboxSetup/MapboxSetup";
 import "./Map.scss";
@@ -118,6 +119,7 @@ const Map = () => {
   const [symbolSize, setSymbolSize] = useState(48);
   const [selectedSymbolId, setSelectedSymbolId] = useState<string | null>(null);
   const [draggingSymbolId, setDraggingSymbolId] = useState<string | null>(null);
+  const [bearing, setBearing] = useState(0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const deckRef = useRef<any>(null);
   const bgAtlasUrl = useMemo(() => buildBgAtlas().toDataURL(), []);
@@ -134,6 +136,7 @@ const Map = () => {
   /* Debounce-save the current viewport to localStorage so it persists across refreshes */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleViewStateChange = useCallback(({ viewState }: any) => {
+    setBearing(viewState.bearing ?? 0);
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({
@@ -738,6 +741,19 @@ const Map = () => {
     });
   }, []);
 
+  /* Snap the map bearing back to 0° (facing north) */
+  const handleResetNorth = useCallback(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const vp = (deckRef.current as any)?.deck?.viewManager?.getViewports()?.[0];
+    setInitialView({
+      longitude: vp?.longitude ?? 0,
+      latitude: vp?.latitude ?? 30,
+      zoom: vp?.zoom ?? 2,
+      bearing: 0,
+      pitch: vp?.pitch ?? 0,
+    });
+  }, []);
+
   /* Update the direction angle of a directional repeater symbol.
      Local state updates immediately for responsive UI; API persist is debounced. */
   const directionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -876,6 +892,7 @@ const Map = () => {
         <Tooltip tooltip={tooltip} clockOffsetMs={clockOffsetMs} serverTzOffsetHours={serverTzOffsetHours} />
         <KmlTooltip tooltip={kmlTooltip} />
         <RssiLegend />
+        <NorthArrow bearing={bearing} onResetNorth={handleResetNorth} />
 
         {/* SSI Register overlay — rendered on top of the map without unmounting it */}
         {registerOpen && (
