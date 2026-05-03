@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Menu, X, Map, Settings, RotateCcw, Check, FileText } from "lucide-react";
 import type { Reading, MapSymbol } from "../../../utils/api";
-import type { KmlData } from "../../../utils/kml";
+import type { KmlData, KmlFolder, KmlLayerStyle } from "../../../utils/kml";
 import Confirm from "../Confirm/Confirm";
+import KmlLayers from "./KmlLayers/KmlLayers";
 import MapPresets from "./MapPresets/MapPresets";
 import type { LayerType } from "./MapPresets/MapPresets";
 import DataControls from "./DataControls/DataControls";
@@ -34,6 +35,9 @@ interface SidebarProps {
   readings: Reading[];
   isFileMode: boolean;
   kmlLoaded: boolean;
+  kmlFolders: KmlFolder[];
+  kmlLayerStyles: Record<string, KmlLayerStyle>;
+  onKmlLayerStyleChange: (folderName: string, style: KmlLayerStyle) => void;
   onStyleChange: (style: string) => void;
   onLayerTypeChange: (type: LayerType) => void;
   onSettingsChange: (settings: LayerSettings) => void;
@@ -64,7 +68,7 @@ interface SidebarProps {
 }
 
 /* Left sidebar panel with Map and Database tabs */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, kmlLoaded, onStyleChange, onLayerTypeChange, onSettingsChange, onKmlLoad, onScopeAdjusting, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats, symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDeleteSymbol, onFlyTo, onDirectionChange }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, kmlLoaded, kmlFolders, kmlLayerStyles, onKmlLayerStyleChange, onStyleChange, onLayerTypeChange, onSettingsChange, onKmlLoad, onScopeAdjusting, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats, symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDeleteSymbol, onFlyTo, onDirectionChange }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("map");
   const [confirming, setConfirming] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -167,6 +171,13 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
               onSettingsChange={onSettingsChange}
               onScopeAdjusting={onScopeAdjusting}
             />
+            {layerType === "kml" && kmlFolders.length > 0 && (
+              <KmlLayers
+                folders={kmlFolders}
+                styles={kmlLayerStyles}
+                onStyleChange={onKmlLayerStyleChange}
+              />
+            )}
           </>
         ) : activeTab === "symbols" ? (
           <Symbols

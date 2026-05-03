@@ -1,0 +1,118 @@
+@use "../../../../styles/variables" as *;
+
+/* KML folder layers list with per-layer visibility and styling controls */
+.kml-layers {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  /* Section label — matches Customise / Data labels */
+  &__label {
+    font-size: 12px;
+    font-weight: 500;
+    color: $text-tertiary;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Single folder row — vertical stack: header on top, optional width slider below */
+  &__row {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 4px 0;
+    transition: opacity 0.15s;
+
+    &--hidden {
+      opacity: 0.4;
+    }
+  }
+
+  /* Top line — checkbox + name on left, color/badge on right */
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 28px;
+  }
+
+  /* Checkbox + folder name */
+  &__check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    min-width: 0;
+
+    input[type="checkbox"] {
+      accent-color: $accent-blue-link;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+  }
+
+  /* Folder name label */
+  &__name {
+    font-size: 12px;
+    color: $text-secondary;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Right-side controls (color swatch or RSSI badge) */
+  &__controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  /* RSSI badge for polygon-only folders */
+  &__badge {
+    font-size: 10px;
+    font-weight: 600;
+    color: $text-muted;
+    background: $bg-element;
+    border: 1px solid $border-subtle;
+    border-radius: 3px;
+    padding: 1px 5px;
+    letter-spacing: 0.3px;
+  }
+
+  /* Compact color input swatch */
+  &__color {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid $border-default;
+    border-radius: 3px;
+    background: none;
+    cursor: pointer;
+
+    &::-webkit-color-swatch-wrapper {
+      padding: 1px;
+    }
+
+    &::-webkit-color-swatch {
+      border: none;
+      border-radius: 2px;
+    }
+
+    &::-moz-color-swatch {
+      border: none;
+      border-radius: 2px;
+    }
+
+    &:disabled {
+      cursor: default;
+      opacity: 0.4;
+    }
+  }
+
+  /* Width slider — full width below the header */
+  &__width {
+    width: 100%;
+  }
+}

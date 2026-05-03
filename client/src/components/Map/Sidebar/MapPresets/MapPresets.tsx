@@ -55,7 +55,7 @@ const MapPresets = ({ mapStyle, layerType, kmlLoaded, onStyleChange, onLayerType
       const text = reader.result as string;
       const kmlData = parseKml(text, file.name);
 
-      if (kmlData.polygons.length > 0) {
+      if (kmlData.folders.length > 0) {
         onKmlLoad(kmlData);
         onLayerTypeChange("kml");
       }

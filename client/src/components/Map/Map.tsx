@@ -2,14 +2,14 @@ import { useState, useEffect, useCallback, useMemo, useRef, useDeferredValue } f
 import DeckGL from "@deck.gl/react";
 import { Map as MapGL } from "react-map-gl/mapbox";
 import { HeatmapLayer, HexagonLayer } from "@deck.gl/aggregation-layers";
-import { ScatterplotLayer, PathLayer, IconLayer, GeoJsonLayer } from "@deck.gl/layers";
+import { ScatterplotLayer, PathLayer, IconLayer, GeoJsonLayer, TextLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { fetchReadings, resetCache, fetchSettings, fetchSubscribers, geocodeCoordinates, fetchSymbols, createSymbol, updateSymbolPosition, updateSymbolDirection, updateSymbolSize as apiUpdateSymbolSize, deleteSymbol as apiDeleteSymbol, type Reading, type Subscriber, type MapSymbol } from "../../utils/api";
 import { saveDataset, loadDataset, deriveSubscribersFromReadings, type SavedViewState } from "../../utils/dataset";
 import { readingsBounds } from "../../utils/geojson";
 import { normalizeRssi, rssiElevationWeight, RSSI_COLOR_RANGE, rssiToColor, buildPaths, type RadioPath } from "../../utils/rssi";
-import { buildKmlResult, type KmlData, type KmlGeoJsonProperties } from "../../utils/kml";
+import { buildKmlResult, getDefaultKmlLayerStyles, type KmlData, type KmlGeoJsonProperties, type KmlLayerStyle, type KmlLine, type KmlPoint } from "../../utils/kml";
 import { buildBgAtlas, buildFgAtlas, ICON_MAPPING } from "../../utils/symbols";
 import type { LayerType } from "./Sidebar/MapPresets/MapPresets";
 import { DEFAULT_LAYER_SETTINGS, type LayerSettings } from "./Sidebar/Customise/Customise";
@@ -99,6 +99,7 @@ const Map = () => {
   const [layerType, setLayerType] = useState<LayerType>("heatmap");
   const [layerSettings, setLayerSettings] = useState<LayerSettings>(DEFAULT_LAYER_SETTINGS);
   const [kmlData, setKmlData] = useState<KmlData | null>(null);
+  const [kmlLayerStyles, setKmlLayerStyles] = useState<Record<string, KmlLayerStyle>>({});
   const [scopeAdjusting, setScopeAdjusting] = useState(false);
   const [fileReadings, setFileReadings] = useState<Reading[] | null>(null);
   const [fileSubscribers, setFileSubscribers] = useState<Subscriber[] | null>(null);
@@ -256,11 +257,40 @@ const Map = () => {
   /* Deferred scope — React prioritises slider input over the geo-computation */
   const deferredScope = useDeferredValue(layerSettings.scope);
 
+  /* Initialise default layer styles whenever a new KML is loaded */
+  useEffect(() => {
+    if (kmlData) setKmlLayerStyles(getDefaultKmlLayerStyles(kmlData.folders));
+  }, [kmlData]);
+
+  /* Collect visible polygons across all folders for RSSI computation */
+  const visiblePolygons = useMemo(() => {
+    if (!kmlData) return [];
+    return kmlData.folders
+      .filter((f) => kmlLayerStyles[f.name]?.visible && f.polygons.length > 0)
+      .flatMap((f) => f.polygons);
+  }, [kmlData, kmlLayerStyles]);
+
+  /* Collect visible line folders for PathLayer rendering */
+  const visibleLineFolders = useMemo(() => {
+    if (!kmlData) return [];
+    return kmlData.folders.filter(
+      (f) => kmlLayerStyles[f.name]?.visible && f.lines.length > 0
+    );
+  }, [kmlData, kmlLayerStyles]);
+
+  /* Collect visible point folders for TextLayer rendering */
+  const visiblePointFolders = useMemo(() => {
+    if (!kmlData) return [];
+    return kmlData.folders.filter(
+      (f) => kmlLayerStyles[f.name]?.visible && f.points.length > 0
+    );
+  }, [kmlData, kmlLayerStyles]);
+
   /* Build coloured GeoJSON and scope-filtered readings in a single optimised pass */
   const kmlResult = useMemo(() => {
-    if (layerType !== "kml" || !kmlData) return null;
-    return buildKmlResult(kmlData, validReadings, deferredScope, rssiToColor, scopeAdjusting);
-  }, [kmlData, validReadings, layerType, deferredScope, scopeAdjusting]);
+    if (layerType !== "kml" || visiblePolygons.length === 0) return null;
+    return buildKmlResult(visiblePolygons, validReadings, deferredScope, rssiToColor, scopeAdjusting);
+  }, [visiblePolygons, validReadings, layerType, deferredScope, scopeAdjusting]);
 
   const kmlGeoJson = kmlResult?.geoJson ?? null;
 
@@ -276,44 +306,108 @@ const Map = () => {
     /* Choose the primary visualisation layer(s) based on the active layer type */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const vizLayers: any[] =
-      layerType === "kml" && kmlGeoJson
-        ? /* KML sector polygons coloured by mean RSSI, with low-opacity GPS dots */
+      layerType === "kml"
+        ? /* KML layers: RSSI-coloured polygons, overlay lines, text labels, scope dots */
           [
-            new GeoJsonLayer({
-              id: "kml-rssi-sectors",
-              data: kmlGeoJson,
-              stroked: true,
-              filled: true,
-              pickable: true,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              getFillColor: (f: any) => f.properties.color,
-              getLineColor: [layerSettings.kmlLineShade, layerSettings.kmlLineShade, layerSettings.kmlLineShade, 255],
-              getLineWidth: layerSettings.kmlLineWidth,
-              lineWidthMinPixels: layerSettings.kmlLineWidth,
-              opacity: layerSettings.opacity,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              onHover: (info: PickingInfo<any>) => {
-                if (info.object) {
-                  const props = info.object.properties as KmlGeoJsonProperties;
-                  setKmlTooltip({
-                    x: info.x,
-                    y: info.y,
-                    name: props.name,
-                    meanRssi: props.meanRssi,
-                    minRssi: props.minRssi,
-                    maxRssi: props.maxRssi,
-                    count: props.count,
-                  });
-                  setTooltip(null);
-                } else {
-                  setKmlTooltip(null);
-                }
-              },
-              updateTriggers: {
-                getFillColor: [kmlGeoJson],
-                getLineColor: [layerSettings.kmlLineShade],
-              },
+            /* RSSI-coloured sector polygons — border color/width from polygon folder style */
+            ...(kmlGeoJson
+              ? (() => {
+                  const polyFolder = kmlData?.folders.find(
+                    (f) => f.polygons.length > 0 && kmlLayerStyles[f.name]?.visible
+                  );
+                  const polyStyle = polyFolder ? kmlLayerStyles[polyFolder.name] : undefined;
+                  const borderColor: [number, number, number, number] = polyStyle
+                    ? [...polyStyle.color, 255]
+                    : [80, 80, 80, 255];
+                  const borderWidth = polyStyle?.width ?? 1;
+
+                  return [
+                    new GeoJsonLayer({
+                      id: "kml-rssi-sectors",
+                      data: kmlGeoJson,
+                      stroked: true,
+                      filled: true,
+                      pickable: true,
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      getFillColor: (f: any) => f.properties.color,
+                      getLineColor: borderColor,
+                      getLineWidth: borderWidth,
+                      lineWidthMinPixels: borderWidth,
+                      opacity: layerSettings.opacity,
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      onHover: (info: PickingInfo<any>) => {
+                        if (info.object) {
+                          const props = info.object.properties as KmlGeoJsonProperties;
+                          setKmlTooltip({
+                            x: info.x,
+                            y: info.y,
+                            name: props.name,
+                            meanRssi: props.meanRssi,
+                            minRssi: props.minRssi,
+                            maxRssi: props.maxRssi,
+                            count: props.count,
+                          });
+                          setTooltip(null);
+                        } else {
+                          setKmlTooltip(null);
+                        }
+                      },
+                      updateTriggers: {
+                        getFillColor: [kmlGeoJson],
+                        getLineColor: [borderColor],
+                        getLineWidth: [borderWidth],
+                      },
+                    }),
+                  ];
+                })()
+              : []),
+
+            /* Overlay lines — one PathLayer per visible folder with linestrings */
+            ...visibleLineFolders.map((folder) => {
+              const style = kmlLayerStyles[folder.name];
+              return new PathLayer<KmlLine>({
+                id: `kml-lines-${folder.name}`,
+                data: folder.lines,
+                getPath: (d) => d.coordinates,
+                getColor: [...style.color, 255],
+                getWidth: style.width,
+                widthMinPixels: 1,
+                jointRounded: true,
+                capRounded: true,
+                opacity: layerSettings.opacity,
+                updateTriggers: {
+                  getColor: [style.color],
+                  getWidth: [style.width],
+                },
+              });
             }),
+
+            /* Text labels — one TextLayer per visible folder with points */
+            ...visiblePointFolders.map((folder) => {
+              const style = kmlLayerStyles[folder.name];
+              return new TextLayer<KmlPoint>({
+                id: `kml-labels-${folder.name}`,
+                data: folder.points,
+                getPosition: (d) => d.coordinates,
+                getText: (d) => d.name,
+                getSize: 14,
+                sizeMinPixels: 10,
+                sizeMaxPixels: 20,
+                getColor: [...style.color, 255],
+                outlineWidth: 2,
+                outlineColor: [0, 0, 0, 200],
+                fontFamily: "Inter, system-ui, sans-serif",
+                fontWeight: 700,
+                getTextAnchor: "middle",
+                getAlignmentBaseline: "center",
+                billboard: true,
+                opacity: layerSettings.opacity,
+                updateTriggers: {
+                  getColor: [style.color],
+                },
+              });
+            }),
+
             /* RSSI-coloured dots visible only while the scope slider is being adjusted */
             ...(scopeAdjusting
               ? [
@@ -501,7 +595,7 @@ const Map = () => {
         },
       }),
     ];
-  }, [validReadings, layerType, radioPaths, layerSettings, ssiDescriptionMap, symbols, bgAtlasUrl, fgAtlasUrl, draggingSymbolId, selectedSymbolId, symbolSize, kmlGeoJson, kmlScopeReadings, scopeAdjusting]);
+  }, [validReadings, layerType, radioPaths, layerSettings, ssiDescriptionMap, symbols, bgAtlasUrl, fgAtlasUrl, draggingSymbolId, selectedSymbolId, symbolSize, kmlGeoJson, kmlScopeReadings, scopeAdjusting, kmlLayerStyles, visibleLineFolders, visiblePointFolders]);
 
   /* Download the currently displayed readings as a JSON file via the browser save dialog */
   const handleSaveData = useCallback(async () => {
@@ -728,6 +822,9 @@ const Map = () => {
         readings={displayedReadings}
         isFileMode={fileReadings !== null}
         kmlLoaded={kmlData !== null}
+        kmlFolders={kmlData?.folders ?? []}
+        kmlLayerStyles={kmlLayerStyles}
+        onKmlLayerStyleChange={(name, style) => setKmlLayerStyles((prev) => ({ ...prev, [name]: style }))}
         onStyleChange={setMapStyle}
         onLayerTypeChange={setLayerType}
         onSettingsChange={setLayerSettings}

@@ -8,6 +8,18 @@ interface Bbox {
   maxLat: number;
 }
 
+/* Parsed point placemark from a KML file */
+export interface KmlPoint {
+  name: string;
+  coordinates: [number, number]; // [lng, lat]
+}
+
+/* Parsed linestring placemark from a KML file */
+export interface KmlLine {
+  name: string;
+  coordinates: [number, number][]; // [lng, lat][]
+}
+
 /* Parsed polygon from a KML file, with pre-computed spatial data */
 export interface KmlPolygon {
   name: string;
@@ -16,10 +28,54 @@ export interface KmlPolygon {
   cosLat: number; // cos(centroid latitude) for equirectangular distance
 }
 
-/* Parsed KML document containing sector polygons */
+/* A KML folder containing placemarks grouped by geometry type */
+export interface KmlFolder {
+  name: string;
+  points: KmlPoint[];
+  lines: KmlLine[];
+  polygons: KmlPolygon[];
+}
+
+/* Parsed KML document containing all folder layers */
 export interface KmlData {
   name: string; // filename for display
-  polygons: KmlPolygon[];
+  folders: KmlFolder[];
+}
+
+/* Per-layer styling state for sidebar controls */
+export interface KmlLayerStyle {
+  visible: boolean;
+  color: [number, number, number]; // RGB for lines/points
+  width: number; // line width (px)
+}
+
+/* Default palette for overlay layer colors (rotated per folder) */
+const LAYER_PALETTE: [number, number, number][] = [
+  [255, 255, 255], // white
+  [255, 204, 0],   // yellow
+  [255, 102, 51],  // orange
+  [0, 204, 255],   // cyan
+  [255, 51, 102],  // pink
+  [102, 255, 51],  // lime
+  [204, 102, 255], // purple
+  [255, 153, 51],  // amber
+];
+
+/* Build default layer styles for all folders — rotating palette colors */
+export function getDefaultKmlLayerStyles(folders: KmlFolder[]): Record<string, KmlLayerStyle> {
+  const styles: Record<string, KmlLayerStyle> = {};
+  let colorIdx = 0;
+
+  for (const folder of folders) {
+    const hasPolygons = folder.polygons.length > 0;
+    styles[folder.name] = {
+      visible: true,
+      color: hasPolygons ? [80, 80, 80] : folder.name === "Lines" ? [255, 255, 255] : LAYER_PALETTE[colorIdx++ % LAYER_PALETTE.length],
+      width: hasPolygons ? 1 : 2,
+    };
+  }
+
+  return styles;
 }
 
 /* Earth radius in metres */
@@ -47,41 +103,125 @@ function computeSpatialData(coords: [number, number][]): { bbox: Bbox; cosLat: n
   return { bbox: { minLng, maxLng, minLat, maxLat }, cosLat: Math.cos(midLat * DEG_TO_RAD) };
 }
 
-/* Parse a KML XML string and extract all polygon placemarks */
+/* Parse coordinate text from a KML element into [lng, lat] tuples */
+function parseCoordinateText(text: string): [number, number][] {
+  return text
+    .split(/\s+/)
+    .filter((s) => s.length > 0)
+    .map((s) => {
+      const [lng, lat] = s.split(",").map(Number);
+      return [lng, lat] as [number, number];
+    })
+    .filter(([lng, lat]) => !isNaN(lng) && !isNaN(lat));
+}
+
+/* Extract placemarks from a DOM element, classifying by geometry type */
+function extractPlacemarks(
+  container: Element,
+  directOnly: boolean
+): { points: KmlPoint[]; lines: KmlLine[]; polygons: KmlPolygon[] } {
+  const points: KmlPoint[] = [];
+  const lines: KmlLine[] = [];
+  const polygons: KmlPolygon[] = [];
+
+  /* Get placemarks — either direct children or all descendants */
+  const placemarks = directOnly
+    ? Array.from(container.children).filter((el) => el.tagName === "Placemark")
+    : Array.from(container.querySelectorAll("Placemark"));
+
+  for (const pm of placemarks) {
+    const name = pm.querySelector("name")?.textContent?.trim() ?? "Unnamed";
+
+    /* Check for polygon geometry */
+    const polygon = pm.querySelector("Polygon");
+    if (polygon) {
+      const coordsText =
+        polygon.querySelector("outerBoundaryIs coordinates")?.textContent?.trim() ??
+        polygon.querySelector("coordinates")?.textContent?.trim();
+      if (coordsText) {
+        const coordinates = parseCoordinateText(coordsText);
+        if (coordinates.length >= 3) {
+          const { bbox, cosLat } = computeSpatialData(coordinates);
+          polygons.push({ name, coordinates, bbox, cosLat });
+        }
+      }
+      continue;
+    }
+
+    /* Check for linestring geometry */
+    const lineString = pm.querySelector("LineString");
+    if (lineString) {
+      const coordsText = lineString.querySelector("coordinates")?.textContent?.trim();
+      if (coordsText) {
+        const coordinates = parseCoordinateText(coordsText);
+        if (coordinates.length >= 2) {
+          lines.push({ name, coordinates });
+        }
+      }
+      continue;
+    }
+
+    /* Check for point geometry */
+    const point = pm.querySelector("Point");
+    if (point) {
+      const coordsText = point.querySelector("coordinates")?.textContent?.trim();
+      if (coordsText) {
+        const coords = parseCoordinateText(coordsText);
+        if (coords.length >= 1) {
+          points.push({ name, coordinates: coords[0] });
+        }
+      }
+    }
+  }
+
+  return { points, lines, polygons };
+}
+
+/* Parse a KML XML string and extract all folder layers with their placemarks */
 export function parseKml(xmlString: string, filename: string): KmlData {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlString, "text/xml");
-  const placemarks = doc.querySelectorAll("Placemark");
-  const polygons: KmlPolygon[] = [];
+  const allFolders = doc.querySelectorAll("Folder");
+  const folders: KmlFolder[] = [];
 
-  placemarks.forEach((pm) => {
-    const polygon = pm.querySelector("Polygon");
-    if (!polygon) return;
+  /* Process each folder — collect only direct child placemarks to avoid
+     double-counting when folders are nested */
+  allFolders.forEach((folderEl) => {
+    const name = folderEl.querySelector(":scope > name")?.textContent?.trim() ?? "Unnamed";
+    const { points, lines, polygons } = extractPlacemarks(folderEl, true);
 
-    const name = pm.querySelector("name")?.textContent?.trim() ?? "Unnamed";
-    const coordsText =
-      polygon.querySelector("outerBoundaryIs coordinates")?.textContent?.trim() ??
-      polygon.querySelector("coordinates")?.textContent?.trim();
+    /* Skip empty container folders (e.g. top-level "Miami" wrapper) */
+    if (points.length === 0 && lines.length === 0 && polygons.length === 0) return;
 
-    if (!coordsText) return;
+    /* Skip folders not useful for visualisation */
+    if (name === "Riflag" || name === "Track") return;
 
-    /* Parse "lng,lat,alt lng,lat,alt ..." into [lng, lat] tuples */
-    const coordinates: [number, number][] = coordsText
-      .split(/\s+/)
-      .filter((s) => s.length > 0)
-      .map((s) => {
-        const [lng, lat] = s.split(",").map(Number);
-        return [lng, lat] as [number, number];
-      })
-      .filter(([lng, lat]) => !isNaN(lng) && !isNaN(lat));
+    /* Filter out DRS and pit lane placemarks from any folder */
+    const isFiltered = (n: string) =>
+      /^(Line)?(Drs|DRS|Pit|PIT)/i.test(n) || /^(DRS |PIT_)/i.test(n) ||
+      /^(Line)?SpeedTrap/i.test(n) || n === "T";
+    const filteredPoints = points.filter((p) => !isFiltered(p.name));
+    const filteredLines = lines.filter((l) => !isFiltered(l.name));
 
-    if (coordinates.length >= 3) {
-      const { bbox, cosLat } = computeSpatialData(coordinates);
-      polygons.push({ name, coordinates, bbox, cosLat });
-    }
+    /* Polygon folders don't need their label points rendered (e.g. sector numbers) */
+    const folderPoints = polygons.length > 0 ? [] : filteredPoints;
+
+    /* Skip if everything was filtered out */
+    if (folderPoints.length === 0 && filteredLines.length === 0 && polygons.length === 0) return;
+
+    folders.push({ name, points: folderPoints, lines: filteredLines, polygons });
   });
 
-  return { name: filename, polygons };
+  /* Fallback: if no folders exist, treat all document placemarks as one layer */
+  if (folders.length === 0) {
+    const { points, lines, polygons } = extractPlacemarks(doc.documentElement, false);
+    if (points.length > 0 || lines.length > 0 || polygons.length > 0) {
+      const docName = filename.replace(/\.kml$/i, "");
+      folders.push({ name: docName, points, lines, polygons });
+    }
+  }
+
+  return { name: filename, folders };
 }
 
 /* Equirectangular distance approximation — accurate at track scale (<10 km),
@@ -118,7 +258,7 @@ function pointInPolygon(
   return inside;
 }
 
-/* Fast distance from a point to a line segment (a→b).
+/* Fast distance from a point to a line segment (a->b).
    Uses equirectangular projection with pre-computed cosLat. */
 function distanceToSegment(
   px: number,
@@ -201,7 +341,7 @@ export interface KmlResult {
    Each polygon is coloured by the mean RSSI of readings within scopeMeters.
    Bounding box pre-filter + equirectangular distance + early-out make this fast. */
 export function buildKmlResult(
-  kmlData: KmlData,
+  polygons: KmlPolygon[],
   readings: Reading[],
   scopeMeters: number,
   rssiToColor: (rssi: number) => [number, number, number, number],
@@ -209,7 +349,6 @@ export function buildKmlResult(
 ): KmlResult {
   /* No-data fill — fully opaque dark grey so opacity slider controls visibility */
   const NO_DATA_COLOR: [number, number, number, number] = [60, 60, 60, 255];
-  const polygons = kmlData.polygons;
 
   /* Convert scope to degree offset for bbox pre-filter.
      Use worst-case (equator) cosLat=1 so the offset is generous enough at all latitudes. */

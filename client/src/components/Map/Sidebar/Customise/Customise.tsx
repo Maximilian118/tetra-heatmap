@@ -75,8 +75,6 @@ const PATH_SLIDERS: SliderConfig[] = [
 /* Sliders specific to the KML layer */
 const KML_SLIDERS: SliderConfig[] = [
   { key: "scope", label: "Scope", min: 5, max: 500, step: 5, format: meters },
-  { key: "kmlLineWidth", label: "Line Width", min: 1, max: 10, step: 0.5, format: dec1 },
-  { key: "kmlLineShade", label: "Line Shade", min: 0, max: 255, step: 1, format: int, trackBackground: "linear-gradient(to right, #000000, #ffffff)" },
 ];
 
 /* Map layer type to its specific sliders */
