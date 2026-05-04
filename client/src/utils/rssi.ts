@@ -90,8 +90,12 @@ export interface RadioPath {
 
 /* Build continuous paths from readings, one per radio (SSI).
    Each radio's readings are sorted by timestamp and joined into a single
-   polyline with per-vertex colours derived from the RSSI at each point. */
-export const buildPaths = (readings: Reading[]): RadioPath[] => {
+   polyline with per-vertex colours derived from the RSSI at each point.
+   An optional colorFn overrides the default rssiToColor mapping. */
+export const buildPaths = (
+  readings: Reading[],
+  colorFn: (rssi: number) => [number, number, number, number] = rssiToColor,
+): RadioPath[] => {
   /* Group readings by radio SSI */
   const bySSI = new Map<number, Reading[]>();
   for (const r of readings) {
@@ -110,11 +114,72 @@ export const buildPaths = (readings: Reading[]): RadioPath[] => {
     paths.push({
       ssi,
       path: group.map((r) => [r.longitude, r.latitude]),
-      colors: group.map((r) => rssiToColor(r.rssi!)),
+      colors: group.map((r) => colorFn(r.rssi!)),
     });
   }
 
   return paths;
+};
+
+/* ── Custom Colour Spectrum ─────────────────────────────────────────── */
+
+/* A single discrete colour band mapping an RSSI range to a colour */
+export interface ColourStop {
+  id: string;
+  minDbm: number;
+  maxDbm: number;
+  color: [number, number, number];
+  label: string;
+}
+
+/* User-defined colour spectrum with an enable toggle */
+export interface CustomSpectrum {
+  enabled: boolean;
+  stops: ColourStop[];
+}
+
+/* Default 5-band spectrum based on the Riedel TETRA colour palette */
+export const DEFAULT_CUSTOM_SPECTRUM: CustomSpectrum = {
+  enabled: false,
+  stops: [
+    { id: "1", minDbm: -110, maxDbm: -106, color: [255,   0,   0], label: "Not usable" },
+    { id: "2", minDbm: -105, maxDbm:  -96, color: [255, 192,   0], label: "Weak" },
+    { id: "3", minDbm:  -95, maxDbm:  -81, color: [255, 255,   0], label: "Moderate" },
+    { id: "4", minDbm:  -80, maxDbm:  -41, color: [146, 208,  80], label: "Good" },
+    { id: "5", minDbm:  -40, maxDbm:  -20, color: [  0, 176,  80], label: "Very good" },
+  ],
+};
+
+/* Build an RSSI → RGBA lookup function from custom stops */
+export const buildRssiToColorFromSpectrum = (
+  stops: ColourStop[],
+): ((rssi: number) => [number, number, number, number]) => {
+  const sorted = [...stops].sort((a, b) => a.maxDbm - b.maxDbm);
+  return (rssi: number): [number, number, number, number] => {
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      if (rssi >= sorted[i].minDbm && rssi <= sorted[i].maxDbm) {
+        return [...sorted[i].color, 200];
+      }
+    }
+    /* Fallback: clamp to nearest range */
+    if (rssi < sorted[0].minDbm) return [...sorted[0].color, 200];
+    return [...sorted[sorted.length - 1].color, 200];
+  };
+};
+
+/* Build a deck.gl colorRange array from custom stops.
+   Generates one colour entry per dBm step across [RSSI_MIN, RSSI_MAX] so
+   deck.gl's linear interpolation maps colours to the correct dBm positions. */
+export const buildColorRangeFromSpectrum = (
+  stops: ColourStop[],
+): [number, number, number][] => {
+  const colorFn = buildRssiToColorFromSpectrum(stops);
+  const range: [number, number, number][] = [];
+  for (let dbm = RSSI_MIN; dbm <= RSSI_MAX; dbm++) {
+    const [r, g, b] = colorFn(dbm);
+    range.push([r, g, b]);
+  }
+  return range;
 };
 
 /* 21-stop colour ramp calibrated to TETRA signal quality thresholds.

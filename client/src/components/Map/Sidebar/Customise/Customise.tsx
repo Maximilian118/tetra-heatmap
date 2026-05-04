@@ -1,5 +1,7 @@
+import { SwatchBook } from "lucide-react";
 import type { LayerType } from "../MapPresets/MapPresets";
 import Slider from "../../../Slider/Slider";
+import SideBarButton from "../SideBarButton/SideBarButton";
 import "./Customise.scss";
 
 /* Per-layer styling parameters exposed as sidebar controls */
@@ -90,16 +92,19 @@ interface CustomiseProps {
   settings: LayerSettings;
   onSettingsChange: (settings: LayerSettings) => void;
   onScopeAdjusting?: (adjusting: boolean) => void;
+  onOpenColour: () => void;
 }
 
 /* Sidebar section with adjustable styling sliders that swap based on active layer type */
-const Customise = ({ layerType, settings, onSettingsChange, onScopeAdjusting }: CustomiseProps) => {
+const Customise = ({ layerType, settings, onSettingsChange, onScopeAdjusting, onOpenColour }: CustomiseProps) => {
   /* Combine shared sliders with the layer-specific ones */
   const sliders = [...SHARED_SLIDERS, ...LAYER_SLIDERS[layerType]];
 
   return (
     <div className="customise">
       <span className="customise__label">Customise</span>
+
+      <SideBarButton icon={SwatchBook} label="Colours" onClick={onOpenColour} />
 
       {sliders.map((s) => (
         <Slider

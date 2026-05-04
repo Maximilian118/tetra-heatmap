@@ -1,0 +1,243 @@
+@use "../../../../styles/variables" as *;
+
+/* Custom RSSI colour spectrum editor */
+.colour-spectrum {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  /* Section label — matches existing sidebar labels */
+  &__label {
+    font-size: 12px;
+    font-weight: 500;
+    color: $text-tertiary;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Toggle row — label left, checkbox right */
+  &__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    background: $bg-element;
+    border: 1px solid $border-default;
+    border-radius: 4px;
+    cursor: pointer;
+
+    input[type="checkbox"] {
+      accent-color: $accent-blue-link;
+      cursor: pointer;
+    }
+  }
+
+  &__toggle-text {
+    font-size: 12px;
+    color: $text-secondary;
+  }
+
+  /* Editor container — greyed when spectrum is disabled */
+  &__editor {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: opacity 0.2s;
+
+    &--disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+  }
+
+  /* ── Spectrum bar ────────────────────────────────────── */
+
+  /* Wrapper for the bar, handles, and labels */
+  &__bar-wrap {
+    position: relative;
+    padding-bottom: 16px; /* room for labels */
+  }
+
+  /* Coloured band bar — segments fill proportionally via flex */
+  &__bar {
+    display: flex;
+    height: 16px;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  /* Single colour segment */
+  &__segment {
+    height: 100%;
+  }
+
+  /* Draggable boundary handle — wide hit area, thin visual line */
+  &__handle {
+    position: absolute;
+    top: -2px;
+    width: 14px;
+    height: 20px;
+    transform: translateX(-50%);
+    cursor: col-resize;
+    z-index: 2;
+    touch-action: none; /* prevent scroll while dragging */
+
+    /* Visible line indicator */
+    &::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 1px;
+      transition: width 0.1s, background 0.1s;
+    }
+
+    &:hover::after,
+    &--active::after {
+      width: 3px;
+      background: $text-primary;
+    }
+  }
+
+  /* Tooltip shown above the handle while dragging */
+  &__handle-tip {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 2px 5px;
+    background: $bg;
+    border: 1px solid $border-default;
+    border-radius: 3px;
+    font-size: 10px;
+    color: $text-primary;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  /* Min / max labels under the bar */
+  &__bar-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 3px;
+    font-size: 10px;
+    color: $text-muted;
+  }
+
+  /* ── Band list ───────────────────────────────────────── */
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* Individual band row */
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    background: $bg-element;
+    border: 1px solid $border-subtle;
+    border-radius: 4px;
+  }
+
+  /* Colour swatch — clickable square that opens the native picker */
+  &__swatch-label {
+    position: relative;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  &__swatch {
+    display: block;
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+  }
+
+  /* Hide the native colour input behind the swatch */
+  &__color-input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    border: none;
+  }
+
+  /* Label + range stacked vertically */
+  &__info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  /* Editable label input */
+  &__name {
+    width: 100%;
+    padding: 1px 4px;
+    font-size: 12px;
+    color: $text-primary;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    outline: none;
+
+    &:hover:not(:disabled) {
+      border-color: $border-subtle;
+    }
+
+    &:focus {
+      border-color: $border-active;
+      background: $bg-element-dim;
+    }
+  }
+
+  /* Read-only dBm range text */
+  &__range-text {
+    font-size: 10px;
+    color: $text-muted;
+    padding-left: 4px;
+  }
+
+  /* Delete button */
+  &__delete {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: $text-muted;
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: color 0.15s;
+
+    &:hover {
+      color: $accent-red;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+
+  /* Action buttons */
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+}

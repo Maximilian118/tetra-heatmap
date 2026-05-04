@@ -8,7 +8,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { fetchReadings, resetCache, fetchSettings, fetchSubscribers, geocodeCoordinates, fetchSymbols, createSymbol, updateSymbolPosition, updateSymbolDirection, updateSymbolSize as apiUpdateSymbolSize, deleteSymbol as apiDeleteSymbol, type Reading, type Subscriber, type MapSymbol } from "../../utils/api";
 import { saveDataset, loadDataset, deriveSubscribersFromReadings, type SavedViewState } from "../../utils/dataset";
 import { readingsBounds } from "../../utils/geojson";
-import { normalizeRssi, rssiElevationWeight, RSSI_COLOR_RANGE, rssiToColor, buildPaths, type RadioPath } from "../../utils/rssi";
+import { normalizeRssi, rssiElevationWeight, RSSI_COLOR_RANGE, rssiToColor, buildPaths, buildColorRangeFromSpectrum, buildRssiToColorFromSpectrum, DEFAULT_CUSTOM_SPECTRUM, type RadioPath, type CustomSpectrum } from "../../utils/rssi";
 import { buildKmlResult, getDefaultKmlLayerStyles, type KmlData, type KmlGeoJsonProperties, type KmlLayerStyle, type KmlLine, type KmlPoint } from "../../utils/kml";
 import { buildBgAtlas, buildFgAtlas, ICON_MAPPING } from "../../utils/symbols";
 import type { LayerType } from "./Sidebar/MapPresets/MapPresets";
@@ -99,6 +99,11 @@ const Map = () => {
   const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/navigation-guidance-night-v4");
   const [layerType, setLayerType] = useState<LayerType>("heatmap");
   const [layerSettings, setLayerSettings] = useState<LayerSettings>(DEFAULT_LAYER_SETTINGS);
+  const [customSpectrum, setCustomSpectrum] = useState<CustomSpectrum>(() => {
+    const saved = localStorage.getItem("customSpectrum");
+    if (saved) { try { return JSON.parse(saved); } catch { /* ignore */ } }
+    return DEFAULT_CUSTOM_SPECTRUM;
+  });
   const [kmlData, setKmlData] = useState<KmlData | null>(null);
   const [kmlLayerStyles, setKmlLayerStyles] = useState<Record<string, KmlLayerStyle>>({});
   const [scopeAdjusting, setScopeAdjusting] = useState(false);
@@ -120,6 +125,7 @@ const Map = () => {
   const [selectedSymbolId, setSelectedSymbolId] = useState<string | null>(null);
   const [draggingSymbolId, setDraggingSymbolId] = useState<string | null>(null);
   const [bearing, setBearing] = useState(0);
+  const [colourTabTrigger, setColourTabTrigger] = useState(0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const deckRef = useRef<any>(null);
   const bgAtlasUrl = useMemo(() => buildBgAtlas().toDataURL(), []);
@@ -251,10 +257,26 @@ const Map = () => {
     [accuracyFilteredReadings]
   );
 
+  /* Persist custom colour spectrum to localStorage */
+  useEffect(() => {
+    localStorage.setItem("customSpectrum", JSON.stringify(customSpectrum));
+  }, [customSpectrum]);
+
+  /* Derive active colour range and colour function from the custom spectrum */
+  const { activeColorRange, activeRssiToColor } = useMemo(() => {
+    if (!customSpectrum.enabled) {
+      return { activeColorRange: RSSI_COLOR_RANGE, activeRssiToColor: rssiToColor };
+    }
+    return {
+      activeColorRange: buildColorRangeFromSpectrum(customSpectrum.stops),
+      activeRssiToColor: buildRssiToColorFromSpectrum(customSpectrum.stops),
+    };
+  }, [customSpectrum]);
+
   /* Pre-compute paths when in line mode (memoised to avoid re-grouping on every render) */
   const radioPaths = useMemo(
-    () => (layerType === "path" ? buildPaths(validReadings) : []),
-    [validReadings, layerType]
+    () => (layerType === "path" ? buildPaths(validReadings, activeRssiToColor) : []),
+    [validReadings, layerType, activeRssiToColor]
   );
 
   /* Deferred scope — React prioritises slider input over the geo-computation */
@@ -292,8 +314,8 @@ const Map = () => {
   /* Build coloured GeoJSON and scope-filtered readings in a single optimised pass */
   const kmlResult = useMemo(() => {
     if (layerType !== "kml" || visiblePolygons.length === 0) return null;
-    return buildKmlResult(visiblePolygons, validReadings, deferredScope, rssiToColor, scopeAdjusting);
-  }, [visiblePolygons, validReadings, layerType, deferredScope, scopeAdjusting]);
+    return buildKmlResult(visiblePolygons, validReadings, deferredScope, activeRssiToColor, scopeAdjusting);
+  }, [visiblePolygons, validReadings, layerType, deferredScope, scopeAdjusting, activeRssiToColor]);
 
   const kmlGeoJson = kmlResult?.geoJson ?? null;
 
@@ -421,7 +443,7 @@ const Map = () => {
                     getRadius: 4,
                     radiusMinPixels: 2,
                     radiusMaxPixels: 8,
-                    getFillColor: (d) => rssiToColor(d.rssi!),
+                    getFillColor: (d) => activeRssiToColor(d.rssi!),
                     opacity: 0.35,
                   }),
                 ]
@@ -437,7 +459,7 @@ const Map = () => {
               getColorWeight: (d) => normalizeRssi(d.rssi!),
               colorAggregation: "MEAN",
               colorDomain: [0.1, 1.0],
-              colorRange: RSSI_COLOR_RANGE,
+              colorRange: activeColorRange,
               getElevationWeight: (d) => rssiElevationWeight(d.rssi!),
               elevationAggregation: "MEAN",
               elevationDomain: [0, 1],
@@ -479,7 +501,7 @@ const Map = () => {
                 getWeight: (d) => normalizeRssi(d.rssi!),
                 aggregation: "MEAN",
                 colorDomain: [0.3, 1.0],
-                colorRange: RSSI_COLOR_RANGE,
+                colorRange: activeColorRange,
                 radiusPixels: layerSettings.radiusPixels,
                 intensity: 1,
                 opacity: layerSettings.opacity,
@@ -598,7 +620,7 @@ const Map = () => {
         },
       }),
     ];
-  }, [validReadings, layerType, radioPaths, layerSettings, ssiDescriptionMap, symbols, bgAtlasUrl, fgAtlasUrl, draggingSymbolId, selectedSymbolId, symbolSize, kmlGeoJson, kmlScopeReadings, scopeAdjusting, kmlLayerStyles, visibleLineFolders, visiblePointFolders]);
+  }, [validReadings, layerType, radioPaths, layerSettings, ssiDescriptionMap, symbols, bgAtlasUrl, fgAtlasUrl, draggingSymbolId, selectedSymbolId, symbolSize, kmlGeoJson, kmlScopeReadings, scopeAdjusting, kmlLayerStyles, visibleLineFolders, visiblePointFolders, activeColorRange, activeRssiToColor]);
 
   /* Download the currently displayed readings as a JSON file via the browser save dialog */
   const handleSaveData = useCallback(async () => {
@@ -868,6 +890,9 @@ const Map = () => {
         onDeleteSymbol={handleDeleteSymbol}
         onFlyTo={handleFlyTo}
         onDirectionChange={handleDirectionChange}
+        customSpectrum={customSpectrum}
+        onSpectrumChange={setCustomSpectrum}
+        colourTabTrigger={colourTabTrigger}
       />
 
       <div className="map-area" onDragOver={handleMapDragOver} onDrop={handleMapDrop}>
@@ -891,7 +916,7 @@ const Map = () => {
 
         <Tooltip tooltip={tooltip} clockOffsetMs={clockOffsetMs} serverTzOffsetHours={serverTzOffsetHours} />
         <KmlTooltip tooltip={kmlTooltip} />
-        <RssiLegend />
+        <RssiLegend customSpectrum={customSpectrum} readings={validReadings} onClick={() => setColourTabTrigger((n) => n + 1)} />
         <NorthArrow bearing={bearing} onResetNorth={handleResetNorth} />
 
         {/* SSI Register overlay — rendered on top of the map without unmounting it */}

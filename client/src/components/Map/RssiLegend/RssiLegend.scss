@@ -14,6 +14,7 @@
   border: 1px solid $border-default;
   border-radius: 4px;
   z-index: 1;
+  cursor: pointer;
 
   /* Gradient bar matching the TETRA signal quality ramp */
   &__bar {
@@ -59,5 +60,42 @@
     font-size: 11px;
     color: $text-primary;
     white-space: nowrap;
+  }
+
+  /* Custom spectrum: discrete colour blocks inside the bar */
+  &__bar--custom {
+    display: flex;
+    background: none;
+    overflow: visible;
+  }
+
+  &__block {
+    height: 100%;
+    cursor: crosshair;
+
+    &:first-child {
+      border-radius: 3px 0 0 3px;
+    }
+
+    &:last-child {
+      border-radius: 0 3px 3px 0;
+    }
+  }
+
+  /* Rich tooltip — styled like the GPS data point tooltip */
+  &__info {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: $text-primary;
+    background: $bg;
+    border: 1px solid $border-default;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
   }
 }

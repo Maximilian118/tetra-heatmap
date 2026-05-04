@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Menu, X, Map, Settings, RotateCcw, Check, FileText } from "lucide-react";
 import type { Reading, MapSymbol } from "../../../utils/api";
 import type { KmlData, KmlFolder, KmlLayerStyle } from "../../../utils/kml";
+import type { CustomSpectrum } from "../../../utils/rssi";
 import Confirm from "../Confirm/Confirm";
 import KmlLayers from "./KmlLayers/KmlLayers";
 import MapPresets from "./MapPresets/MapPresets";
@@ -13,6 +14,7 @@ import type { LayerSettings } from "./Customise/Customise";
 import DatabaseSettings from "./DatabaseSettings/DatabaseSettings";
 import type { DatabaseSettingsHandle } from "./DatabaseSettings/DatabaseSettings";
 import Symbols from "./Symbols/Symbols";
+import ColourSpectrum from "./ColourSpectrum/ColourSpectrum";
 import SideBarButton from "./SideBarButton/SideBarButton";
 import "./Sidebar.scss";
 
@@ -23,7 +25,7 @@ const MOBILE_BREAKPOINT = 768;
 const formatResetDate = (iso: string): string =>
   new Date(iso).toLocaleString();
 
-type SidebarTab = "map" | "database" | "symbols";
+type SidebarTab = "map" | "database" | "symbols" | "colour";
 
 interface SidebarProps {
   resetting: boolean;
@@ -65,10 +67,13 @@ interface SidebarProps {
   onDeleteSymbol: (id: string) => void;
   onFlyTo: (longitude: number, latitude: number) => void;
   onDirectionChange: (id: string, direction: number) => void;
+  customSpectrum: CustomSpectrum;
+  onSpectrumChange: (spectrum: CustomSpectrum) => void;
+  colourTabTrigger: number;
 }
 
 /* Left sidebar panel with Map and Database tabs */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, kmlLoaded, kmlFolders, kmlLayerStyles, onKmlLayerStyleChange, onStyleChange, onLayerTypeChange, onSettingsChange, onKmlLoad, onScopeAdjusting, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats, symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDeleteSymbol, onFlyTo, onDirectionChange }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, kmlLoaded, kmlFolders, kmlLayerStyles, onKmlLayerStyleChange, onStyleChange, onLayerTypeChange, onSettingsChange, onKmlLoad, onScopeAdjusting, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats, symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDeleteSymbol, onFlyTo, onDirectionChange, customSpectrum, onSpectrumChange, colourTabTrigger }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("map");
   const [confirming, setConfirming] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -83,6 +88,14 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  /* Switch to colour tab when the RSSI legend is clicked */
+  useEffect(() => {
+    if (colourTabTrigger > 0) {
+      setActiveTab("colour");
+      if (isMobile) setMobileOpen(true);
+    }
+  }, [colourTabTrigger, isMobile]);
 
   /* Execute the reset and dismiss the confirmation overlay */
   const handleConfirm = () => {
@@ -170,6 +183,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
               settings={layerSettings}
               onSettingsChange={onSettingsChange}
               onScopeAdjusting={onScopeAdjusting}
+              onOpenColour={() => setActiveTab("colour")}
             />
             {layerType === "kml" && kmlFolders.length > 0 && (
               <KmlLayers
@@ -190,6 +204,11 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
             onFlyTo={onFlyTo}
             onDirectionChange={onDirectionChange}
           />
+        ) : activeTab === "colour" ? (
+          <ColourSpectrum
+            spectrum={customSpectrum}
+            onSpectrumChange={onSpectrumChange}
+          />
         ) : (
           <DatabaseSettings ref={dbRef} onStateChange={handleDbStateChange} onShowStats={onShowStats} />
         )}
@@ -206,7 +225,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
             onClick={() => {}}
           />
         </div>
-      ) : activeTab === "symbols" ? (
+      ) : activeTab === "symbols" || activeTab === "colour" ? (
         <div className="sidebar__footer">
           <SideBarButton icon={X} label="Close" onClick={() => setActiveTab("map")} />
         </div>
