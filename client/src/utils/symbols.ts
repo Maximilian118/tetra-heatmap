@@ -35,10 +35,16 @@ const BG_RADIUS = 30;
 
 /* Icon mapping for DeckGL IconLayer — maps symbol type to atlas region.
    All icons use centre anchor so rotation pivots around the icon centre. */
+/* Number of atlas columns (3 primary + 3 backup variants) */
+const ATLAS_COLS = 6;
+
 export const ICON_MAPPING: Record<string, { x: number; y: number; width: number; height: number; anchorY: number }> = {
-  "base-station":         { x: 0,              y: 0, width: ICON_SIZE, height: ICON_SIZE, anchorY: CY },
-  "repeater-omni":        { x: ICON_SIZE,      y: 0, width: ICON_SIZE, height: ICON_SIZE, anchorY: CY },
-  "repeater-directional": { x: ICON_SIZE * 2,  y: 0, width: ICON_SIZE, height: ICON_SIZE, anchorY: CY },
+  "base-station":                  { x: 0,              y: 0, width: ICON_SIZE, height: ICON_SIZE, anchorY: CY },
+  "repeater-omni":                 { x: ICON_SIZE,      y: 0, width: ICON_SIZE, height: ICON_SIZE, anchorY: CY },
+  "repeater-directional":          { x: ICON_SIZE * 2,  y: 0, width: ICON_SIZE, height: ICON_SIZE, anchorY: CY },
+  "base-station-backup":           { x: ICON_SIZE * 3,  y: 0, width: ICON_SIZE, height: ICON_SIZE, anchorY: CY },
+  "repeater-omni-backup":          { x: ICON_SIZE * 4,  y: 0, width: ICON_SIZE, height: ICON_SIZE, anchorY: CY },
+  "repeater-directional-backup":   { x: ICON_SIZE * 5,  y: 0, width: ICON_SIZE, height: ICON_SIZE, anchorY: CY },
 };
 
 /* ── Lucide icon path data (from lucide-react v1.7.0) ─────────────── */
@@ -70,7 +76,7 @@ const ANTENNA_PATHS: SvgElement[] = [
 
 /* Draw the dark filled circle background with a bright outer ring */
 const drawBackground = (ctx: CanvasRenderingContext2D, cx: number) => {
-  ctx.fillStyle = "rgba(20, 20, 20, 0.95)";
+  ctx.fillStyle = "#202020";
   ctx.beginPath();
   ctx.arc(cx, CY, BG_RADIUS, 0, Math.PI * 2);
   ctx.fill();
@@ -148,6 +154,42 @@ const drawBaseStationBg = (ctx: CanvasRenderingContext2D, ox: number) => {
   drawOmniFill(ctx, cx, "rgba(88, 156, 220, 0.85)");
 };
 
+/* Draw the dark filled circle background with a dashed outer ring (backup indicator) */
+const drawBackgroundDashed = (ctx: CanvasRenderingContext2D, cx: number) => {
+  ctx.fillStyle = "#202020";
+  ctx.beginPath();
+  ctx.arc(cx, CY, BG_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* Dashed white outer ring to indicate backup */
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+  ctx.lineWidth = 3;
+  ctx.setLineDash([12, 8]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+};
+
+/* Backup base station background — dark circle + blue fill + dashed ring */
+const drawBaseStationBackupBg = (ctx: CanvasRenderingContext2D, ox: number) => {
+  const cx = ox + ICON_SIZE / 2;
+  drawBackgroundDashed(ctx, cx);
+  drawOmniFill(ctx, cx, "rgba(88, 156, 220, 0.85)");
+};
+
+/* Backup omni repeater background — dark circle + green fill + dashed ring */
+const drawRepeaterOmniBackupBg = (ctx: CanvasRenderingContext2D, ox: number) => {
+  const cx = ox + ICON_SIZE / 2;
+  drawBackgroundDashed(ctx, cx);
+  drawOmniFill(ctx, cx, "rgba(74, 222, 128, 0.85)");
+};
+
+/* Backup directional repeater background — dark circle + green wedge + dashed ring */
+const drawRepeaterDirectionalBackupBg = (ctx: CanvasRenderingContext2D, ox: number) => {
+  const cx = ox + ICON_SIZE / 2;
+  drawBackgroundDashed(ctx, cx);
+  drawWedgeFill(ctx, cx, "rgba(74, 222, 128, 0.85)");
+};
+
 /* Omni repeater background — dark circle + vivid green omni fill */
 const drawRepeaterOmniBg = (ctx: CanvasRenderingContext2D, ox: number) => {
   const cx = ox + ICON_SIZE / 2;
@@ -181,6 +223,21 @@ const drawBaseStation = (ctx: CanvasRenderingContext2D, ox: number) => {
   drawBaseStationIcon(ctx, ox);
 };
 
+const drawBaseStationBackup = (ctx: CanvasRenderingContext2D, ox: number) => {
+  drawBaseStationBackupBg(ctx, ox);
+  drawBaseStationIcon(ctx, ox);
+};
+
+const drawRepeaterOmniBackup = (ctx: CanvasRenderingContext2D, ox: number) => {
+  drawRepeaterOmniBackupBg(ctx, ox);
+  drawRepeaterIcon(ctx, ox);
+};
+
+const drawRepeaterDirectionalBackup = (ctx: CanvasRenderingContext2D, ox: number) => {
+  drawRepeaterDirectionalBackupBg(ctx, ox);
+  drawRepeaterIcon(ctx, ox);
+};
+
 const drawRepeaterOmni = (ctx: CanvasRenderingContext2D, ox: number) => {
   drawRepeaterOmniBg(ctx, ox);
   drawRepeaterIcon(ctx, ox);
@@ -203,7 +260,7 @@ export const degreesToCompass = (deg: number): string => {
 /* Build the composite atlas for sidebar previews (bg + icon in one image) */
 export const buildIconAtlas = (): HTMLCanvasElement => {
   const canvas = document.createElement("canvas");
-  canvas.width = ICON_SIZE * SYMBOL_TYPES.length;
+  canvas.width = ICON_SIZE * ATLAS_COLS;
   canvas.height = ICON_SIZE;
 
   const ctx = canvas.getContext("2d")!;
@@ -212,6 +269,9 @@ export const buildIconAtlas = (): HTMLCanvasElement => {
   drawBaseStation(ctx, 0);
   drawRepeaterOmni(ctx, ICON_SIZE);
   drawRepeaterDirectional(ctx, ICON_SIZE * 2);
+  drawBaseStationBackup(ctx, ICON_SIZE * 3);
+  drawRepeaterOmniBackup(ctx, ICON_SIZE * 4);
+  drawRepeaterDirectionalBackup(ctx, ICON_SIZE * 5);
 
   return canvas;
 };
@@ -219,7 +279,7 @@ export const buildIconAtlas = (): HTMLCanvasElement => {
 /* Build the background-only atlas (used by the rotatable layer on the map) */
 export const buildBgAtlas = (): HTMLCanvasElement => {
   const canvas = document.createElement("canvas");
-  canvas.width = ICON_SIZE * SYMBOL_TYPES.length;
+  canvas.width = ICON_SIZE * ATLAS_COLS;
   canvas.height = ICON_SIZE;
 
   const ctx = canvas.getContext("2d")!;
@@ -228,6 +288,9 @@ export const buildBgAtlas = (): HTMLCanvasElement => {
   drawBaseStationBg(ctx, 0);
   drawRepeaterOmniBg(ctx, ICON_SIZE);
   drawRepeaterDirectionalBg(ctx, ICON_SIZE * 2);
+  drawBaseStationBackupBg(ctx, ICON_SIZE * 3);
+  drawRepeaterOmniBackupBg(ctx, ICON_SIZE * 4);
+  drawRepeaterDirectionalBackupBg(ctx, ICON_SIZE * 5);
 
   return canvas;
 };
@@ -235,7 +298,7 @@ export const buildBgAtlas = (): HTMLCanvasElement => {
 /* Build the icon-only atlas (used by the non-rotating layer on the map) */
 export const buildFgAtlas = (): HTMLCanvasElement => {
   const canvas = document.createElement("canvas");
-  canvas.width = ICON_SIZE * SYMBOL_TYPES.length;
+  canvas.width = ICON_SIZE * ATLAS_COLS;
   canvas.height = ICON_SIZE;
 
   const ctx = canvas.getContext("2d")!;
@@ -244,6 +307,9 @@ export const buildFgAtlas = (): HTMLCanvasElement => {
   drawBaseStationIcon(ctx, 0);
   drawRepeaterIcon(ctx, ICON_SIZE);
   drawRepeaterIcon(ctx, ICON_SIZE * 2);
+  drawBaseStationIcon(ctx, ICON_SIZE * 3);
+  drawRepeaterIcon(ctx, ICON_SIZE * 4);
+  drawRepeaterIcon(ctx, ICON_SIZE * 5);
 
   return canvas;
 };

@@ -9,5 +9,5 @@
 .map-area {
   flex: 1;
   position: relative;
-  height: 100%;
+  height: calc(100% + 100px);
 }

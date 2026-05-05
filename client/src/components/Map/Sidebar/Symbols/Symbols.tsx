@@ -105,11 +105,14 @@ const Symbols = ({ symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, on
     return groups;
   }, [symbols]);
 
-  /* Look up a readable sub-label for a symbol (e.g. "Omni" or "Directional") */
+  /* Build a readable sub-label showing type variant and status flags */
   const subLabel = (sym: MapSymbol): string => {
-    if (sym.type === "repeater-omni") return "Omni";
-    if (sym.type === "repeater-directional") return "Directional";
-    return "";
+    const parts: string[] = [];
+    if (sym.type === "repeater-omni") parts.push("Omni");
+    if (sym.type === "repeater-directional") parts.push("Directional");
+    if (sym.backup) parts.push("Backup");
+    if (sym.inactive) parts.push("Inactive");
+    return parts.join(" · ");
   };
 
   return (

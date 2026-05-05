@@ -71,6 +71,8 @@ try { db.exec("ALTER TABLE readings ADD COLUMN reject_reason TEXT"); } catch { /
 
 /* Migrations: add direction column to symbols table and migrate old repeater type */
 try { db.exec("ALTER TABLE symbols ADD COLUMN direction REAL"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE symbols ADD COLUMN backup INTEGER NOT NULL DEFAULT 0"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE symbols ADD COLUMN inactive INTEGER NOT NULL DEFAULT 0"); } catch { /* already exists */ }
 db.exec("UPDATE symbols SET type = 'repeater-omni' WHERE type = 'repeater'");
 
 /* Reading shape matching the sdsdata + LIP decoded fields.
@@ -300,6 +302,8 @@ export interface MapSymbol {
   longitude: number;
   latitude: number;
   direction: number | null;
+  backup: number;
+  inactive: number;
   created_at: string;
 }
 
@@ -311,8 +315,8 @@ export const getAllSymbols = (): MapSymbol[] => {
 /* Insert a new symbol onto the map */
 export const insertSymbol = (symbol: MapSymbol): void => {
   db.prepare(
-    `INSERT OR REPLACE INTO symbols (id, type, label, longitude, latitude, direction, created_at)
-     VALUES (@id, @type, @label, @longitude, @latitude, @direction, @created_at)`
+    `INSERT OR REPLACE INTO symbols (id, type, label, longitude, latitude, direction, backup, inactive, created_at)
+     VALUES (@id, @type, @label, @longitude, @latitude, @direction, @backup, @inactive, @created_at)`
   ).run(symbol);
 };
 
@@ -324,6 +328,16 @@ export const updateSymbolPosition = (id: string, longitude: number, latitude: nu
 /* Update the direction angle of an existing symbol (directional repeater rotation) */
 export const updateSymbolDirection = (id: string, direction: number | null): void => {
   db.prepare("UPDATE symbols SET direction = ? WHERE id = ?").run(direction, id);
+};
+
+/* Update the backup flag of an existing symbol */
+export const updateSymbolBackup = (id: string, backup: number): void => {
+  db.prepare("UPDATE symbols SET backup = ? WHERE id = ?").run(backup, id);
+};
+
+/* Update the inactive flag of an existing symbol */
+export const updateSymbolInactive = (id: string, inactive: number): void => {
+  db.prepare("UPDATE symbols SET inactive = ? WHERE id = ?").run(inactive, id);
 };
 
 /* Remove a single symbol by id */

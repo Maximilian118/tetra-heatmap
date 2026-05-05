@@ -4,6 +4,8 @@ import {
   insertSymbol,
   updateSymbolPosition,
   updateSymbolDirection,
+  updateSymbolBackup,
+  updateSymbolInactive,
   deleteSymbol,
 } from "../db/local.js";
 
@@ -17,12 +19,12 @@ router.get("/symbols", (_req, res) => {
 
 /* Create a new symbol on the map */
 router.post("/symbols", (req, res) => {
-  const { id, type, label, longitude, latitude, direction, created_at } = req.body;
+  const { id, type, label, longitude, latitude, direction, backup, inactive, created_at } = req.body;
   if (!id || !type || typeof longitude !== "number" || typeof latitude !== "number") {
     res.status(400).json({ error: "Missing required fields: id, type, longitude, latitude" });
     return;
   }
-  insertSymbol({ id, type, label: label ?? "", longitude, latitude, direction: direction ?? null, created_at: created_at ?? new Date().toISOString() });
+  insertSymbol({ id, type, label: label ?? "", longitude, latitude, direction: direction ?? null, backup: backup ? 1 : 0, inactive: inactive ? 1 : 0, created_at: created_at ?? new Date().toISOString() });
   res.json({ success: true });
 });
 
@@ -45,6 +47,28 @@ router.patch("/symbols/:id/direction", (req, res) => {
     return;
   }
   updateSymbolDirection(req.params.id, direction ?? null);
+  res.json({ success: true });
+});
+
+/* Update the backup flag of an existing symbol */
+router.patch("/symbols/:id/backup", (req, res) => {
+  const { backup } = req.body;
+  if (typeof backup !== "boolean") {
+    res.status(400).json({ error: "backup must be a boolean" });
+    return;
+  }
+  updateSymbolBackup(req.params.id, backup ? 1 : 0);
+  res.json({ success: true });
+});
+
+/* Update the inactive flag of an existing symbol */
+router.patch("/symbols/:id/inactive", (req, res) => {
+  const { inactive } = req.body;
+  if (typeof inactive !== "boolean") {
+    res.status(400).json({ error: "inactive must be a boolean" });
+    return;
+  }
+  updateSymbolInactive(req.params.id, inactive ? 1 : 0);
   res.json({ success: true });
 });
 

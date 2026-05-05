@@ -5,7 +5,7 @@ import { HeatmapLayer, HexagonLayer } from "@deck.gl/aggregation-layers";
 import { ScatterplotLayer, PathLayer, IconLayer, GeoJsonLayer, TextLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { fetchReadings, resetCache, fetchSettings, fetchSubscribers, geocodeCoordinates, fetchSymbols, createSymbol, updateSymbolPosition, updateSymbolDirection, updateSymbolSize as apiUpdateSymbolSize, deleteSymbol as apiDeleteSymbol, type Reading, type Subscriber, type MapSymbol } from "../../utils/api";
+import { fetchReadings, resetCache, fetchSettings, fetchSubscribers, geocodeCoordinates, fetchSymbols, createSymbol, updateSymbolPosition, updateSymbolDirection, updateSymbolBackup, updateSymbolInactive, updateSymbolSize as apiUpdateSymbolSize, deleteSymbol as apiDeleteSymbol, type Reading, type Subscriber, type MapSymbol } from "../../utils/api";
 import { saveDataset, loadDataset, deriveSubscribersFromReadings, type SavedViewState } from "../../utils/dataset";
 import { readingsBounds } from "../../utils/geojson";
 import { normalizeRssi, rssiElevationWeight, RSSI_COLOR_RANGE, rssiToColor, buildPaths, buildColorRangeFromSpectrum, buildRssiToColorFromSpectrum, DEFAULT_CUSTOM_SPECTRUM, type RadioPath, type CustomSpectrum } from "../../utils/rssi";
@@ -19,6 +19,7 @@ import Sidebar from "./Sidebar/Sidebar";
 import LogserverStats from "./LogserverStats/LogserverStats";
 import RssiLegend from "./RssiLegend/RssiLegend";
 import NorthArrow from "./NorthArrow/NorthArrow";
+import Radial from "./Radial/Radial";
 import SsiRegister from "./SsiRegister/SsiRegister";
 import MapboxSetup from "./MapboxSetup/MapboxSetup";
 import "./Map.scss";
@@ -125,11 +126,64 @@ const Map = () => {
   const [selectedSymbolId, setSelectedSymbolId] = useState<string | null>(null);
   const [draggingSymbolId, setDraggingSymbolId] = useState<string | null>(null);
   const [bearing, setBearing] = useState(0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [liveViewState, setLiveViewState] = useState<any>(null);
   const [colourTabTrigger, setColourTabTrigger] = useState(0);
+  const [radialLeaving, setRadialLeaving] = useState(false);
+  const prevSymbolRef = useRef<{ symbol: MapSymbol; screenPos: [number, number] } | null>(null);
+  const radialTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const deckRef = useRef<any>(null);
   const bgAtlasUrl = useMemo(() => buildBgAtlas().toDataURL(), []);
   const fgAtlasUrl = useMemo(() => buildFgAtlas().toDataURL(), []);
+
+  /* The currently selected symbol object (for the radial action menu) */
+  const selectedSymbol = useMemo(
+    () => symbols.find((s) => s.id === selectedSymbolId) ?? null,
+    [symbols, selectedSymbolId]
+  );
+
+  /* Screen-space position of the selected symbol for the radial action menu.
+     liveViewState triggers re-render on every frame; the actual projection uses
+     deck.getViewports() which has correct canvas width/height baked in. */
+  const selectedSymbolScreenPos = useMemo((): [number, number] | null => {
+    if (!selectedSymbol || !liveViewState) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const viewport = (deckRef.current as any)?.deck?.getViewports?.()?.[0];
+    if (!viewport) return null;
+    const [x, y] = viewport.project([selectedSymbol.longitude, selectedSymbol.latitude]);
+    return [x, y];
+  }, [selectedSymbol, liveViewState]);
+
+  /* Track previous symbol data for exit animation, and manage the leaving state.
+     When selection goes away, play exit animation for 150ms before fully hiding. */
+  useEffect(() => {
+    if (selectedSymbol && selectedSymbolScreenPos) {
+      /* Store current data so exit animation can render the last position */
+      prevSymbolRef.current = { symbol: selectedSymbol, screenPos: selectedSymbolScreenPos };
+      setRadialLeaving(false);
+      if (radialTimerRef.current) clearTimeout(radialTimerRef.current);
+    } else if (prevSymbolRef.current && !radialLeaving) {
+      /* Selection just went away — start exit animation */
+      setRadialLeaving(true);
+      radialTimerRef.current = setTimeout(() => {
+        setRadialLeaving(false);
+        prevSymbolRef.current = null;
+      }, 150);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSymbol, selectedSymbolScreenPos]);
+
+  /* DeckGL only fires onViewStateChange for user interactions, not for programmatic
+     initialViewState changes. Sync liveViewState after the deck processes a fly-to. */
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const vp = (deckRef.current as any)?.deck?.getViewports?.()?.[0];
+      if (vp) setLiveViewState({ longitude: vp.longitude, latitude: vp.latitude, zoom: vp.zoom, bearing: vp.bearing, pitch: vp.pitch });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [initialView]);
 
   /* Use file data when loaded, otherwise fall back to live server data */
   const displayedReadings = fileReadings ?? readings;
@@ -143,6 +197,7 @@ const Map = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleViewStateChange = useCallback(({ viewState }: any) => {
     setBearing(viewState.bearing ?? 0);
+    setLiveViewState(viewState);
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({
@@ -563,15 +618,19 @@ const Map = () => {
         getPosition: (d) => [d.longitude, d.latitude],
         iconAtlas: bgAtlasUrl,
         iconMapping: ICON_MAPPING,
-        getIcon: (d) => d.type,
+        getIcon: (d) => d.backup ? `${d.type}-backup` : d.type,
         getAngle: (d) => d.type === "repeater-directional" ? -(d.direction ?? 0) : 0,
         getSize: (d) => d.id === selectedSymbolId ? symbolSize + 16 : symbolSize,
+        getColor: (d): [number, number, number, number] => d.inactive ? [255, 255, 255, 60] : [255, 255, 255, 255],
         sizeMinPixels: 20,
         sizeMaxPixels: 120,
         pickable: true,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         parameters: { depthTest: false } as any,
+        transitions: { getSize: { duration: 150 } },
         updateTriggers: {
+          getIcon: [symbols],
+          getColor: [symbols],
           getSize: [selectedSymbolId, symbolSize],
         },
         onClick: (info: PickingInfo<MapSymbol>) => {
@@ -612,13 +671,17 @@ const Map = () => {
         getPosition: (d) => [d.longitude, d.latitude],
         iconAtlas: fgAtlasUrl,
         iconMapping: ICON_MAPPING,
-        getIcon: (d) => d.type,
+        getIcon: (d) => d.backup ? `${d.type}-backup` : d.type,
         getSize: (d) => d.id === selectedSymbolId ? symbolSize + 16 : symbolSize,
+        getColor: (d): [number, number, number, number] => d.inactive ? [255, 255, 255, 160] : [255, 255, 255, 255],
         sizeMinPixels: 20,
         sizeMaxPixels: 120,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         parameters: { depthTest: false } as any,
+        transitions: { getSize: { duration: 150 } },
         updateTriggers: {
+          getIcon: [symbols],
+          getColor: [symbols],
           getSize: [selectedSymbolId, symbolSize],
         },
       }),
@@ -792,6 +855,26 @@ const Map = () => {
     }, 300);
   }, []);
 
+  /* Toggle the backup flag on a symbol */
+  const handleBackupChange = useCallback(async (id: string, backup: boolean) => {
+    setSymbols((prev) => prev.map((s) => s.id === id ? { ...s, backup } : s));
+    try {
+      await updateSymbolBackup(id, backup);
+    } catch (err) {
+      console.error("[map] Failed to update symbol backup:", err);
+    }
+  }, []);
+
+  /* Toggle the inactive flag on a symbol */
+  const handleInactiveChange = useCallback(async (id: string, inactive: boolean) => {
+    setSymbols((prev) => prev.map((s) => s.id === id ? { ...s, inactive } : s));
+    try {
+      await updateSymbolInactive(id, inactive);
+    } catch (err) {
+      console.error("[map] Failed to update symbol inactive:", err);
+    }
+  }, []);
+
   /* Handle dropping a symbol from the sidebar palette onto the map */
   const handleMapDrop = useCallback(async (e: React.DragEvent) => {
     const symbolType = e.dataTransfer.getData("symbolType");
@@ -819,6 +902,8 @@ const Map = () => {
       longitude,
       latitude,
       direction: null,
+      backup: false,
+      inactive: false,
       created_at: new Date().toISOString(),
     };
 
@@ -908,6 +993,7 @@ const Map = () => {
           layers={layers}
           onViewStateChange={handleViewStateChange}
           onError={handleDeckError}
+          getCursor={({ isHovering }) => isHovering ? "pointer" : "grab"}
           onClick={(info) => { if (!info.object) setSelectedSymbolId(null); }}
         >
           <MapGL
@@ -921,6 +1007,19 @@ const Map = () => {
         <KmlTooltip tooltip={kmlTooltip} />
         <RssiLegend customSpectrum={customSpectrum} readings={validReadings} onClick={() => setColourTabTrigger((n) => n + 1)} />
         <NorthArrow bearing={bearing} onResetNorth={handleResetNorth} />
+        {/* Radial action menu — key forces remount on symbol switch for fresh animation */}
+        {(selectedSymbol || radialLeaving) && (
+          <Radial
+            key={radialLeaving ? `leaving-${prevSymbolRef.current?.symbol.id}` : selectedSymbolId!}
+            symbol={radialLeaving ? prevSymbolRef.current?.symbol ?? null : selectedSymbol}
+            screenPos={radialLeaving ? prevSymbolRef.current?.screenPos ?? null : selectedSymbolScreenPos}
+            leaving={radialLeaving}
+            onBackupChange={handleBackupChange}
+            onInactiveChange={handleInactiveChange}
+            onDelete={handleDeleteSymbol}
+            onHoverAction={() => { setTooltip(null); setKmlTooltip(null); }}
+          />
+        )}
 
         {/* SSI Register overlay — rendered on top of the map without unmounting it */}
         {registerOpen && (

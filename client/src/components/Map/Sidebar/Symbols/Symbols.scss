@@ -89,6 +89,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.3px;
+    margin-bottom: 6px;
   }
 
   /* Wrapper for item row + optional direction slider */
@@ -131,7 +132,7 @@
     white-space: nowrap;
   }
 
-  /* Sub-label for repeater type (Omni / Directional) */
+  /* Sub-label for repeater type (Omni / Directional) and status flags */
   &__item-sub {
     color: $text-muted;
     font-size: 11px;

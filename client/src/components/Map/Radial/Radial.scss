@@ -1,0 +1,105 @@
+/* On-map radial action menu around the selected symbol */
+.radial {
+  position: absolute;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+
+  /* Each circular action button */
+  &__btn {
+    position: absolute;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.15);
+    background: #202020;
+    color: rgba(255, 255, 255, 0.85);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    transition: background 0.15s, box-shadow 0.2s, border-color 0.15s;
+    /* Centre each button on its computed offset */
+    margin-left: -18px;
+    margin-top: -18px;
+    /* Entry animation — matches the 150ms symbol size transition */
+    animation: radial-pop 0.15s cubic-bezier(0.22, 0.68, 0.35, 1) both;
+
+    /* Instant CSS tooltip via data-tooltip attribute */
+    &[data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 3px 7px;
+      margin-bottom: 5px;
+      font-size: 11px;
+      white-space: nowrap;
+      color: rgba(255, 255, 255, 0.9);
+      background: rgba(15, 15, 15, 0.95);
+      border-radius: 4px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+
+    &[data-tooltip]:hover::after {
+      opacity: 1;
+    }
+
+    &:hover {
+      background: rgba(45, 45, 45, 0.95);
+      border-color: rgba(255, 255, 255, 0.35);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Active state — border change only */
+    &--active {
+      border-color: rgba(88, 156, 220, 0.8);
+    }
+
+    /* Danger hover — red glow for remove button */
+    &--danger:hover {
+      border-color: rgba(248, 113, 113, 0.5);
+      background: rgba(120, 30, 30, 0.9);
+      box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2), 0 2px 12px rgba(0, 0, 0, 0.5);
+    }
+  }
+
+  /* Exit animation — all buttons shrink out simultaneously */
+  &--leaving {
+    pointer-events: none;
+  }
+
+  &--leaving &__btn {
+    animation: radial-pop-out 0.15s ease-in both;
+    pointer-events: none;
+  }
+}
+
+/* Entry: fade in + scale up */
+@keyframes radial-pop {
+  0% {
+    opacity: 0;
+    scale: 0.5;
+  }
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+/* Exit: scale down + fade out */
+@keyframes radial-pop-out {
+  0% {
+    opacity: 1;
+    scale: 1;
+  }
+  100% {
+    opacity: 0;
+    scale: 0.5;
+  }
+}

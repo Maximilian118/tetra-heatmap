@@ -237,13 +237,17 @@ export interface MapSymbol {
   longitude: number;
   latitude: number;
   direction: number | null;
+  backup: boolean;
+  inactive: boolean;
   created_at: string;
 }
 
 /* Fetch all placed map symbols */
 export const fetchSymbols = async (): Promise<MapSymbol[]> => {
   const res = await assertOk(await fetch(`${API_BASE}/symbols`));
-  return res.json();
+  const rows = await res.json();
+  /* SQLite returns backup/inactive as 0/1 integers — coerce to booleans for the client */
+  return rows.map((r: MapSymbol) => ({ ...r, backup: !!r.backup, inactive: !!r.inactive }));
 };
 
 /* Create a new symbol on the map */
@@ -275,6 +279,28 @@ export const updateSymbolDirection = async (id: string, direction: number | null
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ direction }),
+    })
+  );
+};
+
+/* Update the backup flag of a symbol */
+export const updateSymbolBackup = async (id: string, backup: boolean): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/symbols/${id}/backup`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ backup }),
+    })
+  );
+};
+
+/* Update the inactive flag of a symbol */
+export const updateSymbolInactive = async (id: string, inactive: boolean): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/symbols/${id}/inactive`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ inactive }),
     })
   );
 };
