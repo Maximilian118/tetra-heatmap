@@ -169,7 +169,7 @@ const Map = () => {
       radialTimerRef.current = setTimeout(() => {
         setRadialLeaving(false);
         prevSymbolRef.current = null;
-      }, 150);
+      }, 120);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSymbol, selectedSymbolScreenPos]);
@@ -594,23 +594,6 @@ const Map = () => {
       }),
 
       /* User-placed map symbols — rendered on top of everything else */
-      /* Highlight ring around the selected symbol */
-      new ScatterplotLayer<MapSymbol>({
-        id: "symbol-highlight",
-        data: symbols.filter((s) => s.id === selectedSymbolId),
-        getPosition: (d) => [d.longitude, d.latitude],
-        getRadius: 20,
-        radiusMinPixels: 20,
-        radiusMaxPixels: 30,
-        getFillColor: [0, 0, 0, 0],
-        getLineColor: [88, 156, 220, 200],
-        getLineWidth: 3,
-        stroked: true,
-        lineWidthMinPixels: 2,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        parameters: { depthTest: false } as any,
-      }),
-
       /* Symbol backgrounds — rotates for directional repeaters (wedge points in direction) */
       new IconLayer<MapSymbol>({
         id: "symbol-bg",
@@ -627,7 +610,7 @@ const Map = () => {
         pickable: true,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         parameters: { depthTest: false } as any,
-        transitions: { getSize: { duration: 150 } },
+        transitions: { getSize: { duration: 80 } },
         updateTriggers: {
           getIcon: [symbols],
           getColor: [symbols],
@@ -678,7 +661,7 @@ const Map = () => {
         sizeMaxPixels: 120,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         parameters: { depthTest: false } as any,
-        transitions: { getSize: { duration: 150 } },
+        transitions: { getSize: { duration: 80 } },
         updateTriggers: {
           getIcon: [symbols],
           getColor: [symbols],

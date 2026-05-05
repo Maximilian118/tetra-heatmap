@@ -25,7 +25,7 @@
     margin-left: -18px;
     margin-top: -18px;
     /* Entry animation — matches the 150ms symbol size transition */
-    animation: radial-pop 0.15s cubic-bezier(0.22, 0.68, 0.35, 1) both;
+    animation: radial-pop 0.08s cubic-bezier(0.22, 0.68, 0.35, 1) both;
 
     /* Instant CSS tooltip via data-tooltip attribute */
     &[data-tooltip]::after {
@@ -75,7 +75,7 @@
   }
 
   &--leaving &__btn {
-    animation: radial-pop-out 0.15s ease-in both;
+    animation: radial-pop-out 0.08s ease-in both;
     pointer-events: none;
   }
 }
