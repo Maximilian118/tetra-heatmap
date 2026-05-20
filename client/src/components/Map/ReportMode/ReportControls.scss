@@ -1,0 +1,48 @@
+@use "../../../styles/variables" as *;
+
+/* Floating button bar below the A4 report frame */
+.report-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  justify-content: center;
+  z-index: 6;
+}
+
+/* Base button style — matches SideBarButton look */
+.report-controls__btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border: 1px solid $border-default;
+  border-radius: 6px;
+  background: $bg-element;
+  color: $text-primary;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    background: lighten($bg-element, 5%);
+    border-color: $border-active;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Accent (blue) variant for the primary Save action */
+  &--accent {
+    background: $accent-blue;
+    border-color: $accent-blue;
+    color: #fff;
+
+    &:hover:not(:disabled) {
+      background: lighten($accent-blue, 8%);
+      border-color: lighten($accent-blue, 8%);
+    }
+  }
+}

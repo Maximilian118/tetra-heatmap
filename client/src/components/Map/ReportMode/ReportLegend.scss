@@ -1,0 +1,118 @@
+/* Report legend box — white panel at bottom-left of the map */
+.report-legend {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  z-index: 2;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  padding: 10px 14px;
+  font-family: inherit;
+  min-width: 150px;
+}
+
+/* "Legend" heading */
+.report-legend__heading {
+  font-size: 14px;
+  font-weight: 700;
+  color: #000;
+  margin-bottom: 2px;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 4px;
+}
+
+/* "RSSI Level (dBm)" subtitle */
+.report-legend__subtitle {
+  font-size: 11px;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+/* Colour swatch rows */
+.report-legend__bands {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+
+.report-legend__band {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Coloured rectangle swatch */
+.report-legend__swatch {
+  display: inline-block;
+  width: 20px;
+  height: 12px;
+  border: 0.5px solid rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+/* Text label for each band or symbol */
+.report-legend__label {
+  font-size: 11px;
+  color: #222;
+  white-space: nowrap;
+}
+
+/* Symbol entries section */
+.report-legend__symbols {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+  gap: 2px;
+}
+
+/* Single symbol row — icon + label */
+.report-legend__symbol {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Canvas element rendering the actual map symbol icon */
+.report-legend__icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+/* Scale bar container */
+.report-legend__scale {
+  margin-top: 4px;
+}
+
+/* Scale bar numeric labels */
+.report-legend__scale-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #222;
+  margin-bottom: 2px;
+}
+
+/* The actual bar — two halves side by side */
+.report-legend__scale-bar {
+  display: flex;
+  height: 6px;
+}
+
+/* Alternating dark/light segments like the example */
+.report-legend__scale-half {
+  flex: 1;
+  height: 100%;
+
+  &--dark {
+    background: #000;
+  }
+
+  &--light {
+    background: #fff;
+    border: 1px solid #000;
+    border-left: none;
+  }
+}

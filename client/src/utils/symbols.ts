@@ -295,6 +295,46 @@ export const buildBgAtlas = (): HTMLCanvasElement => {
   return canvas;
 };
 
+/* Render a single composite symbol (bg + icon) cropped to the circle area.
+   Used by the report legend to show the actual map symbols. */
+export const buildSymbolIcon = (
+  type: SymbolType,
+  backup: boolean,
+  size = 24,
+): HTMLCanvasElement => {
+  const canvas = document.createElement("canvas");
+  canvas.width = ICON_SIZE;
+  canvas.height = ICON_SIZE;
+  const ctx = canvas.getContext("2d")!;
+  ctx.clearRect(0, 0, ICON_SIZE, ICON_SIZE);
+
+  /* Draw using the same composite functions as the sidebar atlas */
+  const key = backup ? `${type}-backup` : type;
+  const drawMap: Record<string, (c: CanvasRenderingContext2D, ox: number) => void> = {
+    "base-station":                  (c, o) => { drawBaseStationBg(c, o);              drawBaseStationIcon(c, o); },
+    "base-station-backup":           (c, o) => { drawBaseStationBackupBg(c, o);        drawBaseStationIcon(c, o); },
+    "repeater-omni":                 (c, o) => { drawRepeaterOmniBg(c, o);             drawRepeaterIcon(c, o); },
+    "repeater-omni-backup":          (c, o) => { drawRepeaterOmniBackupBg(c, o);       drawRepeaterIcon(c, o); },
+    "repeater-directional":          (c, o) => { drawRepeaterDirectionalBg(c, o);      drawRepeaterIcon(c, o); },
+    "repeater-directional-backup":   (c, o) => { drawRepeaterDirectionalBackupBg(c, o);drawRepeaterIcon(c, o); },
+  };
+
+  const draw = drawMap[key] ?? drawMap["base-station"];
+  draw(ctx, 0);
+
+  /* Crop to just the circle area (centre ± radius + border) then scale to output size */
+  const margin = 4;
+  const cropOrigin = CY - BG_RADIUS - margin;
+  const cropSize = (BG_RADIUS + margin) * 2;
+
+  const out = document.createElement("canvas");
+  out.width = size;
+  out.height = size;
+  const outCtx = out.getContext("2d")!;
+  outCtx.drawImage(canvas, cropOrigin, cropOrigin, cropSize, cropSize, 0, 0, size, size);
+  return out;
+};
+
 /* Build the icon-only atlas (used by the non-rotating layer on the map) */
 export const buildFgAtlas = (): HTMLCanvasElement => {
   const canvas = document.createElement("canvas");

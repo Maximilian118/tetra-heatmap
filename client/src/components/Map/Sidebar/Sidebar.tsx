@@ -25,7 +25,7 @@ const MOBILE_BREAKPOINT = 768;
 const formatResetDate = (iso: string): string =>
   new Date(iso).toLocaleString();
 
-type SidebarTab = "map" | "database" | "symbols" | "colour";
+type SidebarTab = "map" | "database" | "symbols" | "colour" | "report";
 
 interface SidebarProps {
   resetting: boolean;
@@ -70,10 +70,13 @@ interface SidebarProps {
   customSpectrum: CustomSpectrum;
   onSpectrumChange: (spectrum: CustomSpectrum) => void;
   colourTabTrigger: number;
+  reportMode: boolean;
+  onGenerateReport: () => void;
+  onCloseReport: () => void;
 }
 
 /* Left sidebar panel with Map and Database tabs */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, kmlLoaded, kmlFolders, kmlLayerStyles, onKmlLayerStyleChange, onStyleChange, onLayerTypeChange, onSettingsChange, onKmlLoad, onScopeAdjusting, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats, symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDeleteSymbol, onFlyTo, onDirectionChange, customSpectrum, onSpectrumChange, colourTabTrigger }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, kmlLoaded, kmlFolders, kmlLayerStyles, onKmlLayerStyleChange, onStyleChange, onLayerTypeChange, onSettingsChange, onKmlLoad, onScopeAdjusting, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats, symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDeleteSymbol, onFlyTo, onDirectionChange, customSpectrum, onSpectrumChange, colourTabTrigger, reportMode, onGenerateReport, onCloseReport }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("map");
   const [confirming, setConfirming] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -96,6 +99,11 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
       if (isMobile) setMobileOpen(true);
     }
   }, [colourTabTrigger, isMobile]);
+
+  /* Switch to report tab when report mode opens, back to map when it closes */
+  useEffect(() => {
+    setActiveTab(reportMode ? "report" : "map");
+  }, [reportMode]);
 
   /* Execute the reset and dismiss the confirmation overlay */
   const handleConfirm = () => {
@@ -209,6 +217,8 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
             spectrum={customSpectrum}
             onSpectrumChange={onSpectrumChange}
           />
+        ) : activeTab === "report" ? (
+          null
         ) : (
           <DatabaseSettings ref={dbRef} onStateChange={handleDbStateChange} onShowStats={onShowStats} />
         )}
@@ -222,8 +232,13 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
           <SideBarButton
             icon={FileText}
             label="Generate Report"
-            onClick={() => {}}
+            onClick={onGenerateReport}
           />
+        </div>
+      ) : activeTab === "report" ? (
+        <div className="sidebar__footer">
+          <span className="sidebar__hint">Adjust the title in the report preview, then click Save PDF to export.</span>
+          <SideBarButton icon={X} label="Close" onClick={onCloseReport} />
         </div>
       ) : activeTab === "symbols" || activeTab === "colour" ? (
         <div className="sidebar__footer">

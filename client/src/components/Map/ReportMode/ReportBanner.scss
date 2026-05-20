@@ -1,0 +1,53 @@
+/* Riedel-branded red banner — logo top-right, title large below */
+.report-banner {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 28px 32px;
+  background: #c8102e;
+  flex-shrink: 0;
+}
+
+/* Top row — logo aligned to the right */
+.report-banner__top {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+/* White Riedel logo SVG — small, top-right */
+.report-banner__logo {
+  height: 44px;
+  width: auto;
+  flex-shrink: 0;
+}
+
+/* Editable title — large bold white text, left-aligned */
+.report-banner__title {
+  width: 100%;
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 6px 8px 8px;
+  line-height: 1.2;
+  margin: 0;
+  overflow: visible;
+  font-family: "Open Sans", sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  &:focus {
+    border-color: rgba(255, 255, 255, 0.6);
+    background: rgba(0, 0, 0, 0.1);
+  }
+}

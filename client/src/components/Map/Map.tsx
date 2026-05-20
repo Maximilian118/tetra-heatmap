@@ -14,6 +14,7 @@ import NorthArrow from "./NorthArrow/NorthArrow";
 import Radial from "./Radial/Radial";
 import SsiRegister from "./SsiRegister/SsiRegister";
 import MapboxSetup from "./MapboxSetup/MapboxSetup";
+import ReportPreview from "./ReportMode/ReportPreview";
 import "./Map.scss";
 
 /* Full-viewport MapBox map with deck.gl RSSI heatmap + hover tooltips */
@@ -27,6 +28,9 @@ const Map = () => {
   const [kmlTooltip, setKmlTooltip] = useState<KmlTooltipInfo | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [showStats, setShowStats] = useState(false);
+
+  /* ─── Report mode state ─── */
+  const [reportMode, setReportMode] = useState(false);
 
   /* ─── Viewport management ─── */
   const viewport = useMapViewport();
@@ -106,6 +110,42 @@ const Map = () => {
     sym.draggingSymbolId, sym.setSelectedSymbolId, sym.setDraggingSymbolId, sym.setSymbols,
   ]);
 
+  /* Factory that builds independent layer instances for the report preview.
+     No interactive callbacks (tooltips, symbol dragging) — just visual layers. */
+  const createReportLayers = useCallback(() => buildLayers({
+    layerType: config.layerType,
+    validReadings: filter.validReadings,
+    radioPaths: config.radioPaths,
+    layerSettings: config.layerSettings,
+    activeColorRange: config.activeColorRange,
+    activeRssiToColor: config.activeRssiToColor,
+    ssiDescriptionMap: data.ssiDescriptionMap,
+    kmlGeoJson: kml.kmlGeoJson,
+    kmlScopeReadings: kml.kmlScopeReadings,
+    scopeAdjusting: false,
+    kmlData: kml.kmlData,
+    kmlLayerStyles: kml.kmlLayerStyles,
+    visibleLineFolders: kml.visibleLineFolders,
+    visiblePointFolders: kml.visiblePointFolders,
+    symbols: sym.symbols,
+    bgAtlasUrl,
+    fgAtlasUrl,
+    selectedSymbolId: null,
+    symbolSize: sym.symbolSize,
+    draggingSymbolId: null,
+    setTooltip: () => {},
+    setKmlTooltip: () => {},
+    setSelectedSymbolId: () => {},
+    setDraggingSymbolId: () => {},
+    setSymbols: () => {},
+  }), [
+    filter.validReadings, config.layerType, config.radioPaths, config.layerSettings,
+    config.activeColorRange, config.activeRssiToColor, data.ssiDescriptionMap,
+    kml.kmlGeoJson, kml.kmlScopeReadings, kml.kmlData,
+    kml.kmlLayerStyles, kml.visibleLineFolders, kml.visiblePointFolders,
+    sym.symbols, bgAtlasUrl, fgAtlasUrl, sym.symbolSize,
+  ]);
+
   /* Log deck.gl rendering errors (layer failures, shader errors, etc.) */
   const handleDeckError = useCallback((error: Error, layer?: unknown) => {
     console.error("[deck.gl] error:", error.message, layer);
@@ -179,6 +219,9 @@ const Map = () => {
         customSpectrum={config.customSpectrum}
         onSpectrumChange={config.setCustomSpectrum}
         colourTabTrigger={config.colourTabTrigger}
+        reportMode={reportMode}
+        onGenerateReport={() => setReportMode(true)}
+        onCloseReport={() => setReportMode(false)}
       />
 
       <div className="map-area" onDragOver={sym.handleMapDragOver} onDrop={sym.handleMapDrop}>
@@ -198,6 +241,7 @@ const Map = () => {
             mapboxAccessToken={mapboxToken}
             mapStyle={mapStyle}
             onError={handleMapError}
+            preserveDrawingBuffer
           />
         </DeckGL>
 
@@ -238,6 +282,25 @@ const Map = () => {
         {/* Logserver stats overlay */}
         {showStats && (
           <LogserverStats onClose={() => setShowStats(false)} />
+        )}
+
+        {/* Report preview modal — own DeckGL + MapGL instance */}
+        {reportMode && (
+          <ReportPreview
+            createLayers={createReportLayers}
+            mapboxToken={mapboxToken}
+            mapStyle={mapStyle}
+            initialViewState={{
+              longitude: viewport.liveViewState?.longitude ?? 0,
+              latitude: viewport.liveViewState?.latitude ?? 30,
+              zoom: viewport.liveViewState?.zoom ?? 2,
+              bearing: viewport.liveViewState?.bearing ?? 0,
+              pitch: viewport.liveViewState?.pitch ?? 0,
+            }}
+            customSpectrum={config.customSpectrum}
+            symbols={sym.symbols}
+            onClose={() => setReportMode(false)}
+          />
         )}
       </div>
     </div>
