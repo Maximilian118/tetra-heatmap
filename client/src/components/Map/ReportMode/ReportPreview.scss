@@ -55,20 +55,26 @@
   z-index: 1;
 }
 
-/* North arrow — top-right of the map area */
+/* North arrow — top-right of the map area, z-index above the static capture image */
 .report-preview__north {
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 32px;
-  height: 32px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  background: $bg;
-  border: 1px solid $border-default;
-  border-radius: 4px;
-  z-index: 1;
+  z-index: 2;
+}
+
+/* Bottom-left container for legend + optional sector stats side-by-side */
+.report-preview__bottom-left {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  z-index: 2;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
 }
 
 /* Action buttons below the frame */

@@ -1,0 +1,50 @@
+/* Sector mean RSSI stats box — white panel matching the report legend */
+.report-sector-stats {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  padding: 10px 14px;
+  font-family: inherit;
+  min-width: 120px;
+}
+
+/* "Sector Median" heading — mirrors report-legend__heading */
+.report-sector-stats__heading {
+  font-size: 14px;
+  font-weight: 700;
+  color: #000;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 4px;
+}
+
+/* Multi-column grid for sector rows — column-fill: auto fills left column first */
+.report-sector-stats__grid {
+  column-gap: 12px;
+  column-fill: auto;
+}
+
+/* Single sector row — number + dBm value */
+.report-sector-stats__row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 0;
+  break-inside: avoid;
+}
+
+/* Sector number label */
+.report-sector-stats__name {
+  font-size: 11px;
+  color: #222;
+  white-space: nowrap;
+}
+
+/* RSSI dBm value — right-aligned with tabular numbers for vertical alignment */
+.report-sector-stats__value {
+  font-size: 11px;
+  color: #222;
+  white-space: nowrap;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}

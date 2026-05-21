@@ -1,12 +1,14 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import DeckGL from "@deck.gl/react";
 import { Map as MapGL } from "react-map-gl/mapbox";
 import { Download, X } from "lucide-react";
 import type { CustomSpectrum } from "../../../utils/rssi";
 import type { MapSymbol } from "../../../utils/api";
+import type { KmlGeoJsonFeatureCollection } from "../../../utils/kml";
 import { captureReportPdf } from "../../../utils/reportCapture";
 import ReportBanner from "./ReportBanner";
 import ReportLegend from "./ReportLegend";
+import ReportSectorStats from "./ReportSectorStats/ReportSectorStats";
 import "./ReportPreview.scss";
 
 interface ReportPreviewProps {
@@ -16,16 +18,36 @@ interface ReportPreviewProps {
   initialViewState: { longitude: number; latitude: number; zoom: number; bearing: number; pitch: number };
   customSpectrum: CustomSpectrum;
   symbols: MapSymbol[];
+  kmlGeoJson: KmlGeoJsonFeatureCollection | null;
   onClose: () => void;
 }
 
 /* Report preview modal with its own DeckGL + MapGL instance.
    The user can pan/zoom/rotate this map independently.
    What you see here is exactly what gets exported to PDF. */
-const ReportPreview = ({ createLayers, mapboxToken, mapStyle, initialViewState, customSpectrum, symbols, onClose }: ReportPreviewProps) => {
+const ReportPreview = ({ createLayers, mapboxToken, mapStyle, initialViewState, customSpectrum, symbols, kmlGeoJson, onClose }: ReportPreviewProps) => {
   const [title, setTitle] = useState("RSSI Coverage Report");
   const [saving, setSaving] = useState(false);
   const [viewState, setViewState] = useState(initialViewState);
+
+  /* Reverse-geocode the map centre on mount to enrich the default title with country + year */
+  useEffect(() => {
+    const { latitude, longitude } = initialViewState;
+    fetch("/api/subscribers/geocode", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify([{ latitude, longitude }]),
+    })
+      .then((r) => r.json())
+      .then((data: { locations: (string | null)[] }) => {
+        const loc = data.locations?.[0];
+        if (!loc) return;
+        const country = loc.includes(",") ? loc.split(",").pop()!.trim() : loc;
+        setTitle(`RSSI Coverage Report - ${country} ${new Date().getFullYear()}`);
+      })
+      .catch(() => { /* keep fallback title */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const captureRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const deckRef = useRef<any>(null);
@@ -109,23 +131,25 @@ const ReportPreview = ({ createLayers, mapboxToken, mapStyle, initialViewState, 
             </DeckGL>
           </div>
 
-          {/* North arrow */}
-          <div className="report-preview__north" onClick={() => setViewState((v) => ({ ...v, bearing: 0 }))} style={{ cursor: Math.abs(viewState.bearing ?? 0) > 0.5 ? "pointer" : "default" }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" style={{ transform: `rotate(${-(viewState.bearing ?? 0)}deg)`, transition: "transform 0.3s ease" }}>
-              <polygon points="12,2 8,14 12,12" fill="#e05050" />
-              <polygon points="12,2 16,14 12,12" fill="#ffffff" />
-              <polygon points="12,22 8,14 12,12" fill="rgba(255,255,255,0.35)" />
-              <polygon points="12,22 16,14 12,12" fill="rgba(255,255,255,0.15)" />
+          {/* North arrow — the whole container rotates, but the "N" counter-rotates to stay upright */}
+          <div className="report-preview__north" onClick={() => setViewState((v) => ({ ...v, bearing: 0 }))} style={{ cursor: Math.abs(viewState.bearing ?? 0) > 0.5 ? "pointer" : "default", transform: `rotate(${-(viewState.bearing ?? 0)}deg)`, transition: "transform 0.3s ease" }}>
+            <svg width="32" height="32" viewBox="0 0 32 32">
+              <polygon points="16,2 8,24 16,19" fill="#1a1a1a" />
+              <polygon points="16,2 24,24 16,19" fill="#555" />
             </svg>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a1a", marginTop: -4, transform: `rotate(${viewState.bearing ?? 0}deg)`, transition: "transform 0.3s ease" }}>N</span>
           </div>
 
-          {/* Legend */}
-          <ReportLegend
-            customSpectrum={customSpectrum}
-            symbols={symbols}
-            zoom={viewState.zoom ?? 14}
-            latitude={viewState.latitude ?? 0}
-          />
+          {/* Bottom-left overlay: legend + optional sector stats */}
+          <div className="report-preview__bottom-left">
+            <ReportLegend
+              customSpectrum={customSpectrum}
+              symbols={symbols}
+              zoom={viewState.zoom ?? 14}
+              latitude={viewState.latitude ?? 0}
+            />
+            <ReportSectorStats kmlGeoJson={kmlGeoJson} />
+          </div>
         </div>
       </div>
 

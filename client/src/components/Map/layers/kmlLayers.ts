@@ -47,7 +47,7 @@ export const buildKmlLayers = (params: LayerBuildParams) => {
               x: info.x,
               y: info.y,
               name: props.name,
-              meanRssi: props.meanRssi,
+              medianRssi: props.medianRssi,
               minRssi: props.minRssi,
               maxRssi: props.maxRssi,
               count: props.count,

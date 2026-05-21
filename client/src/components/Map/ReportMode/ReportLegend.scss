@@ -1,9 +1,5 @@
-/* Report legend box — white panel at bottom-left of the map */
+/* Report legend box — white panel positioned by parent wrapper */
 .report-legend {
-  position: absolute;
-  bottom: 16px;
-  left: 16px;
-  z-index: 2;
   background: #fff;
   border: 1px solid #ccc;
   border-radius: 2px;
@@ -17,7 +13,7 @@
   font-size: 14px;
   font-weight: 700;
   color: #000;
-  margin-bottom: 2px;
+  margin-bottom: 6px;
   border-bottom: 1px solid #ccc;
   padding-bottom: 4px;
 }

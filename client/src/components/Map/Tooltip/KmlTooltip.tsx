@@ -6,7 +6,7 @@ export interface KmlTooltipInfo {
   x: number;
   y: number;
   name: string;
-  meanRssi: number | null;
+  medianRssi: number | null;
   minRssi: number | null;
   maxRssi: number | null;
   count: number;
@@ -20,7 +20,7 @@ interface KmlTooltipProps {
 const KmlTooltip = ({ tooltip }: KmlTooltipProps) => {
   if (!tooltip) return null;
 
-  const hasData = tooltip.meanRssi !== null;
+  const hasData = tooltip.medianRssi !== null;
 
   return (
     <div
@@ -30,8 +30,8 @@ const KmlTooltip = ({ tooltip }: KmlTooltipProps) => {
       <div><strong>{tooltip.name}</strong></div>
       {hasData ? (
         <>
-          <div><strong>Quality:</strong> {rssiQualityLabel(tooltip.meanRssi!)}</div>
-          <div><strong>Mean RSSI:</strong> {Math.round(tooltip.meanRssi!)} dBm</div>
+          <div><strong>Quality:</strong> {rssiQualityLabel(tooltip.medianRssi!)}</div>
+          <div><strong>Median RSSI:</strong> {Math.round(tooltip.medianRssi!)} dBm</div>
           <div><strong>Range:</strong> {tooltip.minRssi} to {tooltip.maxRssi} dBm</div>
           <div><strong>Data Points:</strong> {tooltip.count.toLocaleString()}</div>
         </>

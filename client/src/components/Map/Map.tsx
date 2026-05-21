@@ -299,6 +299,7 @@ const Map = () => {
             }}
             customSpectrum={config.customSpectrum}
             symbols={sym.symbols}
+            kmlGeoJson={kml.kmlGeoJson}
             onClose={() => setReportMode(false)}
           />
         )}

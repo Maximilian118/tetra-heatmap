@@ -310,7 +310,7 @@ function isWithinScope(
 /* GeoJSON types used for the deck.gl GeoJsonLayer */
 export interface KmlGeoJsonProperties {
   name: string;
-  meanRssi: number | null;
+  medianRssi: number | null;
   minRssi: number | null;
   maxRssi: number | null;
   count: number;
@@ -337,8 +337,14 @@ export interface KmlResult {
   scopeReadings: Reading[];
 }
 
+/* Compute the median of a pre-sorted numeric array */
+function median(sorted: number[]): number {
+  const mid = sorted.length >> 1;
+  return sorted.length & 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
 /* Build coloured GeoJSON and collect scope-filtered readings in a single pass.
-   Each polygon is coloured by the mean RSSI of readings within scopeMeters.
+   Each polygon is coloured by the median RSSI of readings within scopeMeters.
    Bounding box pre-filter + equirectangular distance + early-out make this fast. */
 export function buildKmlResult(
   polygons: KmlPolygon[],
@@ -354,11 +360,8 @@ export function buildKmlResult(
      Use worst-case (equator) cosLat=1 so the offset is generous enough at all latitudes. */
   const scopeDeg = scopeMeters / METRES_PER_DEG_LAT;
 
-  /* Per-polygon accumulators */
-  const rssiSums = new Float64Array(polygons.length);
-  const counts = new Uint32Array(polygons.length);
-  const rssiMins = new Float64Array(polygons.length).fill(Infinity);
-  const rssiMaxs = new Float64Array(polygons.length).fill(-Infinity);
+  /* Per-polygon RSSI value collectors */
+  const rssiArrays: number[][] = polygons.map(() => []);
 
   /* Track which readings are within scope of any polygon (avoid Set overhead) */
   const inScope = collectReadings ? new Uint8Array(readings.length) : null;
@@ -385,31 +388,35 @@ export function buildKmlResult(
 
       /* Detailed check */
       if (isWithinScope(px, py, poly, scopeMeters)) {
-        rssiSums[pi] += r.rssi;
-        counts[pi]++;
-        if (r.rssi < rssiMins[pi]) rssiMins[pi] = r.rssi;
-        if (r.rssi > rssiMaxs[pi]) rssiMaxs[pi] = r.rssi;
+        rssiArrays[pi].push(r.rssi);
         if (inScope) inScope[ri] = 1;
       }
     }
   }
 
-  /* Build GeoJSON features from accumulators */
+  /* Build GeoJSON features — sort each polygon's readings to derive median/min/max */
   const features: GeoJsonFeature[] = polygons.map((poly, i) => {
-    const meanRssi = counts[i] > 0 ? rssiSums[i] / counts[i] : null;
-    const minRssi = counts[i] > 0 ? rssiMins[i] : null;
-    const maxRssi = counts[i] > 0 ? rssiMaxs[i] : null;
+    const arr = rssiArrays[i];
+    if (arr.length === 0) {
+      return {
+        type: "Feature",
+        properties: { name: poly.name, medianRssi: null, minRssi: null, maxRssi: null, count: 0, color: NO_DATA_COLOR },
+        geometry: { type: "Polygon", coordinates: [poly.coordinates] },
+      };
+    }
+
+    arr.sort((a, b) => a - b);
+    const medianRssi = median(arr);
+    const minRssi = arr[0];
+    const maxRssi = arr[arr.length - 1];
     /* Use fully opaque fills so the deck.gl opacity prop has full control */
-    const raw = meanRssi !== null ? rssiToColor(meanRssi) : NO_DATA_COLOR;
+    const raw = rssiToColor(medianRssi);
     const color: [number, number, number, number] = [raw[0], raw[1], raw[2], 255];
 
     return {
       type: "Feature",
-      properties: { name: poly.name, meanRssi, minRssi, maxRssi, count: counts[i], color },
-      geometry: {
-        type: "Polygon",
-        coordinates: [poly.coordinates],
-      },
+      properties: { name: poly.name, medianRssi, minRssi, maxRssi, count: arr.length, color },
+      geometry: { type: "Polygon", coordinates: [poly.coordinates] },
     };
   });
 
