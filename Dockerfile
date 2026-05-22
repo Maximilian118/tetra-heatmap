@@ -7,7 +7,7 @@ WORKDIR /build/client
 
 # Copy client package files and install dependencies
 COPY client/package.json client/package-lock.json ./
-RUN npm install -g npm@11 && npm ci
+RUN npm install
 
 # Copy client source and build the static bundle
 COPY client/ ./
@@ -27,7 +27,7 @@ WORKDIR /app
 
 # Copy server package files and install all dependencies (including devDeps for tsx)
 COPY server/package.json server/package-lock.json ./server/
-RUN npm install -g npm@11 && cd server && npm ci
+RUN cd server && npm ci
 
 # Copy server source code and config
 COPY server/src ./server/src
