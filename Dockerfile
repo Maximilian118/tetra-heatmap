@@ -1,7 +1,7 @@
 # =============================================================
 # Stage 1: Build the Vite client
 # =============================================================
-FROM node:22-slim AS client-builder
+FROM node:23-slim AS client-builder
 
 WORKDIR /build/client
 
@@ -16,7 +16,7 @@ RUN npm run build
 # =============================================================
 # Stage 2: Production image
 # =============================================================
-FROM node:22-slim AS production
+FROM node:23-slim AS production
 
 # Install build tools required by better-sqlite3 native compilation
 RUN apt-get update && \
