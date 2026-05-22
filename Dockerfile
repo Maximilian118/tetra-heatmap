@@ -1,13 +1,13 @@
 # =============================================================
 # Stage 1: Build the Vite client
 # =============================================================
-FROM node:23-slim AS client-builder
+FROM node:22-slim AS client-builder
 
 WORKDIR /build/client
 
 # Copy client package files and install dependencies
 COPY client/package.json client/package-lock.json ./
-RUN npm ci
+RUN npm install -g npm@11 && npm ci
 
 # Copy client source and build the static bundle
 COPY client/ ./
@@ -16,7 +16,7 @@ RUN npm run build
 # =============================================================
 # Stage 2: Production image
 # =============================================================
-FROM node:23-slim AS production
+FROM node:22-slim AS production
 
 # Install build tools required by better-sqlite3 native compilation
 RUN apt-get update && \
@@ -27,7 +27,7 @@ WORKDIR /app
 
 # Copy server package files and install all dependencies (including devDeps for tsx)
 COPY server/package.json server/package-lock.json ./server/
-RUN cd server && npm ci
+RUN npm install -g npm@11 && cd server && npm ci
 
 # Copy server source code and config
 COPY server/src ./server/src
