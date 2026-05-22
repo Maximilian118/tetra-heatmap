@@ -15,6 +15,8 @@ export interface LayerSettings {
   kmlLineWidth: number;
   kmlLineShade: number;
   scope: number;
+  textWeight: number;
+  labelOffset: number;
 }
 
 export const DEFAULT_LAYER_SETTINGS: LayerSettings = {
@@ -27,6 +29,8 @@ export const DEFAULT_LAYER_SETTINGS: LayerSettings = {
   kmlLineWidth: 1,
   kmlLineShade: 80,
   scope: 5,
+  textWeight: 400,
+  labelOffset: 25,
 };
 
 /* Slider configuration for each adjustable parameter */
@@ -77,6 +81,8 @@ const PATH_SLIDERS: SliderConfig[] = [
 /* Sliders specific to the KML layer */
 const KML_SLIDERS: SliderConfig[] = [
   { key: "scope", label: "Scope", min: 5, max: 500, step: 5, format: meters },
+  { key: "labelOffset", label: "Label Offset", min: 5, max: 100, step: 5, format: meters },
+  { key: "textWeight", label: "Text Weight", min: 100, max: 900, step: 100, format: int },
 ];
 
 /* Map layer type to its specific sliders */

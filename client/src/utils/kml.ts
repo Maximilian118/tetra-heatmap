@@ -307,6 +307,183 @@ function isWithinScope(
   return false;
 }
 
+/* Find the nearest point on a segment to a query point, returning distance and projected coords */
+function nearestPointOnSegment(
+  px: number, py: number,
+  ax: number, ay: number,
+  bx: number, by: number,
+  cosLat: number
+): { distance: number; nearestLng: number; nearestLat: number; segDx: number; segDy: number } {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const lenSq = dx * dx + dy * dy;
+
+  let t: number;
+  if (lenSq === 0) {
+    t = 0;
+  } else {
+    t = ((px - ax) * dx + (py - ay) * dy) / lenSq;
+    if (t < 0) t = 0;
+    else if (t > 1) t = 1;
+  }
+
+  const nearestLng = ax + t * dx;
+  const nearestLat = ay + t * dy;
+  const distance = fastDistance(py, px, nearestLat, nearestLng, cosLat);
+
+  return { distance, nearestLng, nearestLat, segDx: dx, segDy: dy };
+}
+
+/* Find the anchor point for a label on a set of line segments (nearest point on any segment).
+   Returns null if no segments are provided. */
+function findAnchorOnSegments(
+  px: number, py: number, cosLat: number,
+  segments: { ax: number; ay: number; bx: number; by: number }[]
+): { lng: number; lat: number } | null {
+  if (segments.length === 0) return null;
+
+  let bestDist = Infinity;
+  let bestLng = px;
+  let bestLat = py;
+
+  for (const seg of segments) {
+    const result = nearestPointOnSegment(px, py, seg.ax, seg.ay, seg.bx, seg.by, cosLat);
+    if (result.distance < bestDist) {
+      bestDist = result.distance;
+      bestLng = result.nearestLng;
+      bestLat = result.nearestLat;
+    }
+  }
+
+  return { lng: bestLng, lat: bestLat };
+}
+
+/* Reposition point labels to sit at a consistent offset from the track.
+   Strategy per label:
+   1. If sameFolderLines has segments → anchor = nearest point on those (same-folder match)
+   2. Else → anchor = nearest point on sector polygon boundaries (track edges)
+   3. If neither found → keep original position
+   The label is then placed at offsetMeters along the ray from anchor toward the original position. */
+export function repositionLabels(
+  points: KmlPoint[],
+  sameFolderLines: KmlLine[],
+  sectorPolygons: KmlPolygon[],
+  offsetMeters: number
+): [number, number][] {
+  /* Pre-flatten same-folder line segments */
+  const sfSegments: { ax: number; ay: number; bx: number; by: number }[] = [];
+  for (const line of sameFolderLines) {
+    const coords = line.coordinates;
+    for (let i = 0; i < coords.length - 1; i++) {
+      sfSegments.push({ ax: coords[i][0], ay: coords[i][1], bx: coords[i + 1][0], by: coords[i + 1][1] });
+    }
+  }
+
+  /* Pre-flatten sector polygon boundary segments */
+  const polySegments: { ax: number; ay: number; bx: number; by: number }[] = [];
+  for (const poly of sectorPolygons) {
+    const ring = poly.coordinates;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      polySegments.push({ ax: ring[j][0], ay: ring[j][1], bx: ring[i][0], by: ring[i][1] });
+    }
+  }
+
+  return points.map((p) => {
+    const [px, py] = p.coordinates;
+    const cosLat = Math.cos(py * DEG_TO_RAD);
+
+    /* Strategy 1: same-folder line segments */
+    let anchor = findAnchorOnSegments(px, py, cosLat, sfSegments);
+
+    /* Strategy 2: nearest point on sector polygon boundaries (track edges) */
+    if (!anchor) {
+      anchor = findAnchorOnSegments(px, py, cosLat, polySegments);
+    }
+
+    /* No anchor found — keep original position */
+    if (!anchor) return p.coordinates;
+
+    /* Direction from anchor toward original label position */
+    let dirLng = px - anchor.lng;
+    let dirLat = py - anchor.lat;
+
+    /* Normalise to unit length in metres */
+    const dirLenM = METRES_PER_DEG_LAT * Math.sqrt(
+      (dirLng * cosLat) * (dirLng * cosLat) + dirLat * dirLat
+    );
+
+    /* Label sits exactly on the anchor — keep original position */
+    if (dirLenM < 0.01) return p.coordinates;
+
+    dirLng /= dirLenM;
+    dirLat /= dirLenM;
+
+    /* Extra offset for longer labels — text is centre-anchored so half extends back toward track */
+    const lengthBonus = Math.max(0, p.name.length - 2) * 3;
+    const effectiveOffset = offsetMeters + lengthBonus;
+
+    /* Place label at effectiveOffset along the ray from anchor toward original position */
+    const offLng = anchor.lng + dirLng * effectiveOffset;
+    const offLat = anchor.lat + dirLat * effectiveOffset;
+
+    return [offLng, offLat] as [number, number];
+  });
+}
+
+/* Push overlapping labels apart so nearby labels from different folders don't collide.
+   Mutates the posMap in place. Runs a few iterations of pairwise repulsion. */
+export function separateOverlappingLabels(
+  posMap: Map<KmlPoint, [number, number]>,
+  minSeparationMeters: number
+): void {
+  if (posMap.size < 2) return;
+
+  /* Snapshot entries into an indexed array for pairwise comparison */
+  const entries = Array.from(posMap.entries()).map(([point, pos]) => ({
+    point,
+    lng: pos[0],
+    lat: pos[1],
+  }));
+
+  const n = entries.length;
+
+  /* 3 iterations is enough to resolve chain collisions in typical KML data */
+  for (let iter = 0; iter < 3; iter++) {
+    for (let i = 0; i < n; i++) {
+      const a = entries[i];
+      const cosLat = Math.cos(a.lat * DEG_TO_RAD);
+
+      for (let j = i + 1; j < n; j++) {
+        const b = entries[j];
+        const dist = fastDistance(a.lat, a.lng, b.lat, b.lng, cosLat);
+
+        if (dist >= minSeparationMeters || dist < 0.01) continue;
+
+        /* Push both labels apart equally along their connecting vector */
+        const half = (minSeparationMeters - dist) / 2;
+        let dx = b.lng - a.lng;
+        let dy = b.lat - a.lat;
+        const len = Math.sqrt(dx * dx + dy * dy);
+
+        /* Convert half (metres) to degrees for the nudge */
+        const nudgeDeg = half / METRES_PER_DEG_LAT;
+        dx = (dx / len) * nudgeDeg;
+        dy = (dy / len) * nudgeDeg;
+
+        a.lng -= dx;
+        a.lat -= dy;
+        b.lng += dx;
+        b.lat += dy;
+      }
+    }
+  }
+
+  /* Write resolved positions back into the map */
+  for (const e of entries) {
+    posMap.set(e.point, [e.lng, e.lat]);
+  }
+}
+
 /* GeoJSON types used for the deck.gl GeoJsonLayer */
 export interface KmlGeoJsonProperties {
   name: string;

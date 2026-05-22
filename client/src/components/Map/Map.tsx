@@ -66,6 +66,7 @@ const Map = () => {
     validReadings: filter.validReadings,
     layerType: config.layerType,
     scope: config.layerSettings.scope,
+    labelOffset: config.layerSettings.labelOffset,
     activeRssiToColor: config.activeRssiToColor,
     setKmlTooltip: setKmlTooltipNull,
   });
@@ -90,6 +91,7 @@ const Map = () => {
     kmlLayerStyles: kml.kmlLayerStyles,
     visibleLineFolders: kml.visibleLineFolders,
     visiblePointFolders: kml.visiblePointFolders,
+    adjustedPointPositions: kml.adjustedPointPositions,
     symbols: sym.symbols,
     bgAtlasUrl,
     fgAtlasUrl,
@@ -106,6 +108,7 @@ const Map = () => {
     config.activeColorRange, config.activeRssiToColor, data.ssiDescriptionMap,
     kml.kmlGeoJson, kml.kmlScopeReadings, kml.scopeAdjusting, kml.kmlData,
     kml.kmlLayerStyles, kml.visibleLineFolders, kml.visiblePointFolders,
+    kml.adjustedPointPositions,
     sym.symbols, bgAtlasUrl, fgAtlasUrl, sym.selectedSymbolId, sym.symbolSize,
     sym.draggingSymbolId, sym.setSelectedSymbolId, sym.setDraggingSymbolId, sym.setSymbols,
   ]);
@@ -127,6 +130,7 @@ const Map = () => {
     kmlLayerStyles: kml.kmlLayerStyles,
     visibleLineFolders: kml.visibleLineFolders,
     visiblePointFolders: kml.visiblePointFolders,
+    adjustedPointPositions: kml.adjustedPointPositions,
     symbols: sym.symbols,
     bgAtlasUrl,
     fgAtlasUrl,
@@ -143,6 +147,7 @@ const Map = () => {
     config.activeColorRange, config.activeRssiToColor, data.ssiDescriptionMap,
     kml.kmlGeoJson, kml.kmlScopeReadings, kml.kmlData,
     kml.kmlLayerStyles, kml.visibleLineFolders, kml.visiblePointFolders,
+    kml.adjustedPointPositions,
     sym.symbols, bgAtlasUrl, fgAtlasUrl, sym.symbolSize,
   ]);
 

@@ -8,8 +8,8 @@ import type { LayerBuildParams } from "./types";
 export const buildKmlLayers = (params: LayerBuildParams) => {
   const {
     kmlGeoJson, kmlData, kmlLayerStyles, kmlScopeReadings, scopeAdjusting,
-    visibleLineFolders, visiblePointFolders, layerSettings, activeRssiToColor,
-    setKmlTooltip, setTooltip,
+    visibleLineFolders, visiblePointFolders, adjustedPointPositions, layerSettings,
+    activeRssiToColor, setKmlTooltip, setTooltip,
   } = params;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -95,7 +95,7 @@ export const buildKmlLayers = (params: LayerBuildParams) => {
       new TextLayer<KmlPoint>({
         id: `kml-labels-${folder.name}`,
         data: folder.points,
-        getPosition: (d) => d.coordinates,
+        getPosition: (d) => adjustedPointPositions.get(d) ?? d.coordinates,
         getText: (d) => d.name,
         getSize: 14,
         sizeMinPixels: 10,
@@ -104,13 +104,14 @@ export const buildKmlLayers = (params: LayerBuildParams) => {
         outlineWidth: 2,
         outlineColor: [0, 0, 0, 200],
         fontFamily: "Inter, system-ui, sans-serif",
-        fontWeight: 700,
+        fontWeight: layerSettings.textWeight,
         getTextAnchor: "middle",
         getAlignmentBaseline: "center",
         billboard: true,
         opacity: layerSettings.opacity,
         updateTriggers: {
           getColor: [style.color],
+          getPosition: [adjustedPointPositions],
         },
       })
     );

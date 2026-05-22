@@ -31,6 +31,7 @@ export interface LayerBuildParams {
   kmlLayerStyles: Record<string, KmlLayerStyle>;
   visibleLineFolders: KmlFolder[];
   visiblePointFolders: KmlFolder[];
+  adjustedPointPositions: Map<object, [number, number]>;
   /* Symbols */
   symbols: MapSymbol[];
   bgAtlasUrl: string;
