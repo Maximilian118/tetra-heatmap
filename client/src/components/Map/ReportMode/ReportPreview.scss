@@ -38,10 +38,13 @@
   overflow: hidden;
 }
 
-/* DeckGL container — fills the map area */
+/* DeckGL container — extends below the visible frame to hide MapBox branding */
 .report-preview__deck {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: -40px;
 }
 
 /* Static map screenshot — only inserted temporarily during PDF capture */
