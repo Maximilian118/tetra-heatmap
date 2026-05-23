@@ -56,6 +56,15 @@ db.exec(`
     latitude REAL NOT NULL,
     created_at TEXT NOT NULL
   );
+
+  /* User-created notes with optional polygon areas on the map */
+  CREATE TABLE IF NOT EXISTS notes (
+    id TEXT PRIMARY KEY,
+    text TEXT NOT NULL DEFAULT '',
+    color TEXT NOT NULL DEFAULT '#589cdc',
+    polygon TEXT,
+    created_at TEXT NOT NULL
+  );
 `);
 
 /* Migrations: add columns that may be missing on existing subscribers table */
@@ -68,6 +77,9 @@ try { db.exec("ALTER TABLE subscribers ADD COLUMN last_location TEXT NOT NULL DE
 
 /* Migrations: add reject_reason column to readings table for persisting rejected LIP data */
 try { db.exec("ALTER TABLE readings ADD COLUMN reject_reason TEXT"); } catch { /* already exists */ }
+
+/* Migrations: add title column to notes table */
+try { db.exec("ALTER TABLE notes ADD COLUMN title TEXT NOT NULL DEFAULT ''"); } catch { /* already exists */ }
 
 /* Migrations: add direction column to symbols table and migrate old repeater type */
 try { db.exec("ALTER TABLE symbols ADD COLUMN direction REAL"); } catch { /* already exists */ }
@@ -349,6 +361,64 @@ export const deleteSymbol = (id: string): void => {
 export const pruneOldSymbols = (retentionDays: number): number => {
   const result = db.prepare(
     "DELETE FROM symbols WHERE created_at < datetime('now', '-' || ? || ' days')"
+  ).run(retentionDays);
+  return result.changes;
+};
+
+/* ── Note helpers ─────────────────────────────────────────────────── */
+
+/* Shape of a user-created note with an optional polygon area */
+export interface MapNote {
+  id: string;
+  title: string;
+  text: string;
+  color: string;
+  polygon: string | null;
+  created_at: string;
+}
+
+/* Fetch all notes ordered by creation date (newest first) */
+export const getAllNotes = (): MapNote[] => {
+  return db.prepare("SELECT * FROM notes ORDER BY created_at DESC").all() as MapNote[];
+};
+
+/* Insert a new note */
+export const insertNote = (note: MapNote): void => {
+  db.prepare(
+    `INSERT OR REPLACE INTO notes (id, title, text, color, polygon, created_at)
+     VALUES (@id, @title, @text, @color, @polygon, @created_at)`
+  ).run(note);
+};
+
+/* Update the color of an existing note */
+export const updateNoteColor = (id: string, color: string): void => {
+  db.prepare("UPDATE notes SET color = ? WHERE id = ?").run(color, id);
+};
+
+/* Update the title of an existing note */
+export const updateNoteTitle = (id: string, title: string): void => {
+  db.prepare("UPDATE notes SET title = ? WHERE id = ?").run(title, id);
+};
+
+/* Update the text content of an existing note */
+export const updateNoteText = (id: string, text: string): void => {
+  db.prepare("UPDATE notes SET text = ? WHERE id = ?").run(text, id);
+};
+
+/* Update the polygon vertices of an existing note */
+export const updateNotePolygon = (id: string, polygon: string | null): void => {
+  db.prepare("UPDATE notes SET polygon = ? WHERE id = ?").run(polygon, id);
+};
+
+/* Remove a single note by id */
+export const deleteNote = (id: string): void => {
+  db.prepare("DELETE FROM notes WHERE id = ?").run(id);
+};
+
+/* Remove notes older than the specified retention period */
+export const pruneOldNotes = (retentionDays: number): number => {
+  const result = db.prepare(
+    "DELETE FROM notes WHERE created_at < datetime('now', '-' || ? || ' days')"
   ).run(retentionDays);
   return result.changes;
 };

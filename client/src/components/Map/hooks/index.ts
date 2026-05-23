@@ -5,3 +5,4 @@ export { useFilterPipeline } from "./useFilterPipeline";
 export { useLayerConfig } from "./useLayerConfig";
 export { useKml } from "./useKml";
 export { useSymbols } from "./useSymbols";
+export { useNotes } from "./useNotes";

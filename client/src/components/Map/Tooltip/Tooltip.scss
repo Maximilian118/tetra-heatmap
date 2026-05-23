@@ -13,4 +13,11 @@
   border: 1px solid $border-default;
   border-radius: 4px;
   white-space: nowrap;
+
+  /* Note area tooltip variant — wraps long descriptions */
+  &--note {
+    white-space: normal;
+    max-width: 280px;
+    line-height: 1.3;
+  }
 }

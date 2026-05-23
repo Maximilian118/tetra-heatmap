@@ -5,6 +5,7 @@ import { buildPathLayers } from "./pathLayer";
 import { buildKmlLayers } from "./kmlLayers";
 import { buildTooltipLayer } from "./tooltipLayer";
 import { buildSymbolLayers } from "./symbolLayers";
+import { buildNoteLayers } from "./noteLayers";
 
 /* Assemble the complete deck.gl layer stack based on the active layer type.
    Each sub-builder is a pure function receiving only the data it needs. */
@@ -32,6 +33,7 @@ export const buildLayers = (params: LayerBuildParams) => {
 
   return [
     ...vizLayers,
+    ...buildNoteLayers(params),
     buildTooltipLayer(params),
     ...buildSymbolLayers(params),
   ];

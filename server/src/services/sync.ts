@@ -4,6 +4,7 @@ import {
   insertReadings,
   pruneOldReadings,
   pruneOldSymbols,
+  pruneOldNotes,
   clearAllReadings,
   getSyncFrom,
   setSyncFrom,
@@ -255,12 +256,14 @@ const syncReadings = async () => {
 
       const pruned = pruneOldReadings(settings.retentionDays);
       pruneOldSymbols(settings.retentionDays);
+      pruneOldNotes(settings.retentionDays);
       if (pruned > 0) parts.push(`${pruned} pruned`);
       logger.info(`Sync finished — ${parts.join(", ")} (${elapsed}ms)`);
     } else {
       /* Remove data older than the retention period */
       pruneOldReadings(settings.retentionDays);
       pruneOldSymbols(settings.retentionDays);
+      pruneOldNotes(settings.retentionDays);
 
       const elapsed = Math.round(performance.now() - start);
       logger.info(`Sync finished — no new readings (${elapsed}ms)`);

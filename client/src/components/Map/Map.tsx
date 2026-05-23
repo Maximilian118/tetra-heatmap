@@ -3,8 +3,9 @@ import DeckGL from "@deck.gl/react";
 import { Map as MapGL } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { buildBgAtlas, buildFgAtlas } from "../../utils/symbols";
-import { useServerSettings, useMapViewport, useReadings, useFilterPipeline, useLayerConfig, useKml, useSymbols } from "./hooks";
+import { useServerSettings, useMapViewport, useReadings, useFilterPipeline, useLayerConfig, useKml, useSymbols, useNotes } from "./hooks";
 import { buildLayers } from "./layers";
+import type { NoteTooltipInfo } from "./layers/types";
 import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
 import KmlTooltip, { type KmlTooltipInfo } from "./Tooltip/KmlTooltip";
 import Sidebar from "./Sidebar/Sidebar";
@@ -15,6 +16,7 @@ import Radial from "./Radial/Radial";
 import SsiRegister from "./SsiRegister/SsiRegister";
 import MapboxSetup from "./MapboxSetup/MapboxSetup";
 import ReportPreview from "./ReportMode/ReportPreview";
+import NotesButton from "./NotesButton/NotesButton";
 import "./Map.scss";
 
 /* Full-viewport MapBox map with deck.gl RSSI heatmap + hover tooltips */
@@ -26,17 +28,24 @@ const Map = () => {
   /* ─── UI overlay state ─── */
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
   const [kmlTooltip, setKmlTooltip] = useState<KmlTooltipInfo | null>(null);
+  const [noteTooltip, setNoteTooltip] = useState<NoteTooltipInfo | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [showStats, setShowStats] = useState(false);
 
   /* ─── Report mode state ─── */
   const [reportMode, setReportMode] = useState(false);
 
+  /* ─── Notes tab trigger ─── */
+  const [notesTabTrigger, setNotesTabTrigger] = useState(0);
+
   /* ─── Viewport management ─── */
   const viewport = useMapViewport();
 
   /* ─── Symbol management (needs deckRef + liveViewState for projection & drag) ─── */
   const sym = useSymbols({ deckRef: viewport.deckRef, liveViewState: viewport.liveViewState });
+
+  /* ─── Notes management ─── */
+  const nt = useNotes({ deckRef: viewport.deckRef, liveViewState: viewport.liveViewState });
 
   /* ─── Server settings (seeds symbol size on mount) ─── */
   const { mapboxToken, dbConnected, retentionDays } = useServerSettings(sym.setSymbolSize);
@@ -99,6 +108,11 @@ const Map = () => {
     selectedSymbolId: sym.selectedSymbolId,
     symbolSize: sym.symbolSize,
     draggingSymbolId: sym.draggingSymbolId,
+    notes: nt.notes,
+    editingNoteId: nt.editingNoteId,
+    onNotePolygonUpdate: nt.handlePolygonUpdate,
+    setDraggingVertexNoteId: nt.setDraggingVertexNoteId,
+    setNoteTooltip,
     setTooltip,
     setKmlTooltip,
     setSelectedSymbolId: sym.setSelectedSymbolId,
@@ -112,6 +126,7 @@ const Map = () => {
     kml.adjustedPointPositions,
     viewport.bearing, sym.symbols, bgAtlasUrl, fgAtlasUrl, sym.selectedSymbolId, sym.symbolSize,
     sym.draggingSymbolId, sym.setSelectedSymbolId, sym.setDraggingSymbolId, sym.setSymbols,
+    nt.notes, nt.editingNoteId, nt.handlePolygonUpdate, nt.setDraggingVertexNoteId,
   ]);
 
   /* Factory that builds independent layer instances for the report preview.
@@ -139,6 +154,11 @@ const Map = () => {
     selectedSymbolId: null,
     symbolSize: sym.symbolSize,
     draggingSymbolId: null,
+    notes: nt.notes,
+    editingNoteId: null,
+    onNotePolygonUpdate: () => {},
+    setDraggingVertexNoteId: () => {},
+    setNoteTooltip: () => {},
     setTooltip: () => {},
     setKmlTooltip: () => {},
     setSelectedSymbolId: () => {},
@@ -150,7 +170,7 @@ const Map = () => {
     kml.kmlGeoJson, kml.kmlScopeReadings, kml.kmlData,
     kml.kmlLayerStyles, kml.visibleLineFolders, kml.visiblePointFolders,
     kml.adjustedPointPositions,
-    sym.symbols, bgAtlasUrl, fgAtlasUrl, sym.symbolSize,
+    sym.symbols, bgAtlasUrl, fgAtlasUrl, sym.symbolSize, nt.notes,
   ]);
 
   /* Log deck.gl rendering errors (layer failures, shader errors, etc.) */
@@ -162,6 +182,21 @@ const Map = () => {
   const handleMapError = useCallback((e: { error?: { message?: string } }) => {
     console.error("[mapbox] error:", e.error?.message ?? e);
   }, []);
+
+  /* Combined drag-over handler accepting both symbol and note area drops */
+  const handleMapDragOver = useCallback((e: React.DragEvent) => {
+    sym.handleMapDragOver(e);
+    nt.handleMapDragOver(e);
+  }, [sym.handleMapDragOver, nt.handleMapDragOver]);
+
+  /* Combined drop handler — route to notes or symbols based on dataTransfer type */
+  const handleMapDrop = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes("notecolor") || e.dataTransfer.types.includes("notedragid")) {
+      nt.handleMapDrop(e);
+    } else {
+      sym.handleMapDrop(e);
+    }
+  }, [sym.handleMapDrop, nt.handleMapDrop]);
 
   /* Toggle the SSI Register overlay open/closed */
   const handleToggleRegister = useCallback(() => {
@@ -226,18 +261,26 @@ const Map = () => {
         customSpectrum={config.customSpectrum}
         onSpectrumChange={config.setCustomSpectrum}
         colourTabTrigger={config.colourTabTrigger}
+        notes={nt.notes}
+        editingNoteId={nt.editingNoteId}
+        onSetEditingNoteId={nt.setEditingNoteId}
+        onNoteTitleChange={nt.handleTitleChange}
+        onNoteTextChange={nt.handleTextChange}
+        onDeleteNote={nt.handleDeleteNote}
+        onAddNote={nt.handleAddNote}
+        notesTabTrigger={notesTabTrigger}
         reportMode={reportMode}
         onGenerateReport={() => setReportMode(true)}
         onCloseReport={() => setReportMode(false)}
       />
 
-      <div className="map-area" onDragOver={sym.handleMapDragOver} onDrop={sym.handleMapDrop}>
+      <div className="map-area" onDragOver={handleMapDragOver} onDrop={handleMapDrop}>
         {/* DeckGL as root — owns canvas + interactions.
             MapGL is a child that renders tiles and follows DeckGL's viewport. */}
         <DeckGL
           ref={viewport.deckRef}
           initialViewState={viewport.resolvedView}
-          controller={{ dragPan: !sym.draggingSymbolId }}
+          controller={{ dragPan: !sym.draggingSymbolId && !nt.draggingVertexNoteId }}
           layers={layers}
           onViewStateChange={viewport.handleViewStateChange}
           onError={handleDeckError}
@@ -254,8 +297,20 @@ const Map = () => {
 
         <Tooltip tooltip={tooltip} clockOffsetMs={data.clockOffsetMs} serverTzOffsetHours={data.serverTzOffsetHours} />
         <KmlTooltip tooltip={kmlTooltip} />
+
+        {/* Note area tooltip — shown only when no reading tooltip is active */}
+        {!tooltip && noteTooltip && (noteTooltip.title || noteTooltip.text) && (
+          <div
+            className="map-tooltip map-tooltip--note"
+            style={{ left: noteTooltip.x + 12, top: noteTooltip.y - 12 }}
+          >
+            {noteTooltip.title && <div><strong>{noteTooltip.title}</strong></div>}
+            {noteTooltip.text && <div>{noteTooltip.text}</div>}
+          </div>
+        )}
         <RssiLegend customSpectrum={config.customSpectrum} readings={filter.validReadings} onClick={() => config.setColourTabTrigger((n) => n + 1)} />
         <NorthArrow bearing={viewport.bearing} onResetNorth={viewport.handleResetNorth} />
+        <NotesButton onClick={() => setNotesTabTrigger((n) => n + 1)} />
 
         {/* Radial action menu — key forces remount on symbol switch for fresh animation */}
         {(sym.selectedSymbol || sym.radialLeaving) && (

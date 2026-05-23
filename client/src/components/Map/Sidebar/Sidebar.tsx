@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Menu, X, Map, Settings, RotateCcw, Check, FileText } from "lucide-react";
-import type { Reading, MapSymbol } from "../../../utils/api";
+import type { Reading, MapSymbol, MapNote } from "../../../utils/api";
 import type { KmlData, KmlFolder, KmlLayerStyle } from "../../../utils/kml";
 import type { CustomSpectrum } from "../../../utils/rssi";
 import Confirm from "../Confirm/Confirm";
@@ -15,6 +15,7 @@ import DatabaseSettings from "./DatabaseSettings/DatabaseSettings";
 import type { DatabaseSettingsHandle } from "./DatabaseSettings/DatabaseSettings";
 import Symbols from "./Symbols/Symbols";
 import ColourSpectrum from "./ColourSpectrum/ColourSpectrum";
+import Notes from "./Notes/Notes";
 import SideBarButton from "./SideBarButton/SideBarButton";
 import "./Sidebar.scss";
 
@@ -25,7 +26,7 @@ const MOBILE_BREAKPOINT = 768;
 const formatResetDate = (iso: string): string =>
   new Date(iso).toLocaleString();
 
-type SidebarTab = "map" | "database" | "symbols" | "colour" | "report";
+type SidebarTab = "map" | "database" | "symbols" | "colour" | "report" | "notes";
 
 interface SidebarProps {
   resetting: boolean;
@@ -70,13 +71,21 @@ interface SidebarProps {
   customSpectrum: CustomSpectrum;
   onSpectrumChange: (spectrum: CustomSpectrum) => void;
   colourTabTrigger: number;
+  notes: MapNote[];
+  editingNoteId: string | null;
+  onSetEditingNoteId: (id: string | null) => void;
+  onNoteTitleChange: (id: string, title: string) => void;
+  onNoteTextChange: (id: string, text: string) => void;
+  onDeleteNote: (id: string) => void;
+  onAddNote: () => void;
+  notesTabTrigger: number;
   reportMode: boolean;
   onGenerateReport: () => void;
   onCloseReport: () => void;
 }
 
 /* Left sidebar panel with Map and Database tabs */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, kmlLoaded, kmlFolders, kmlLayerStyles, onKmlLayerStyleChange, onStyleChange, onLayerTypeChange, onSettingsChange, onKmlLoad, onScopeAdjusting, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats, symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDeleteSymbol, onFlyTo, onDirectionChange, customSpectrum, onSpectrumChange, colourTabTrigger, reportMode, onGenerateReport, onCloseReport }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, kmlLoaded, kmlFolders, kmlLayerStyles, onKmlLayerStyleChange, onStyleChange, onLayerTypeChange, onSettingsChange, onKmlLoad, onScopeAdjusting, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats, symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDeleteSymbol, onFlyTo, onDirectionChange, customSpectrum, onSpectrumChange, colourTabTrigger, notes, editingNoteId, onSetEditingNoteId, onNoteTitleChange, onNoteTextChange, onDeleteNote, onAddNote, notesTabTrigger, reportMode, onGenerateReport, onCloseReport }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("map");
   const [confirming, setConfirming] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -99,6 +108,14 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
       if (isMobile) setMobileOpen(true);
     }
   }, [colourTabTrigger, isMobile]);
+
+  /* Switch to notes tab when the Notes button on the map is clicked */
+  useEffect(() => {
+    if (notesTabTrigger > 0) {
+      setActiveTab("notes");
+      if (isMobile) setMobileOpen(true);
+    }
+  }, [notesTabTrigger, isMobile]);
 
   /* Switch to report tab when report mode opens, back to map when it closes */
   useEffect(() => {
@@ -212,6 +229,17 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
             onFlyTo={onFlyTo}
             onDirectionChange={onDirectionChange}
           />
+        ) : activeTab === "notes" ? (
+          <Notes
+            notes={notes}
+            editingNoteId={editingNoteId}
+            onSetEditingNoteId={onSetEditingNoteId}
+            onTitleChange={onNoteTitleChange}
+            onTextChange={onNoteTextChange}
+            onDelete={onDeleteNote}
+            onFlyTo={onFlyTo}
+            onAddNote={onAddNote}
+          />
         ) : activeTab === "colour" ? (
           <ColourSpectrum
             spectrum={customSpectrum}
@@ -247,7 +275,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
           <span className="sidebar__hint">Adjust the title in the report preview, then click Save PDF to export.</span>
           <SideBarButton icon={X} label="Close" onClick={onCloseReport} />
         </div>
-      ) : activeTab === "symbols" || activeTab === "colour" ? (
+      ) : activeTab === "symbols" || activeTab === "colour" || activeTab === "notes" ? (
         <div className="sidebar__footer">
           <SideBarButton icon={X} label="Close" onClick={() => setActiveTab("map")} />
         </div>

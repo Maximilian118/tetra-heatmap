@@ -312,6 +312,93 @@ export const deleteSymbol = async (id: string): Promise<void> => {
   );
 };
 
+/* ── Notes API ──────────────────────────────────────────────────── */
+
+/* Shape of a user-created note with an optional polygon area */
+export interface MapNote {
+  id: string;
+  title: string;
+  text: string;
+  color: string;
+  polygon: [number, number][] | null;
+  created_at: string;
+}
+
+/* Fetch all user-created notes, parsing polygon JSON to arrays */
+export const fetchNotes = async (): Promise<MapNote[]> => {
+  const res = await assertOk(await fetch(`${API_BASE}/notes`));
+  const rows = await res.json();
+  return rows.map((r: { polygon: string | null } & Omit<MapNote, "polygon">) => ({
+    ...r,
+    polygon: r.polygon ? JSON.parse(r.polygon) : null,
+  }));
+};
+
+/* Create a new note, stringifying polygon for storage */
+export const createNote = async (note: MapNote): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/notes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...note,
+        polygon: note.polygon ? JSON.stringify(note.polygon) : null,
+      }),
+    })
+  );
+};
+
+/* Update the color of a note */
+export const updateNoteColor = async (id: string, color: string): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/notes/${id}/color`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ color }),
+    })
+  );
+};
+
+/* Update the title of a note */
+export const updateNoteTitle = async (id: string, title: string): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/notes/${id}/title`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    })
+  );
+};
+
+/* Update the text content of a note */
+export const updateNoteText = async (id: string, text: string): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/notes/${id}/text`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    })
+  );
+};
+
+/* Update the polygon vertices of a note */
+export const updateNotePolygon = async (id: string, polygon: [number, number][] | null): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/notes/${id}/polygon`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ polygon: polygon ? JSON.stringify(polygon) : null }),
+    })
+  );
+};
+
+/* Delete a note */
+export const deleteNote = async (id: string): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/notes/${id}`, { method: "DELETE" })
+  );
+};
+
 /* Save new settings, test connection, and restart sync service */
 export const saveSettings = async (settings: Settings): Promise<SettingsResponse> => {
   const res = await assertOk(
