@@ -218,7 +218,14 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
             onSpectrumChange={onSpectrumChange}
           />
         ) : activeTab === "report" ? (
-          null
+          <MapPresets
+            mapStyle={mapStyle}
+            layerType={layerType}
+            kmlLoaded={kmlLoaded}
+            onStyleChange={onStyleChange}
+            onLayerTypeChange={onLayerTypeChange}
+            onKmlLoad={onKmlLoad}
+          />
         ) : (
           <DatabaseSettings ref={dbRef} onStateChange={handleDbStateChange} onShowStats={onShowStats} />
         )}
