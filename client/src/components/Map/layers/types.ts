@@ -33,6 +33,7 @@ export interface LayerBuildParams {
   visiblePointFolders: KmlFolder[];
   adjustedPointPositions: Map<object, [number, number]>;
   /* Symbols */
+  bearing: number;
   symbols: MapSymbol[];
   bgAtlasUrl: string;
   fgAtlasUrl: string;

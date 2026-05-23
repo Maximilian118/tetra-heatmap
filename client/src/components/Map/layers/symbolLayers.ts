@@ -9,7 +9,7 @@ import type { LayerBuildParams } from "./types";
    Two layers: backgrounds (rotates for directional) and foregrounds (always upright). */
 export const buildSymbolLayers = (params: LayerBuildParams) => {
   const {
-    symbols, bgAtlasUrl, fgAtlasUrl, selectedSymbolId, symbolSize,
+    bearing, symbols, bgAtlasUrl, fgAtlasUrl, selectedSymbolId, symbolSize,
     draggingSymbolId, setSelectedSymbolId, setDraggingSymbolId, setSymbols,
   } = params;
 
@@ -21,7 +21,7 @@ export const buildSymbolLayers = (params: LayerBuildParams) => {
     iconAtlas: bgAtlasUrl,
     iconMapping: ICON_MAPPING,
     getIcon: (d) => d.backup ? `${d.type}-backup` : d.type,
-    getAngle: (d) => d.type === "repeater-directional" ? -(d.direction ?? 0) : 0,
+    getAngle: (d) => d.type === "repeater-directional" ? -(d.direction ?? 0) + bearing : 0,
     getSize: (d) => d.id === selectedSymbolId ? symbolSize + 16 : symbolSize,
     getColor: (d): [number, number, number, number] => d.inactive ? [255, 255, 255, 60] : [255, 255, 255, 255],
     sizeMinPixels: 20,
@@ -31,6 +31,7 @@ export const buildSymbolLayers = (params: LayerBuildParams) => {
     parameters: { depthTest: false } as any,
     transitions: { getSize: { duration: 80 } },
     updateTriggers: {
+      getAngle: [symbols, bearing],
       getIcon: [symbols],
       getColor: [symbols],
       getSize: [selectedSymbolId, symbolSize],

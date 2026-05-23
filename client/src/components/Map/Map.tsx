@@ -92,6 +92,7 @@ const Map = () => {
     visibleLineFolders: kml.visibleLineFolders,
     visiblePointFolders: kml.visiblePointFolders,
     adjustedPointPositions: kml.adjustedPointPositions,
+    bearing: viewport.bearing,
     symbols: sym.symbols,
     bgAtlasUrl,
     fgAtlasUrl,
@@ -109,7 +110,7 @@ const Map = () => {
     kml.kmlGeoJson, kml.kmlScopeReadings, kml.scopeAdjusting, kml.kmlData,
     kml.kmlLayerStyles, kml.visibleLineFolders, kml.visiblePointFolders,
     kml.adjustedPointPositions,
-    sym.symbols, bgAtlasUrl, fgAtlasUrl, sym.selectedSymbolId, sym.symbolSize,
+    viewport.bearing, sym.symbols, bgAtlasUrl, fgAtlasUrl, sym.selectedSymbolId, sym.symbolSize,
     sym.draggingSymbolId, sym.setSelectedSymbolId, sym.setDraggingSymbolId, sym.setSymbols,
   ]);
 
@@ -131,6 +132,7 @@ const Map = () => {
     visibleLineFolders: kml.visibleLineFolders,
     visiblePointFolders: kml.visiblePointFolders,
     adjustedPointPositions: kml.adjustedPointPositions,
+    bearing: 0,
     symbols: sym.symbols,
     bgAtlasUrl,
     fgAtlasUrl,
