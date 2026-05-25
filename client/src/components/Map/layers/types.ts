@@ -51,6 +51,7 @@ export interface LayerBuildParams {
   /* Notes */
   notes: MapNote[];
   editingNoteId: string | null;
+  onNoteAreaClick: (id: string | null) => void;
   onNotePolygonUpdate: (id: string, polygon: [number, number][]) => void;
   setDraggingVertexNoteId: (id: string | null) => void;
   setNoteTooltip: (t: NoteTooltipInfo | null) => void;

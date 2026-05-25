@@ -21,7 +21,7 @@ interface VertexHandle {
 
 /* Build deck.gl layers for note polygon areas and vertex editing handles */
 export const buildNoteLayers = (params: LayerBuildParams) => {
-  const { notes, editingNoteId, onNotePolygonUpdate, setDraggingVertexNoteId, setNoteTooltip } = params;
+  const { notes, editingNoteId, onNoteAreaClick, onNotePolygonUpdate, setDraggingVertexNoteId, setNoteTooltip } = params;
 
   /* Filter to notes that have polygon areas */
   const notesWithPolygon = notes.filter((n) => n.polygon && n.polygon.length >= 3);
@@ -40,6 +40,11 @@ export const buildNoteLayers = (params: LayerBuildParams) => {
     pickable: true,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     parameters: { depthTest: false } as any,
+    onClick: (info: PickingInfo<MapNote>) => {
+      if (info.object) {
+        onNoteAreaClick(info.object.id === editingNoteId ? null : info.object.id);
+      }
+    },
     onHover: (info: PickingInfo<MapNote>) => {
       if (info.object) {
         setNoteTooltip({

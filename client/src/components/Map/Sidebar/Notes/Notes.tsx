@@ -77,7 +77,7 @@ const Notes = ({ notes, editingNoteId, onSetEditingNoteId, onTitleChange, onText
   };
 
   return (
-    <div className="notes">
+    <div className="notes" onClick={() => onSetEditingNoteId(null)}>
       {/* Draggable area marker palette */}
       <span className="notes__label">Drag to Place Area</span>
       <div className="notes__palette">
@@ -120,6 +120,7 @@ const Notes = ({ notes, editingNoteId, onSetEditingNoteId, onTitleChange, onText
             <div
               key={note.id}
               className={`notes__item ${note.id === editingNoteId ? "notes__item--selected" : ""}`}
+              onClick={(e) => e.stopPropagation()}
               draggable={!note.polygon}
               onDragStart={(e) => {
                 if (note.polygon) return;

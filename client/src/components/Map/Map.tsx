@@ -110,6 +110,10 @@ const Map = () => {
     draggingSymbolId: sym.draggingSymbolId,
     notes: nt.notes,
     editingNoteId: nt.editingNoteId,
+    onNoteAreaClick: (id: string | null) => {
+      nt.setEditingNoteId(id);
+      if (id) setNotesTabTrigger((n) => n + 1);
+    },
     onNotePolygonUpdate: nt.handlePolygonUpdate,
     setDraggingVertexNoteId: nt.setDraggingVertexNoteId,
     setNoteTooltip,
@@ -156,6 +160,7 @@ const Map = () => {
     draggingSymbolId: null,
     notes: nt.notes,
     editingNoteId: null,
+    onNoteAreaClick: () => {},
     onNotePolygonUpdate: () => {},
     setDraggingVertexNoteId: () => {},
     setNoteTooltip: () => {},
@@ -285,7 +290,7 @@ const Map = () => {
           onViewStateChange={viewport.handleViewStateChange}
           onError={handleDeckError}
           getCursor={({ isHovering }) => isHovering ? "pointer" : "grab"}
-          onClick={(info) => { if (!info.object) sym.setSelectedSymbolId(null); }}
+          onClick={(info) => { if (!info.object) { sym.setSelectedSymbolId(null); nt.setEditingNoteId(null); } }}
         >
           <MapGL
             mapboxAccessToken={mapboxToken}
