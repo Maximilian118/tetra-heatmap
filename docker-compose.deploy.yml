@@ -1,0 +1,42 @@
+# Deployment compose for the Riedel v2075 host.
+# Runs tetra-heatmap on the external `v2075` macvlan at 10.44.75.62, auto-updated by
+# the shared Watchtower (which watches any container carrying the enable label below).
+#
+# This app runs as ROOT and stores everything in its local SQLite DB at
+# /app/server/data (DB credentials for the remote MySQL are configured in the app UI
+# and persisted there) — so there are NO runtime secrets and NO chown needed.
+#
+# ── ONE-TIME SETUP ON THE HOST ───────────────────────────────────────────────
+#   mkdir -p /root/containers/tetra-heatmap/data
+#   docker login reg.p1.riedel.events
+#   docker compose -f docker-compose.deploy.yml pull
+#   docker compose -f docker-compose.deploy.yml up -d
+#
+# Reachable at http://10.44.75.62/ on the v2075 network (PORT=80 in-container).
+
+services:
+  tetra-heatmap:
+    image: reg.p1.riedel.events/tetra-heatmap:latest
+    container_name: tetra-heatmap
+    restart: always
+    volumes:
+      # Persistent SQLite state (rssi.db + app settings, incl. remote-DB config).
+      - /root/containers/tetra-heatmap/data:/app/server/data
+    environment:
+      - PORT=80
+    networks:
+      v2075:
+        ipv4_address: 10.44.75.62
+    labels:
+      # Opt into the host's shared Watchtower (label-enable mode).
+      - com.centurylinklabs.watchtower.enable=true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  v2075:
+    name: v2075
+    external: true     # IT created the macvlan; we only reference it

@@ -1,0 +1,70 @@
+name: Build and publish to Riedel registry
+
+# Publishes the image to Riedel's private registry (reg.p1.riedel.events) for the
+# v2075 host deploy at 10.44.75.62. Coexists with docker.yml (public GHCR build).
+#
+# Branch model (gated — see the `gate` step):
+#   - dev / feature pushes → build ONLY (validate the Dockerfile, publish nothing)
+#   - pull requests        → build ONLY (gate the merge on a clean build)
+#   - main / v* tag        → build AND push to reg.p1.riedel.events
+#   - manual dispatch      → build AND push
+#
+# Pushing :latest is what triggers the shared Watchtower on the v2075 host to roll
+# the running container. Requires repo secrets REGISTRY_USER and REGISTRY_PASS.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:          # manual trigger from the Actions tab (also publishes)
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest    # Linux runner = 1x minute multiplier (cheapest)
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Derive image tags
+        id: meta
+        run: |
+          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Decide whether to publish
+        id: gate
+        # Publish only for main, version tags, or a manual run.
+        # dev pushes and pull requests build-only (push stays false).
+        run: |
+          if [ "$GITHUB_REF" = "refs/heads/main" ] \
+             || [ "$GITHUB_REF" != "${GITHUB_REF#refs/tags/v}" ] \
+             || [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "push=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to reg.p1.riedel.events
+        if: steps.gate.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: reg.p1.riedel.events
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_PASS }}
+
+      - name: Build (and push on main / tags)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64        # the v2075 host is x86_64 — amd64 only
+          push: ${{ steps.gate.outputs.push }}
+          tags: |
+            reg.p1.riedel.events/tetra-heatmap:latest
+            reg.p1.riedel.events/tetra-heatmap:v${{ steps.meta.outputs.version }}
+            reg.p1.riedel.events/tetra-heatmap:sha-${{ steps.meta.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

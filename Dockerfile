@@ -18,6 +18,9 @@ RUN npm run build
 # =============================================================
 FROM node:22-slim AS production
 
+# Link the registry image back to the source repo.
+LABEL org.opencontainers.image.source=https://github.com/Maximilian118/tetra-heatmap
+
 # Install build tools required by better-sqlite3 native compilation
 RUN apt-get update && \
     apt-get install -y --no-install-recommends python3 make g++ && \
