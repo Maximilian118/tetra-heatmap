@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type MutableRefObject } from "react";
+import { generateUUID } from "../../../utils/uuid";
 import {
   fetchNotes,
   createNote,
@@ -48,7 +49,7 @@ export const useNotes = (params: UseNotesParams) => {
   /* Create a text-only note (no polygon) */
   const handleAddNote = useCallback(async () => {
     const note: MapNote = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       title: nextTitle(),
       text: "",
       color: "#589cdc",
@@ -165,7 +166,7 @@ export const useNotes = (params: UseNotesParams) => {
     } else {
       /* Create a brand-new note from the colour palette */
       const note: MapNote = {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         title: nextTitle(),
         text: "",
         color: noteColor,

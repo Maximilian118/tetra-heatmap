@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type MutableRefObject } from "react";
+import { generateUUID } from "../../../utils/uuid";
 import { fetchSymbols, createSymbol, updateSymbolDirection, updateSymbolBackup, updateSymbolInactive, updateSymbolSize as apiUpdateSymbolSize, deleteSymbol as apiDeleteSymbol, type MapSymbol } from "../../../utils/api";
 
 interface UseSymbolsParams {
@@ -130,7 +131,7 @@ export const useSymbols = (params: UseSymbolsParams) => {
     const [longitude, latitude] = viewport.unproject([x, y]);
 
     const symbol: MapSymbol = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       type: symbolType,
       label: "",
       longitude,

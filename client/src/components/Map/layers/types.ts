@@ -42,6 +42,7 @@ export interface LayerBuildParams {
   adjustedPointPositions: Map<object, [number, number]>;
   /* Symbols */
   bearing: number;
+  zoom: number;
   symbols: MapSymbol[];
   bgAtlasUrl: string;
   fgAtlasUrl: string;
@@ -49,6 +50,7 @@ export interface LayerBuildParams {
   symbolSize: number;
   draggingSymbolId: string | null;
   /* Notes */
+  reportMode: boolean;
   notes: MapNote[];
   editingNoteId: string | null;
   onNoteAreaClick: (id: string | null) => void;

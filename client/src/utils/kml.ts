@@ -239,7 +239,7 @@ function fastDistance(
 }
 
 /* Ray-casting point-in-polygon test. Point and ring are [lng, lat]. */
-function pointInPolygon(
+export function pointInPolygon(
   px: number,
   py: number,
   ring: [number, number][]
@@ -609,4 +609,160 @@ export function buildKmlResult(
     geoJson: { type: "FeatureCollection", features },
     scopeReadings,
   };
+}
+
+/* ── Line-polygon clipping ─────────────────────────────────────── */
+
+/* Intersection point of two line segments (a1→a2 and b1→b2).
+   Returns the point and parameter t along segment a, or null if no crossing. */
+function segmentIntersection(
+  a1: [number, number], a2: [number, number],
+  b1: [number, number], b2: [number, number]
+): { point: [number, number]; t: number } | null {
+  const dx1 = a2[0] - a1[0];
+  const dy1 = a2[1] - a1[1];
+  const dx2 = b2[0] - b1[0];
+  const dy2 = b2[1] - b1[1];
+  const denom = dx1 * dy2 - dy1 * dx2;
+  if (Math.abs(denom) < 1e-12) return null;
+
+  const dx3 = b1[0] - a1[0];
+  const dy3 = b1[1] - a1[1];
+  const t = (dx3 * dy2 - dy3 * dx2) / denom;
+  const u = (dx3 * dy1 - dy3 * dx1) / denom;
+  if (t < 0 || t > 1 || u < 0 || u > 1) return null;
+
+  return { point: [a1[0] + t * dx1, a1[1] + t * dy1], t };
+}
+
+/* Check if two line segments intersect */
+export function segmentsIntersect(
+  a1: [number, number], a2: [number, number],
+  b1: [number, number], b2: [number, number]
+): boolean {
+  return segmentIntersection(a1, a2, b1, b2) !== null;
+}
+
+/* Clip a polyline to a polygon, returning only the sub-paths that lie inside.
+   Each returned sub-path is a continuous [lng, lat][] sequence. */
+export function clipLineToPolygon(
+  line: [number, number][],
+  polygon: [number, number][]
+): [number, number][][] {
+  if (line.length < 2 || polygon.length < 3) return [];
+
+  const result: [number, number][][] = [];
+  let current: [number, number][] = [];
+
+  for (let i = 0; i < line.length - 1; i++) {
+    const p1 = line[i];
+    const p2 = line[i + 1];
+    const p1In = pointInPolygon(p1[0], p1[1], polygon);
+    const p2In = pointInPolygon(p2[0], p2[1], polygon);
+
+    /* Find all crossings with polygon edges sorted by parameter t */
+    const crossings: { point: [number, number]; t: number }[] = [];
+    for (let j = 0, k = polygon.length - 1; j < polygon.length; k = j++) {
+      const hit = segmentIntersection(p1, p2, polygon[k], polygon[j]);
+      if (hit) crossings.push(hit);
+    }
+    crossings.sort((a, b) => a.t - b.t);
+
+    if (crossings.length === 0) {
+      if (p1In && p2In) {
+        if (current.length === 0) current.push(p1);
+        current.push(p2);
+      } else {
+        if (current.length >= 2) result.push(current);
+        current = [];
+      }
+    } else {
+      let inside = p1In;
+      let lastPt = p1;
+
+      for (const c of crossings) {
+        if (inside) {
+          if (current.length === 0) current.push(lastPt);
+          current.push(c.point);
+          result.push(current);
+          current = [];
+        } else {
+          current = [c.point];
+        }
+        inside = !inside;
+        lastPt = c.point;
+      }
+
+      if (inside) {
+        if (current.length === 0) current.push(lastPt);
+        current.push(p2);
+      } else {
+        if (current.length >= 2) result.push(current);
+        current = [];
+      }
+    }
+  }
+
+  if (current.length >= 2) result.push(current);
+  return result;
+}
+
+/* ── Polygon-polygon clipping (Sutherland-Hodgman) ─────────────── */
+
+/* Compute the intersection point of two infinite lines defined by (a1→a2) and (b1→b2) */
+function lineLineIntersection(
+  a1: [number, number], a2: [number, number],
+  b1: [number, number], b2: [number, number]
+): [number, number] {
+  const dx1 = a2[0] - a1[0], dy1 = a2[1] - a1[1];
+  const dx2 = b2[0] - b1[0], dy2 = b2[1] - b1[1];
+  const denom = dx1 * dy2 - dy1 * dx2;
+  const t = ((b1[0] - a1[0]) * dy2 - (b1[1] - a1[1]) * dx2) / denom;
+  return [a1[0] + t * dx1, a1[1] + t * dy1];
+}
+
+/* Clip a subject polygon by a convex or concave clip polygon using
+   Sutherland-Hodgman. Returns the intersection polygon, or [] if no overlap.
+   Both polygons are [lng, lat][] rings (not closed — last vertex connects to first). */
+export function clipPolygonToPolygon(
+  subject: [number, number][],
+  clip: [number, number][]
+): [number, number][] {
+  if (subject.length < 3 || clip.length < 3) return [];
+
+  let output = [...subject];
+
+  for (let i = 0, j = clip.length - 1; i < clip.length; j = i++) {
+    if (output.length === 0) return [];
+
+    const edgeA = clip[j];
+    const edgeB = clip[i];
+    const input = output;
+    output = [];
+
+    for (let k = 0, l = input.length - 1; k < input.length; l = k++) {
+      const curr = input[k];
+      const prev = input[l];
+
+      /* Check which side of the clip edge each point is on.
+         Positive cross product = inside (left of edge direction). */
+      const currInside = (edgeB[0] - edgeA[0]) * (curr[1] - edgeA[1]) -
+                         (edgeB[1] - edgeA[1]) * (curr[0] - edgeA[0]) >= 0;
+      const prevInside = (edgeB[0] - edgeA[0]) * (prev[1] - edgeA[1]) -
+                         (edgeB[1] - edgeA[1]) * (prev[0] - edgeA[0]) >= 0;
+
+      if (currInside) {
+        if (!prevInside) {
+          /* Entering — add intersection point */
+          output.push(lineLineIntersection(prev, curr, edgeA, edgeB));
+        }
+        output.push(curr);
+      } else if (prevInside) {
+        /* Leaving — add intersection point */
+        output.push(lineLineIntersection(prev, curr, edgeA, edgeB));
+      }
+    }
+  }
+
+  return output;
 }

@@ -246,14 +246,30 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
             onSpectrumChange={onSpectrumChange}
           />
         ) : activeTab === "report" ? (
-          <MapPresets
-            mapStyle={mapStyle}
-            layerType={layerType}
-            kmlLoaded={kmlLoaded}
-            onStyleChange={onStyleChange}
-            onLayerTypeChange={onLayerTypeChange}
-            onKmlLoad={onKmlLoad}
-          />
+          <>
+            <MapPresets
+              mapStyle={mapStyle}
+              layerType={layerType}
+              kmlLoaded={kmlLoaded}
+              onStyleChange={onStyleChange}
+              onLayerTypeChange={onLayerTypeChange}
+              onKmlLoad={onKmlLoad}
+            />
+            <Customise
+              layerType={layerType}
+              settings={layerSettings}
+              onSettingsChange={onSettingsChange}
+              onScopeAdjusting={onScopeAdjusting}
+              onOpenColour={() => setActiveTab("colour")}
+            />
+            {layerType === "kml" && kmlFolders.length > 0 && (
+              <KmlLayers
+                folders={kmlFolders}
+                styles={kmlLayerStyles}
+                onStyleChange={onKmlLayerStyleChange}
+              />
+            )}
+          </>
         ) : (
           <DatabaseSettings ref={dbRef} onStateChange={handleDbStateChange} onShowStats={onShowStats} />
         )}

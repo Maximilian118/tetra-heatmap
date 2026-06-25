@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import DeckGL from "@deck.gl/react";
 import { Map as MapGL } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -6,6 +6,7 @@ import { buildBgAtlas, buildFgAtlas } from "../../utils/symbols";
 import { useServerSettings, useMapViewport, useReadings, useFilterPipeline, useLayerConfig, useKml, useSymbols, useNotes } from "./hooks";
 import { buildLayers } from "./layers";
 import type { NoteTooltipInfo } from "./layers/types";
+import type { KmlLayerStyle } from "../../utils/kml";
 import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
 import KmlTooltip, { type KmlTooltipInfo } from "./Tooltip/KmlTooltip";
 import Sidebar from "./Sidebar/Sidebar";
@@ -34,6 +35,8 @@ const Map = () => {
 
   /* ─── Report mode state ─── */
   const [reportMode, setReportMode] = useState(false);
+  const preReportMapStyleRef = useRef<string | null>(null);
+  const preReportKmlStylesRef = useRef<Record<string, KmlLayerStyle> | null>(null);
 
   /* ─── Notes tab trigger ─── */
   const [notesTabTrigger, setNotesTabTrigger] = useState(0);
@@ -102,12 +105,14 @@ const Map = () => {
     visiblePointFolders: kml.visiblePointFolders,
     adjustedPointPositions: kml.adjustedPointPositions,
     bearing: viewport.bearing,
+    zoom: viewport.liveViewState?.zoom ?? 12,
     symbols: sym.symbols,
     bgAtlasUrl,
     fgAtlasUrl,
     selectedSymbolId: sym.selectedSymbolId,
     symbolSize: sym.symbolSize,
     draggingSymbolId: sym.draggingSymbolId,
+    reportMode: false,
     notes: nt.notes,
     editingNoteId: nt.editingNoteId,
     onNoteAreaClick: (id: string | null) => {
@@ -128,7 +133,7 @@ const Map = () => {
     kml.kmlGeoJson, kml.kmlScopeReadings, kml.scopeAdjusting, kml.kmlData,
     kml.kmlLayerStyles, kml.visibleLineFolders, kml.visiblePointFolders,
     kml.adjustedPointPositions,
-    viewport.bearing, sym.symbols, bgAtlasUrl, fgAtlasUrl, sym.selectedSymbolId, sym.symbolSize,
+    viewport.bearing, viewport.liveViewState?.zoom, sym.symbols, bgAtlasUrl, fgAtlasUrl, sym.selectedSymbolId, sym.symbolSize,
     sym.draggingSymbolId, sym.setSelectedSymbolId, sym.setDraggingSymbolId, sym.setSymbols,
     nt.notes, nt.editingNoteId, nt.handlePolygonUpdate, nt.setDraggingVertexNoteId,
   ]);
@@ -152,12 +157,14 @@ const Map = () => {
     visiblePointFolders: kml.visiblePointFolders,
     adjustedPointPositions: kml.adjustedPointPositions,
     bearing: 0,
+    zoom: viewport.liveViewState?.zoom ?? 12,
     symbols: sym.symbols,
     bgAtlasUrl,
     fgAtlasUrl,
     selectedSymbolId: null,
     symbolSize: sym.symbolSize,
     draggingSymbolId: null,
+    reportMode: true,
     notes: nt.notes,
     editingNoteId: null,
     onNoteAreaClick: () => {},
@@ -207,6 +214,37 @@ const Map = () => {
   const handleToggleRegister = useCallback(() => {
     setRegisterOpen((prev) => !prev);
   }, []);
+
+  /* Enter report mode: switch to light map style and set Lines/Turns KML layers to black */
+  const handleGenerateReport = useCallback(() => {
+    preReportMapStyleRef.current = mapStyle;
+    setMapStyle("mapbox://styles/mapbox/light-v11");
+
+    const currentStyles = kml.kmlLayerStyles;
+    preReportKmlStylesRef.current = currentStyles;
+    const patched = { ...currentStyles };
+    for (const name of ["Lines", "Turns"]) {
+      if (patched[name]) {
+        patched[name] = { ...patched[name], color: [0, 0, 0] as [number, number, number] };
+      }
+    }
+    kml.setKmlLayerStyles(patched);
+
+    setReportMode(true);
+  }, [mapStyle, kml.kmlLayerStyles, kml.setKmlLayerStyles]);
+
+  /* Exit report mode: restore previous map style and KML layer colours */
+  const handleCloseReport = useCallback(() => {
+    if (preReportMapStyleRef.current !== null) {
+      setMapStyle(preReportMapStyleRef.current);
+      preReportMapStyleRef.current = null;
+    }
+    if (preReportKmlStylesRef.current !== null) {
+      kml.setKmlLayerStyles(preReportKmlStylesRef.current);
+      preReportKmlStylesRef.current = null;
+    }
+    setReportMode(false);
+  }, [kml.setKmlLayerStyles]);
 
   /* ─── Early returns ─── */
 
@@ -275,8 +313,8 @@ const Map = () => {
         onAddNote={nt.handleAddNote}
         notesTabTrigger={notesTabTrigger}
         reportMode={reportMode}
-        onGenerateReport={() => setReportMode(true)}
-        onCloseReport={() => setReportMode(false)}
+        onGenerateReport={handleGenerateReport}
+        onCloseReport={handleCloseReport}
       />
 
       <div className="map-area" onDragOver={handleMapDragOver} onDrop={handleMapDrop}>
@@ -367,7 +405,7 @@ const Map = () => {
             customSpectrum={config.customSpectrum}
             symbols={sym.symbols}
             kmlGeoJson={kml.kmlGeoJson}
-            onClose={() => setReportMode(false)}
+            onClose={handleCloseReport}
           />
         )}
       </div>

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { generateUUID } from "../../../../utils/uuid";
 import { Trash2, Plus, RotateCcw } from "lucide-react";
 import type { CustomSpectrum, ColourStop } from "../../../../utils/rssi";
 import { DEFAULT_CUSTOM_SPECTRUM } from "../../../../utils/rssi";
@@ -135,7 +136,7 @@ const ColourSpectrum = ({ spectrum, onSpectrumChange }: ColourSpectrumProps) => 
     );
 
     newStops.splice(widestIdx + 1, 0, {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       minDbm: mid + 1,
       maxDbm: target.maxDbm,
       color: [128, 128, 128],
@@ -151,7 +152,7 @@ const ColourSpectrum = ({ spectrum, onSpectrumChange }: ColourSpectrumProps) => 
       ...spectrum,
       stops: DEFAULT_CUSTOM_SPECTRUM.stops.map((s) => ({
         ...s,
-        id: crypto.randomUUID(),
+        id: generateUUID(),
       })),
     });
   };
