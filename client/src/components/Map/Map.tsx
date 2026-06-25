@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import DeckGL from "@deck.gl/react";
 import { Map as MapGL } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -6,7 +6,7 @@ import { buildBgAtlas, buildFgAtlas } from "../../utils/symbols";
 import { useServerSettings, useMapViewport, useReadings, useFilterPipeline, useLayerConfig, useKml, useSymbols, useNotes } from "./hooks";
 import { buildLayers } from "./layers";
 import type { NoteTooltipInfo } from "./layers/types";
-import type { KmlLayerStyle } from "../../utils/kml";
+import { getDefaultKmlLayerStyles, type KmlLayerStyle } from "../../utils/kml";
 import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
 import KmlTooltip, { type KmlTooltipInfo } from "./Tooltip/KmlTooltip";
 import Sidebar from "./Sidebar/Sidebar";
@@ -37,6 +37,8 @@ const Map = () => {
   const [reportMode, setReportMode] = useState(false);
   const preReportMapStyleRef = useRef<string | null>(null);
   const preReportKmlStylesRef = useRef<Record<string, KmlLayerStyle> | null>(null);
+  const reportModeRef = useRef(false);
+  reportModeRef.current = reportMode;
 
   /* ─── Notes tab trigger ─── */
   const [notesTabTrigger, setNotesTabTrigger] = useState(0);
@@ -82,6 +84,21 @@ const Map = () => {
     activeRssiToColor: config.activeRssiToColor,
     setKmlTooltip: setKmlTooltipNull,
   });
+
+  /* When KML data changes while in report mode, re-apply black Lines/Turns
+     and update the pre-report snapshot so closing restores correct styles */
+  useEffect(() => {
+    if (!reportModeRef.current || !kml.kmlData) return;
+    const defaults = getDefaultKmlLayerStyles(kml.kmlData.folders);
+    preReportKmlStylesRef.current = defaults;
+    const patched = { ...defaults };
+    for (const name of ["Lines", "Turns"]) {
+      if (patched[name]) {
+        patched[name] = { ...patched[name], color: [0, 0, 0] as [number, number, number] };
+      }
+    }
+    kml.setKmlLayerStyles(patched);
+  }, [kml.kmlData, kml.setKmlLayerStyles]);
 
   /* ─── Symbol icon atlases (built once at mount) ─── */
   const bgAtlasUrl = useMemo(() => buildBgAtlas().toDataURL(), []);

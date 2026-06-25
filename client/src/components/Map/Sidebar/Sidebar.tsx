@@ -298,7 +298,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
       ) : (
         <div className="sidebar__footer">
           {dbStatusMessage && <span className="sidebar__message">{dbStatusMessage}</span>}
-          <span className="sidebar__hint">v0.3.0</span>
+          <span className="sidebar__hint">v0.4.0</span>
           <SideBarButton
             icon={RotateCcw}
             label={resetting ? "Resetting..." : "Reset Cache"}

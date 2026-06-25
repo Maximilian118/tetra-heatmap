@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.0] — 2026-06-25
+
+### Fixed
+- **KML layers not styled in report mode** — Loading a KML file while the PDF Viewer is already open now correctly colours Lines and Turns layers black.
+- **KML data disappearing on report close** — Closing the PDF Viewer after loading a KML file during report mode no longer wipes the KML layer data from the main map.
+
 ## [0.3.0] — 2026-06-25
 
 ### Added
