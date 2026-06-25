@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.0] — 2026-06-25
+
+### Added
+- **Version indicator** — App version now displayed in the Settings tab footer.
+
 ## [0.2.0] — 2026-06-25
 
 ### Added
