@@ -133,11 +133,11 @@ const ReportPreview = ({ createLayers, mapboxToken, mapStyle, initialViewState, 
 
           {/* North arrow — the whole container rotates, but the "N" counter-rotates to stay upright */}
           <div className="report-preview__north" onClick={() => setViewState((v) => ({ ...v, bearing: 0 }))} style={{ cursor: Math.abs(viewState.bearing ?? 0) > 0.5 ? "pointer" : "default", transform: `rotate(${-(viewState.bearing ?? 0)}deg)`, transition: "transform 0.3s ease" }}>
-            <svg width="32" height="32" viewBox="0 0 32 32">
+            <svg className="report-preview__north-svg" viewBox="0 0 32 32">
               <polygon points="16,2 8,24 16,19" fill="#1a1a1a" />
               <polygon points="16,2 24,24 16,19" fill="#555" />
             </svg>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a1a", marginTop: -4, transform: `rotate(${viewState.bearing ?? 0}deg)`, transition: "transform 0.3s ease" }}>N</span>
+            <span className="report-preview__north-label" style={{ transform: `rotate(${viewState.bearing ?? 0}deg)`, transition: "transform 0.3s ease" }}>N</span>
           </div>
 
           {/* Bottom-left overlay: legend + optional sector stats */}

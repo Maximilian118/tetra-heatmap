@@ -366,10 +366,9 @@ export const buildNoteLayers = (params: LayerBuildParams) => {
     },
   })
 
-  /* In report mode, only show KML highlights — no interactive note zones or vertex handles.
-     Include areaLayer temporarily to debug visibility. */
+  /* In report mode, only show KML highlights — no interactive note zones or vertex handles */
   if (reportMode) {
-    return [areaLayer, sectorHighlightLayer, borderLayer, hatchLayer, lineHighlightLayer]
+    return [sectorHighlightLayer, borderLayer, hatchLayer, lineHighlightLayer]
   }
 
   return [areaLayer, sectorHighlightLayer, borderLayer, hatchLayer, lineHighlightLayer, vertexLayer]

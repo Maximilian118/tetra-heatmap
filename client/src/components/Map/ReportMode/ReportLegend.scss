@@ -2,55 +2,55 @@
 .report-legend {
   background: #fff;
   border: 1px solid #ccc;
-  border-radius: 2px;
-  padding: 10px 14px;
+  border-radius: 0.26cqi;
+  padding: 1.31cqi 1.83cqi;
   font-family: inherit;
-  min-width: 150px;
+  min-width: 19.64cqi;
 }
 
 /* "Legend" heading */
 .report-legend__heading {
-  font-size: 14px;
+  font-size: 1.83cqi;
   font-weight: 700;
   color: #000;
-  margin-bottom: 6px;
+  margin-bottom: 0.78cqi;
   border-bottom: 1px solid #ccc;
-  padding-bottom: 4px;
+  padding-bottom: 0.52cqi;
 }
 
 /* "RSSI Level (dBm)" subtitle */
 .report-legend__subtitle {
-  font-size: 11px;
+  font-size: 1.44cqi;
   color: #333;
-  margin-bottom: 6px;
+  margin-bottom: 0.78cqi;
 }
 
 /* Colour swatch rows */
 .report-legend__bands {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  margin-bottom: 6px;
+  gap: 0.39cqi;
+  margin-bottom: 0.78cqi;
 }
 
 .report-legend__band {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.78cqi;
 }
 
 /* Coloured rectangle swatch */
 .report-legend__swatch {
   display: inline-block;
-  width: 20px;
-  height: 12px;
+  width: 2.62cqi;
+  height: 1.57cqi;
   border: 0.5px solid rgba(0, 0, 0, 0.2);
   flex-shrink: 0;
 }
 
 /* Text label for each band or symbol */
 .report-legend__label {
-  font-size: 11px;
+  font-size: 1.44cqi;
   color: #222;
   white-space: nowrap;
 }
@@ -59,42 +59,42 @@
 .report-legend__symbols {
   display: flex;
   flex-direction: column;
-  margin-bottom: 8px;
-  gap: 2px;
+  margin-bottom: 1.05cqi;
+  gap: 0.26cqi;
 }
 
 /* Single symbol row — icon + label */
 .report-legend__symbol {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 0.52cqi;
 }
 
 /* Canvas element rendering the actual map symbol icon */
 .report-legend__icon {
   flex-shrink: 0;
-  width: 18px;
-  height: 18px;
+  width: 2.36cqi;
+  height: 2.36cqi;
 }
 
 /* Scale bar container */
 .report-legend__scale {
-  margin-top: 4px;
+  margin-top: 0.52cqi;
 }
 
 /* Scale bar numeric labels */
 .report-legend__scale-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 1.31cqi;
   color: #222;
-  margin-bottom: 2px;
+  margin-bottom: 0.26cqi;
 }
 
 /* The actual bar — two halves side by side */
 .report-legend__scale-bar {
   display: flex;
-  height: 6px;
+  height: 0.78cqi;
 }
 
 /* Alternating dark/light segments like the example */

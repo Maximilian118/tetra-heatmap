@@ -2,7 +2,7 @@
 .report-banner {
   display: flex;
   flex-direction: column;
-  padding: 16px 28px 32px;
+  padding: 2.10cqi 3.67cqi 4.19cqi;
   background: #c8102e;
   flex-shrink: 0;
 }
@@ -11,12 +11,12 @@
 .report-banner__top {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 8px;
+  margin-bottom: 1.05cqi;
 }
 
 /* White Riedel logo SVG — small, top-right */
 .report-banner__logo {
-  height: 44px;
+  height: 5.76cqi;
   width: auto;
   flex-shrink: 0;
 }
@@ -24,13 +24,13 @@
 /* Editable title — large bold white text, left-aligned */
 .report-banner__title {
   width: 100%;
-  font-size: 28px;
+  font-size: 3.67cqi;
   font-weight: 700;
   color: #fff;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 6px 8px 8px;
+  border-radius: 0.52cqi;
+  padding: 0.78cqi 1.05cqi 1.05cqi;
   line-height: 1.2;
   margin: 0;
   overflow: visible;

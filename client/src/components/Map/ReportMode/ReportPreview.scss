@@ -29,6 +29,7 @@
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
   z-index: 1;
+  container-type: inline-size;
 }
 
 /* Map area — contains the dedicated DeckGL + MapGL instance */
@@ -44,7 +45,7 @@
   top: 0;
   left: 0;
   right: 0;
-  bottom: -40px;
+  bottom: -6.55cqi;
 }
 
 /* Static map screenshot — only inserted temporarily during PDF capture */
@@ -61,23 +62,37 @@
 /* North arrow — top-right of the map area, z-index above the static capture image */
 .report-preview__north {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 1.31cqi;
+  right: 1.31cqi;
   display: flex;
   flex-direction: column;
   align-items: center;
   z-index: 2;
 }
 
+/* North arrow SVG — scales with the report frame */
+.report-preview__north-svg {
+  width: 5.24cqi;
+  height: 5.24cqi;
+}
+
+/* "N" label below the north arrow */
+.report-preview__north-label {
+  font-size: 1.96cqi;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-top: -0.65cqi;
+}
+
 /* Bottom-left container for legend + optional sector stats side-by-side */
 .report-preview__bottom-left {
   position: absolute;
-  bottom: 16px;
-  left: 16px;
+  bottom: 2.62cqi;
+  left: 2.62cqi;
   z-index: 2;
   display: flex;
   align-items: stretch;
-  gap: 8px;
+  gap: 1.31cqi;
 }
 
 /* Action buttons below the frame */

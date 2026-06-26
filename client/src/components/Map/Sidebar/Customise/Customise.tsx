@@ -30,7 +30,7 @@ export const DEFAULT_LAYER_SETTINGS: LayerSettings = {
   kmlLineShade: 80,
   scope: 5,
   textWeight: 400,
-  labelOffset: 25,
+  labelOffset: 40,
 };
 
 /* Slider configuration for each adjustable parameter */

@@ -2,25 +2,25 @@
 .report-sector-stats {
   background: #fff;
   border: 1px solid #ccc;
-  border-radius: 2px;
-  padding: 10px 14px;
+  border-radius: 0.26cqi;
+  padding: 1.31cqi 1.83cqi;
   font-family: inherit;
-  min-width: 120px;
+  min-width: 15.71cqi;
 }
 
 /* "Sector Median" heading — mirrors report-legend__heading */
 .report-sector-stats__heading {
-  font-size: 14px;
+  font-size: 1.83cqi;
   font-weight: 700;
   color: #000;
-  margin-bottom: 4px;
+  margin-bottom: 0.52cqi;
   border-bottom: 1px solid #ccc;
-  padding-bottom: 4px;
+  padding-bottom: 0.52cqi;
 }
 
 /* Multi-column grid for sector rows — column-fill: auto fills left column first */
 .report-sector-stats__grid {
-  column-gap: 12px;
+  column-gap: 1.57cqi;
   column-fill: auto;
 }
 
@@ -28,21 +28,21 @@
 .report-sector-stats__row {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 1px 0;
+  gap: 0.26cqi;
+  padding: 0.13cqi 0;
   break-inside: avoid;
 }
 
 /* Sector number label */
 .report-sector-stats__name {
-  font-size: 11px;
+  font-size: 1.44cqi;
   color: #222;
   white-space: nowrap;
 }
 
 /* RSSI dBm value — right-aligned with tabular numbers for vertical alignment */
 .report-sector-stats__value {
-  font-size: 11px;
+  font-size: 1.44cqi;
   color: #222;
   white-space: nowrap;
   margin-left: auto;
