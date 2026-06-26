@@ -62,6 +62,12 @@ const RADIO_TOWER_PATHS: SvgElement[] = [
   ["path", { d: "m8 22 4-11 4 11" }],
 ];
 
+/* RotateCcw icon — circular arrow used for backup base stations */
+const ROTATE_CCW_PATHS: SvgElement[] = [
+  ["path", { d: "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" }],
+  ["path", { d: "M3 3v5h5" }],
+];
+
 /* Antenna icon — yagi-style directional antenna array */
 const ANTENNA_PATHS: SvgElement[] = [
   ["path", { d: "M2 12 7 2" }],
@@ -211,6 +217,11 @@ const drawBaseStationIcon = (ctx: CanvasRenderingContext2D, ox: number) => {
   drawLucideIcon(ctx, ox + ICON_SIZE / 2, RADIO_TOWER_PATHS);
 };
 
+/* Backup base station icon — RotateCcw */
+const drawBackupBaseStationIcon = (ctx: CanvasRenderingContext2D, ox: number) => {
+  drawLucideIcon(ctx, ox + ICON_SIZE / 2, ROTATE_CCW_PATHS);
+};
+
 /* Repeater icon — Antenna (same for omni and directional) */
 const drawRepeaterIcon = (ctx: CanvasRenderingContext2D, ox: number) => {
   drawLucideIcon(ctx, ox + ICON_SIZE / 2, ANTENNA_PATHS);
@@ -225,7 +236,7 @@ const drawBaseStation = (ctx: CanvasRenderingContext2D, ox: number) => {
 
 const drawBaseStationBackup = (ctx: CanvasRenderingContext2D, ox: number) => {
   drawBaseStationBackupBg(ctx, ox);
-  drawBaseStationIcon(ctx, ox);
+  drawBackupBaseStationIcon(ctx, ox);
 };
 
 const drawRepeaterOmniBackup = (ctx: CanvasRenderingContext2D, ox: number) => {
@@ -312,7 +323,7 @@ export const buildSymbolIcon = (
   const key = backup ? `${type}-backup` : type;
   const drawMap: Record<string, (c: CanvasRenderingContext2D, ox: number) => void> = {
     "base-station":                  (c, o) => { drawBaseStationBg(c, o);              drawBaseStationIcon(c, o); },
-    "base-station-backup":           (c, o) => { drawBaseStationBackupBg(c, o);        drawBaseStationIcon(c, o); },
+    "base-station-backup":           (c, o) => { drawBaseStationBackupBg(c, o);        drawBackupBaseStationIcon(c, o); },
     "repeater-omni":                 (c, o) => { drawRepeaterOmniBg(c, o);             drawRepeaterIcon(c, o); },
     "repeater-omni-backup":          (c, o) => { drawRepeaterOmniBackupBg(c, o);       drawRepeaterIcon(c, o); },
     "repeater-directional":          (c, o) => { drawRepeaterDirectionalBg(c, o);      drawRepeaterIcon(c, o); },
@@ -347,7 +358,7 @@ export const buildFgAtlas = (): HTMLCanvasElement => {
   drawBaseStationIcon(ctx, 0);
   drawRepeaterIcon(ctx, ICON_SIZE);
   drawRepeaterIcon(ctx, ICON_SIZE * 2);
-  drawBaseStationIcon(ctx, ICON_SIZE * 3);
+  drawBackupBaseStationIcon(ctx, ICON_SIZE * 3);
   drawRepeaterIcon(ctx, ICON_SIZE * 4);
   drawRepeaterIcon(ctx, ICON_SIZE * 5);
 
