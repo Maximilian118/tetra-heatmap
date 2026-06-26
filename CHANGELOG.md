@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.0] — 2026-06-26
+
+### Fixed
+- **Mapbox incidents tileset 404 errors** — Redirected requests to the `mapbox-incidents-v1` tileset (requires a paid plan) to an empty response via `transformRequest`, eliminating console 404 spam on every map render.
+- **KML label outline warning** — Added `fontSettings: { sdf: true }` to deck.gl TextLayer for KML labels, fixing the `fontSettings.sdf is required to render outline` console warning.
+
 ## [0.6.0] — 2026-06-26
 
 ### Added

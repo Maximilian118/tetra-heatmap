@@ -101,6 +101,7 @@ export const buildKmlLayers = (params: LayerBuildParams) => {
         sizeMinPixels: 10,
         sizeMaxPixels: 20,
         getColor: [...style.color, 255],
+        fontSettings: { sdf: true },
         outlineWidth: 2,
         outlineColor: [0, 0, 0, 200],
         fontFamily: "Inter, system-ui, sans-serif",

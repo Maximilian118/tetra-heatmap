@@ -352,6 +352,13 @@ const Map = () => {
             mapStyle={mapStyle}
             onError={handleMapError}
             preserveDrawingBuffer
+            transformRequest={(url) => {
+              /* Redirect incidents tileset requests to an empty response — the tileset requires a paid plan */
+              if (url.includes("mapbox-incidents-v1")) {
+                return { url: "data:application/x-protobuf," };
+              }
+              return { url };
+            }}
           />
         </DeckGL>
 
