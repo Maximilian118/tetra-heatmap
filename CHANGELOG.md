@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.0] — 2026-06-26
+
+### Fixed
+- **Note areas missing in PDF preview without KML** — Notes with polygon areas now display their standard filled zones in the PDF preview when no KML file is loaded. When a KML is loaded, only the clipped KML intersection highlights are shown (unchanged behaviour).
+
 ## [0.4.0] — 2026-06-25
 
 ### Fixed

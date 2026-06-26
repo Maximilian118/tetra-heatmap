@@ -366,9 +366,12 @@ export const buildNoteLayers = (params: LayerBuildParams) => {
     },
   })
 
-  /* In report mode, only show KML highlights — no interactive note zones or vertex handles */
+  /* In report mode, show KML intersection highlights when KML is loaded,
+     otherwise show the standard note area polygons */
   if (reportMode) {
-    return [sectorHighlightLayer, borderLayer, hatchLayer, lineHighlightLayer]
+    return kmlGeoJson
+      ? [sectorHighlightLayer, borderLayer, hatchLayer, lineHighlightLayer]
+      : [areaLayer, lineHighlightLayer]
   }
 
   return [areaLayer, sectorHighlightLayer, borderLayer, hatchLayer, lineHighlightLayer, vertexLayer]
