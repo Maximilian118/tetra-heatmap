@@ -1,0 +1,77 @@
+/* Notes legend panel — white box matching report-legend / report-sector-stats */
+.report-notes {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 0.26cqi;
+  padding: 1.31cqi 1.83cqi;
+  font-family: inherit;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* "Notes" heading — mirrors report-legend__heading */
+.report-notes__heading {
+  font-size: 1.83cqi;
+  font-weight: 700;
+  color: #000;
+  margin-bottom: 0.52cqi;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 0.52cqi;
+  flex-shrink: 0;
+}
+
+/* Vertically stacked note entries — clips when exceeding parent height */
+.report-notes__list {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65cqi;
+}
+
+/* Single note row — color swatch + text content */
+.report-notes__entry {
+  display: flex;
+  gap: 0.78cqi;
+  align-items: flex-start;
+}
+
+/* Colour indicator square matching the note's zone polygon colour */
+.report-notes__color {
+  display: inline-block;
+  width: 1.57cqi;
+  height: 1.57cqi;
+  border-radius: 0.26cqi;
+  border: 0.5px solid rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+  margin-top: 0.13cqi;
+}
+
+/* Text container for title + description */
+.report-notes__content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Note title — single line with ellipsis truncation */
+.report-notes__title {
+  font-size: 1.44cqi;
+  font-weight: 600;
+  color: #222;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Note description — max 2 lines then clipped */
+.report-notes__text {
+  font-size: 1.18cqi;
+  color: #555;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 0.13cqi;
+}

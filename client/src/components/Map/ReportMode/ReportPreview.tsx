@@ -3,11 +3,12 @@ import DeckGL from "@deck.gl/react";
 import { Map as MapGL } from "react-map-gl/mapbox";
 import { Download, X } from "lucide-react";
 import type { CustomSpectrum } from "../../../utils/rssi";
-import type { MapSymbol } from "../../../utils/api";
+import type { MapSymbol, MapNote } from "../../../utils/api";
 import type { KmlGeoJsonFeatureCollection } from "../../../utils/kml";
 import { captureReportPdf } from "../../../utils/reportCapture";
 import ReportBanner from "./ReportBanner";
 import ReportLegend from "./ReportLegend";
+import ReportNotes from "./ReportNotes";
 import ReportSectorStats from "./ReportSectorStats/ReportSectorStats";
 import "./ReportPreview.scss";
 
@@ -19,16 +20,19 @@ interface ReportPreviewProps {
   customSpectrum: CustomSpectrum;
   symbols: MapSymbol[];
   kmlGeoJson: KmlGeoJsonFeatureCollection | null;
+  notes: MapNote[];
   onClose: () => void;
 }
 
 /* Report preview modal with its own DeckGL + MapGL instance.
    The user can pan/zoom/rotate this map independently.
    What you see here is exactly what gets exported to PDF. */
-const ReportPreview = ({ createLayers, mapboxToken, mapStyle, initialViewState, customSpectrum, symbols, kmlGeoJson, onClose }: ReportPreviewProps) => {
+const ReportPreview = ({ createLayers, mapboxToken, mapStyle, initialViewState, customSpectrum, symbols, kmlGeoJson, notes, onClose }: ReportPreviewProps) => {
   const [title, setTitle] = useState("RSSI Coverage Report");
   const [saving, setSaving] = useState(false);
   const [viewState, setViewState] = useState(initialViewState);
+  const [leftHeight, setLeftHeight] = useState(0);
+  const leftRef = useRef<HTMLDivElement>(null);
 
   /* Reverse-geocode the map centre on mount to enrich the default title with country + year */
   useEffect(() => {
@@ -48,6 +52,17 @@ const ReportPreview = ({ createLayers, mapboxToken, mapStyle, initialViewState, 
       .catch(() => { /* keep fallback title */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* Track the rendered height of the left-side legends so the notes panel can match it */
+  useEffect(() => {
+    if (!leftRef.current) return;
+    const ro = new ResizeObserver(() => {
+      if (leftRef.current) setLeftHeight(leftRef.current.getBoundingClientRect().height);
+    });
+    ro.observe(leftRef.current);
+    return () => ro.disconnect();
+  }, []);
+
   const captureRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const deckRef = useRef<any>(null);
@@ -141,7 +156,7 @@ const ReportPreview = ({ createLayers, mapboxToken, mapStyle, initialViewState, 
           </div>
 
           {/* Bottom-left overlay: legend + optional sector stats */}
-          <div className="report-preview__bottom-left">
+          <div className="report-preview__bottom-left" ref={leftRef}>
             <ReportLegend
               customSpectrum={customSpectrum}
               symbols={symbols}
@@ -150,6 +165,13 @@ const ReportPreview = ({ createLayers, mapboxToken, mapStyle, initialViewState, 
             />
             <ReportSectorStats kmlGeoJson={kmlGeoJson} />
           </div>
+
+          {/* Bottom-right overlay: notes legend, height-matched to left-side legends */}
+          {notes.length > 0 && leftHeight > 0 && (
+            <div className="report-preview__bottom-right" style={{ height: leftHeight }}>
+              <ReportNotes notes={notes} />
+            </div>
+          )}
         </div>
       </div>
 

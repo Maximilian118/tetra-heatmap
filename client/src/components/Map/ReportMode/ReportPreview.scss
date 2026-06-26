@@ -95,6 +95,17 @@
   gap: 1.31cqi;
 }
 
+/* Bottom-right container for the notes legend, height-matched to left-side legends */
+.report-preview__bottom-right {
+  position: absolute;
+  bottom: 2.62cqi;
+  right: 2.62cqi;
+  z-index: 2;
+  display: flex;
+  max-width: 35cqi;
+  min-width: 19.64cqi;
+}
+
 /* Action buttons below the frame */
 .report-preview__actions {
   position: relative;

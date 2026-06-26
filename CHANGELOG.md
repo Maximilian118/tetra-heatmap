@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.6.0] — 2026-06-26
+
+### Added
+- **Notes legend in PDF preview** — A new "Notes" panel appears at the bottom-right of the PDF report showing each note's colour indicator, title, and description. The panel is height-matched to the left-side legends for a uniform layout. Only renders when notes exist.
+
 ## [0.5.0] — 2026-06-26
 
 ### Fixed
