@@ -12,8 +12,8 @@ interface ReportLegendProps {
 }
 
 /* Default RSSI quality bands matching the example PDF legend */
-const DEFAULT_BANDS: { minDbm: number; maxDbm: number; color: string; label: string }[] = [
-  { minDbm: -200, maxDbm: -105, color: "#1a1a1a", label: "Critical" },
+const DEFAULT_BANDS: { minDbm: number | null; maxDbm: number; color: string; label: string }[] = [
+  { minDbm: null, maxDbm: -105, color: "#1a1a1a", label: "Critical" },
   { minDbm: -105, maxDbm:  -96, color: "#d32f2f", label: "Poor" },
   { minDbm:  -96, maxDbm:  -81, color: "#f5a623", label: "Marginal" },
   { minDbm:  -81, maxDbm:    0, color: "#388e3c", label: "Good" },
@@ -96,7 +96,7 @@ const ReportLegend = ({ customSpectrum, symbols, zoom, latitude }: ReportLegendP
   const bands = useMemo(() => {
     if (!useCustom) return DEFAULT_BANDS;
     return [...customSpectrum.stops]
-      .sort((a, b) => a.minDbm - b.minDbm)
+      .sort((a, b) => (a.minDbm ?? -Infinity) - (b.minDbm ?? -Infinity))
       .map((s) => ({
         minDbm: s.minDbm,
         maxDbm: s.maxDbm,
@@ -122,7 +122,7 @@ const ReportLegend = ({ customSpectrum, symbols, zoom, latitude }: ReportLegendP
           <div key={i} className="report-legend__band">
             <span className="report-legend__swatch" style={{ backgroundColor: band.color }} />
             <span className="report-legend__label">
-              {band.minDbm} {band.maxDbm} — {band.label}
+              {band.minDbm === null ? `≤ ${band.maxDbm}` : `${band.minDbm} to ${band.maxDbm}`} dBm — {band.label}
             </span>
           </div>
         ))}

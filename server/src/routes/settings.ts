@@ -7,6 +7,7 @@ import {
   coerceSettings,
   isConfigured,
   updateSymbolSize,
+  updateColourSpectrum,
 } from "../db/settings.js";
 import { testConnection } from "../utils/testConnection.js";
 import { recreatePool } from "../db/remote.js";
@@ -40,6 +41,31 @@ router.patch("/settings/symbol-size", (req, res) => {
     return;
   }
   updateSymbolSize(symbolSize);
+  res.json({ success: true });
+});
+
+/* Return the persisted custom colour spectrum, or null if none is saved */
+router.get("/settings/colour-spectrum", (_req, res) => {
+  const { colourSpectrum } = getSettings();
+  res.json(colourSpectrum ? JSON.parse(colourSpectrum) : null);
+});
+
+/* Update the custom colour spectrum (called by the colours tab) */
+router.patch("/settings/colour-spectrum", (req, res) => {
+  const { colourSpectrum } = req.body;
+  if (typeof colourSpectrum !== "object" || colourSpectrum === null) {
+    res.status(400).json({ error: "colourSpectrum must be an object" });
+    return;
+  }
+  if (typeof colourSpectrum.enabled !== "boolean") {
+    res.status(400).json({ error: "colourSpectrum.enabled must be a boolean" });
+    return;
+  }
+  if (!Array.isArray(colourSpectrum.stops)) {
+    res.status(400).json({ error: "colourSpectrum.stops must be an array" });
+    return;
+  }
+  updateColourSpectrum(JSON.stringify(colourSpectrum));
   res.json({ success: true });
 });
 

@@ -12,6 +12,7 @@ export interface Settings {
   syncBatchSize: number;
   retentionDays: number;
   symbolSize: number;
+  colourSpectrum: string;
 }
 
 /* Validation limits to prevent excessive load on the logserver */
@@ -31,6 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
   syncBatchSize: 10000,
   retentionDays: 5,
   symbolSize: 48,
+  colourSpectrum: "",
 };
 
 /* Create the settings table — single-row design enforced by CHECK constraint */
@@ -59,13 +61,18 @@ try {
   db.exec("ALTER TABLE settings ADD COLUMN symbol_size INTEGER NOT NULL DEFAULT 48");
 } catch { /* column already exists */ }
 
+/* Migration: add colour_spectrum column for existing databases */
+try {
+  db.exec("ALTER TABLE settings ADD COLUMN colour_spectrum TEXT NOT NULL DEFAULT ''");
+} catch { /* column already exists */ }
+
 /* Prepared statements for reading and writing settings */
 const selectStmt = db.prepare("SELECT * FROM settings WHERE id = 1");
 const upsertStmt = db.prepare(`
   INSERT OR REPLACE INTO settings
-    (id, mapbox_token, db_host, db_port, db_user, db_password, db_name, sync_interval_ms, sync_batch_size, retention_days, symbol_size)
+    (id, mapbox_token, db_host, db_port, db_user, db_password, db_name, sync_interval_ms, sync_batch_size, retention_days, symbol_size, colour_spectrum)
   VALUES
-    (1, @mapboxToken, @dbHost, @dbPort, @dbUser, @dbPassword, @dbName, @syncIntervalMs, @syncBatchSize, @retentionDays, @symbolSize)
+    (1, @mapboxToken, @dbHost, @dbPort, @dbUser, @dbPassword, @dbName, @syncIntervalMs, @syncBatchSize, @retentionDays, @symbolSize, @colourSpectrum)
 `);
 
 /* Map a database row to the Settings interface */
@@ -80,6 +87,7 @@ interface SettingsRow {
   sync_batch_size: number;
   retention_days: number;
   symbol_size: number;
+  colour_spectrum: string;
 }
 
 const rowToSettings = (row: SettingsRow): Settings => ({
@@ -93,6 +101,7 @@ const rowToSettings = (row: SettingsRow): Settings => ({
   syncBatchSize: row.sync_batch_size,
   retentionDays: row.retention_days,
   symbolSize: row.symbol_size ?? 48,
+  colourSpectrum: row.colour_spectrum ?? "",
 });
 
 /* Read settings from the database, returning defaults if no row exists */
@@ -124,6 +133,12 @@ export const updateSymbolSize = (size: number): void => {
   saveSettings({ ...current, symbolSize: size });
 };
 
+/* Update only the colour spectrum setting without touching other fields */
+export const updateColourSpectrum = (spectrum: string): void => {
+  const current = getSettings();
+  saveSettings({ ...current, colourSpectrum: spectrum });
+};
+
 /* Return settings with password masked for client consumption */
 export const getSafeSettings = (): Settings => {
   const s = getSettings();
@@ -145,6 +160,7 @@ export const coerceSettings = (raw: Record<string, unknown>): Settings => ({
   syncBatchSize: Number(raw.syncBatchSize),
   retentionDays: Number(raw.retentionDays),
   symbolSize: Number(raw.symbolSize ?? 48),
+  colourSpectrum: String(raw.colourSpectrum ?? ""),
 });
 
 /* Check that a value is a finite integer (rejects NaN, Infinity, floats) */

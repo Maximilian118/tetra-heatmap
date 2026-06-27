@@ -123,14 +123,29 @@ export const buildPaths = (
 
 /* ── Custom Colour Spectrum ─────────────────────────────────────────── */
 
-/* A single discrete colour band mapping an RSSI range to a colour */
+/* A single discrete colour band mapping an RSSI range to a colour.
+   minDbm is null for the lowest band, meaning "anything at or below maxDbm". */
 export interface ColourStop {
   id: string;
-  minDbm: number;
+  minDbm: number | null;
   maxDbm: number;
   color: [number, number, number];
   label: string;
 }
+
+/* Effective lower bound of a stop for width/flex calculations.
+   When minDbm is null (unbounded) the stop gets the same visual span as
+   the widest bounded stop, or a 10 dBm default if no bounded stops exist. */
+export const effectiveMinDbm = (stop: ColourStop, allStops: ColourStop[]): number => {
+  if (stop.minDbm !== null) return stop.minDbm;
+  const bounded = allStops.filter((s) => s.minDbm !== null);
+  const widest = bounded.reduce((max, s) => Math.max(max, s.maxDbm - s.minDbm!), 0);
+  return stop.maxDbm - (widest > 0 ? widest : 10);
+};
+
+/* Format the dBm range of a stop for display. Shows "≤ X dBm" for unbounded. */
+export const formatStopRange = (stop: ColourStop): string =>
+  stop.minDbm === null ? `≤ ${stop.maxDbm} dBm` : `${stop.minDbm} to ${stop.maxDbm} dBm`;
 
 /* User-defined colour spectrum with an enable toggle */
 export interface CustomSpectrum {
@@ -138,11 +153,24 @@ export interface CustomSpectrum {
   stops: ColourStop[];
 }
 
+/* Ensure the lowest stop always has an unbounded lower limit (minDbm = null).
+   Migrates old saved data that may have a numeric minDbm on the first stop. */
+export const normalizeSpectrum = (spectrum: CustomSpectrum): CustomSpectrum => {
+  if (spectrum.stops.length === 0) return spectrum;
+  const sorted = [...spectrum.stops].sort((a, b) => (a.minDbm ?? -Infinity) - (b.minDbm ?? -Infinity));
+  const lowest = sorted[0];
+  if (lowest.minDbm === null) return spectrum;
+  return {
+    ...spectrum,
+    stops: spectrum.stops.map((s) => s.id === lowest.id ? { ...s, minDbm: null } : s),
+  };
+};
+
 /* Default 5-band spectrum based on the Riedel TETRA colour palette */
 export const DEFAULT_CUSTOM_SPECTRUM: CustomSpectrum = {
   enabled: false,
   stops: [
-    { id: "1", minDbm: -110, maxDbm: -106, color: [255,   0,   0], label: "Not usable" },
+    { id: "1", minDbm: null, maxDbm: -106, color: [255,   0,   0], label: "Not usable" },
     { id: "2", minDbm: -105, maxDbm:  -96, color: [255, 192,   0], label: "Weak" },
     { id: "3", minDbm:  -95, maxDbm:  -81, color: [255, 255,   0], label: "Moderate" },
     { id: "4", minDbm:  -80, maxDbm:  -41, color: [146, 208,  80], label: "Good" },
@@ -150,19 +178,22 @@ export const DEFAULT_CUSTOM_SPECTRUM: CustomSpectrum = {
   ],
 };
 
-/* Build an RSSI → RGBA lookup function from custom stops */
+/* Build an RSSI → RGBA lookup function from custom stops.
+   A stop with minDbm === null matches any RSSI at or below its maxDbm. */
 export const buildRssiToColorFromSpectrum = (
   stops: ColourStop[],
 ): ((rssi: number) => [number, number, number, number]) => {
   const sorted = [...stops].sort((a, b) => a.maxDbm - b.maxDbm);
   return (rssi: number): [number, number, number, number] => {
     for (let i = sorted.length - 1; i >= 0; i--) {
-      if (rssi >= sorted[i].minDbm && rssi <= sorted[i].maxDbm) {
+      const min = sorted[i].minDbm;
+      if ((min === null || rssi >= min) && rssi <= sorted[i].maxDbm) {
         return [...sorted[i].color, 200];
       }
     }
-    /* Fallback: clamp to nearest range */
-    if (rssi < sorted[0].minDbm) return [...sorted[0].color, 200];
+    /* Fallback: clamp to nearest bounded range */
+    const firstMin = sorted[0].minDbm;
+    if (firstMin !== null && rssi < firstMin) return [...sorted[0].color, 200];
     return [...sorted[sorted.length - 1].color, 200];
   };
 };

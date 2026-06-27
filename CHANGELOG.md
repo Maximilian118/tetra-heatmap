@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.0] — 2026-06-27
+
+### Added
+- **Colour spectrum database persistence** — Custom colour spectrum settings (enabled state, stops, colours, labels) are now saved to the SQLite database, persisting across page refreshes, different browsers/devices, and Docker restarts. Previously stored in browser localStorage only.
+- **Unbounded lowest colour range** — The lowest signal quality band no longer has a fixed lower bound. Displays as `≤ -106 dBm` instead of `-110 to -106 dBm`, meaning any signal at or below that threshold is always captured by the worst-signal colour. Adding, removing, or splitting stops preserves the unbounded behaviour on the lowest band.
+
 ## [0.7.0] — 2026-06-26
 
 ### Fixed

@@ -1,5 +1,5 @@
 import { useState, useMemo, type MouseEvent } from "react";
-import { RSSI_MIN, RSSI_MAX, rssiQualityLabel, type CustomSpectrum } from "../../../utils/rssi";
+import { RSSI_MIN, RSSI_MAX, rssiQualityLabel, effectiveMinDbm, formatStopRange, type CustomSpectrum } from "../../../utils/rssi";
 import type { Reading } from "../../../utils/api";
 import "./RssiLegend.scss";
 
@@ -17,16 +17,20 @@ const RssiLegend = ({ customSpectrum, readings = [], onClick }: RssiLegendProps)
   const [hoverDefault, setHoverDefault] = useState<{ offsetX: number; dBm: number } | null>(null);
   const useCustom = customSpectrum?.enabled && customSpectrum.stops.length > 0;
 
-  /* Sort custom stops by minDbm ascending for display */
+  /* Sort custom stops by minDbm ascending for display (null = unbounded sorts first) */
   const sortedStops = useMemo(() => {
     if (!useCustom) return [];
-    return [...customSpectrum!.stops].sort((a, b) => a.minDbm - b.minDbm);
+    return [...customSpectrum!.stops].sort((a, b) => {
+      const aMin = a.minDbm ?? -Infinity;
+      const bMin = b.minDbm ?? -Infinity;
+      return aMin - bMin;
+    });
   }, [useCustom, customSpectrum]);
 
   /* Total flex weight for proportional segment widths */
   const totalFlex = useMemo(() => {
     if (!useCustom || sortedStops.length === 0) return 1;
-    return sortedStops.reduce((sum, s) => sum + (s.maxDbm - s.minDbm), 0);
+    return sortedStops.reduce((sum, s) => sum + (s.maxDbm - effectiveMinDbm(s, sortedStops)), 0);
   }, [useCustom, sortedStops]);
 
   /* Count readings per custom stop */
@@ -38,7 +42,7 @@ const RssiLegend = ({ customSpectrum, readings = [], onClick }: RssiLegendProps)
     for (const r of readings) {
       if (r.rssi === null) continue;
       for (const stop of sortedStops) {
-        if (r.rssi >= stop.minDbm && r.rssi <= stop.maxDbm) {
+        if ((stop.minDbm === null || r.rssi >= stop.minDbm) && r.rssi <= stop.maxDbm) {
           counts.set(stop.id, (counts.get(stop.id) ?? 0) + 1);
           break;
         }
@@ -73,7 +77,9 @@ const RssiLegend = ({ customSpectrum, readings = [], onClick }: RssiLegendProps)
 
   /* Custom spectrum: render discrete colour blocks with rich tooltip */
   if (useCustom) {
-    const minLabel = sortedStops[0].minDbm;
+    const minLabel = sortedStops[0].minDbm === null
+      ? `≤ ${sortedStops[0].maxDbm}`
+      : String(sortedStops[0].minDbm);
     const maxLabel = sortedStops[sortedStops.length - 1].maxDbm;
 
     return (
@@ -81,7 +87,7 @@ const RssiLegend = ({ customSpectrum, readings = [], onClick }: RssiLegendProps)
         <span className="rssi-legend__label">{minLabel} dBm</span>
         <div className="rssi-legend__bar rssi-legend__bar--custom">
           {sortedStops.map((stop) => {
-            const span = stop.maxDbm - stop.minDbm;
+            const span = stop.maxDbm - effectiveMinDbm(stop, sortedStops);
             const widthPct = (span / totalFlex) * 100;
             return (
               <div
@@ -101,7 +107,7 @@ const RssiLegend = ({ customSpectrum, readings = [], onClick }: RssiLegendProps)
           {hoveredStop && (
             <div className="rssi-legend__info">
               <div><strong>{hoveredStop.label}</strong></div>
-              <div><strong>Range:</strong> {hoveredStop.minDbm} to {hoveredStop.maxDbm} dBm</div>
+              <div><strong>Range:</strong> {formatStopRange(hoveredStop)}</div>
               <div><strong>Readings:</strong> {countsById.get(hoveredStop.id) ?? 0}</div>
             </div>
           )}

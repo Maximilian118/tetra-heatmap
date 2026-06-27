@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type { Reading } from "../../../utils/api";
-import { RSSI_COLOR_RANGE, rssiToColor, buildPaths, buildColorRangeFromSpectrum, buildRssiToColorFromSpectrum, DEFAULT_CUSTOM_SPECTRUM, type CustomSpectrum } from "../../../utils/rssi";
+import { fetchColourSpectrum, saveColourSpectrum } from "../../../utils/api";
+import { RSSI_COLOR_RANGE, rssiToColor, buildPaths, buildColorRangeFromSpectrum, buildRssiToColorFromSpectrum, DEFAULT_CUSTOM_SPECTRUM, normalizeSpectrum, type CustomSpectrum } from "../../../utils/rssi";
 import type { LayerType } from "../Sidebar/MapPresets/MapPresets";
 import { DEFAULT_LAYER_SETTINGS, type LayerSettings } from "../Sidebar/Customise/Customise";
 
@@ -12,13 +13,28 @@ export const useLayerConfig = (validReadings: Reading[]) => {
   const [colourTabTrigger, setColourTabTrigger] = useState(0);
   const [customSpectrum, setCustomSpectrum] = useState<CustomSpectrum>(() => {
     const saved = localStorage.getItem("customSpectrum");
-    if (saved) { try { return JSON.parse(saved); } catch { /* ignore */ } }
+    if (saved) { try { return normalizeSpectrum(JSON.parse(saved)); } catch { /* ignore */ } }
     return DEFAULT_CUSTOM_SPECTRUM;
   });
 
-  /* Persist custom colour spectrum to localStorage */
+  /* Track whether we're still hydrating from the server to avoid writing back on mount */
+  const serverHydrating = useRef(true);
+
+  /* Hydrate custom spectrum from server (overrides localStorage if server has data) */
+  useEffect(() => {
+    fetchColourSpectrum()
+      .then((server) => { if (server) setCustomSpectrum(normalizeSpectrum(server)); })
+      .catch((err) => console.error("[spectrum] Failed to fetch from server:", err))
+      .finally(() => { serverHydrating.current = false; });
+  }, []);
+
+  /* Persist custom colour spectrum to localStorage and write-through to server */
   useEffect(() => {
     localStorage.setItem("customSpectrum", JSON.stringify(customSpectrum));
+    if (serverHydrating.current) return;
+    saveColourSpectrum(customSpectrum).catch((err) =>
+      console.error("[spectrum] Failed to save to server:", err),
+    );
   }, [customSpectrum]);
 
   /* Derive active colour range and colour function from the custom spectrum */

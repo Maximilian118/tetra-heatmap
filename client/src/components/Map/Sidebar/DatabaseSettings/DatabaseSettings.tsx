@@ -20,6 +20,7 @@ const DEFAULTS: Settings = {
   syncBatchSize: 10000,
   retentionDays: 5,
   symbolSize: 48,
+  colourSpectrum: "",
 };
 
 /* Props for the reusable form field helper */

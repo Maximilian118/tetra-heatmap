@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { generateUUID } from "../../../../utils/uuid";
 import { Trash2, Plus, RotateCcw } from "lucide-react";
 import type { CustomSpectrum, ColourStop } from "../../../../utils/rssi";
-import { DEFAULT_CUSTOM_SPECTRUM } from "../../../../utils/rssi";
+import { DEFAULT_CUSTOM_SPECTRUM, effectiveMinDbm, formatStopRange } from "../../../../utils/rssi";
 import SideBarButton from "../SideBarButton/SideBarButton";
 import "./ColourSpectrum.scss";
 
@@ -29,19 +29,22 @@ const ColourSpectrum = ({ spectrum, onSpectrumChange }: ColourSpectrumProps) => 
   const barRef = useRef<HTMLDivElement>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
 
-  /* Sorted stops ascending by minDbm and derived global bounds */
-  const sortedStops = [...spectrum.stops].sort((a, b) => a.minDbm - b.minDbm);
-  const globalMin = sortedStops.length > 0 ? sortedStops[0].minDbm : -140;
+  /* Sorted stops ascending by minDbm (null = unbounded lowest sorts first) */
+  const sortedStops = [...spectrum.stops].sort((a, b) => {
+    const aMin = a.minDbm ?? -Infinity;
+    const bMin = b.minDbm ?? -Infinity;
+    return aMin - bMin;
+  });
   const globalMax = sortedStops.length > 0 ? sortedStops[sortedStops.length - 1].maxDbm : -20;
 
-  /* Total flex weight — used to align handles with flex-distributed segments */
-  const totalFlex = sortedStops.reduce((sum, s) => sum + (s.maxDbm - s.minDbm), 0) || 1;
+  /* Total flex weight — unbounded stops use effective width for proportional sizing */
+  const totalFlex = sortedStops.reduce((sum, s) => sum + (s.maxDbm - effectiveMinDbm(s, sortedStops)), 0) || 1;
 
   /* Map a pointer X position to a dBm value using the flex coordinate system.
      Walks through segments to find which band the pointer falls in and
      interpolates within that band for precise handle placement. */
   const pointerToDbm = (clientX: number): number => {
-    if (!barRef.current || sortedStops.length === 0) return globalMin;
+    if (!barRef.current || sortedStops.length === 0) return globalMax;
     const rect = barRef.current.getBoundingClientRect();
     const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const targetFlex = pct * totalFlex;
@@ -49,10 +52,11 @@ const ColourSpectrum = ({ spectrum, onSpectrumChange }: ColourSpectrumProps) => 
     /* Walk through segments to find the correct dBm position */
     let cumFlex = 0;
     for (const stop of sortedStops) {
-      const span = stop.maxDbm - stop.minDbm;
+      const effMin = effectiveMinDbm(stop, sortedStops);
+      const span = stop.maxDbm - effMin;
       if (cumFlex + span >= targetFlex) {
         const within = targetFlex - cumFlex;
-        return Math.round(stop.minDbm + within);
+        return Math.round(effMin + within);
       }
       cumFlex += span;
     }
@@ -71,12 +75,15 @@ const ColourSpectrum = ({ spectrum, onSpectrumChange }: ColourSpectrumProps) => 
     if (dragIdx === null) return;
     let dbm = pointerToDbm(e.clientX);
 
-    /* Clamp: minimum 1 dBm per band on each side of the handle */
-    const minBound = sortedStops[dragIdx].minDbm + 1;
+    /* Clamp: minimum 1 dBm per band on each side of the handle.
+       For the unbounded (null) first band, use effective min as lower clamp. */
+    const effMin = effectiveMinDbm(sortedStops[dragIdx], sortedStops);
+    const minBound = effMin + 1;
     const maxBound = sortedStops[dragIdx + 1].maxDbm - 1;
     dbm = Math.max(minBound, Math.min(maxBound, dbm));
 
-    /* Adjust the two adjacent bands to share the boundary */
+    /* Adjust the two adjacent bands to share the boundary.
+       The unbounded first band keeps minDbm as null. */
     const newStops = sortedStops.map((s, i) => {
       if (i === dragIdx) return { ...s, maxDbm: dbm };
       if (i === dragIdx + 1) return { ...s, minDbm: dbm + 1 };
@@ -97,40 +104,53 @@ const ColourSpectrum = ({ spectrum, onSpectrumChange }: ColourSpectrumProps) => 
     });
   };
 
-  /* Remove a stop and extend the adjacent band to fill the gap */
+  /* Remove a stop and extend the adjacent band to fill the gap.
+     If the removed stop was unbounded (first), the new first stop inherits null minDbm. */
   const removeStop = (id: string) => {
-    const sorted = [...spectrum.stops].sort((a, b) => a.minDbm - b.minDbm);
+    const sorted = [...spectrum.stops].sort((a, b) => {
+      const aMin = a.minDbm ?? -Infinity;
+      const bMin = b.minDbm ?? -Infinity;
+      return aMin - bMin;
+    });
     const idx = sorted.findIndex((s) => s.id === id);
     if (idx === -1 || sorted.length <= 1) return;
 
     const removed = sorted[idx];
     const newStops = sorted.filter((s) => s.id !== id);
 
-    /* Extend the neighbour below, or above if this is the first band */
+    /* Extend the neighbour below, or make the new first stop unbounded */
     if (idx > 0) {
       newStops[idx - 1] = { ...newStops[idx - 1], maxDbm: removed.maxDbm };
     } else {
-      newStops[0] = { ...newStops[0], minDbm: removed.minDbm };
+      newStops[0] = { ...newStops[0], minDbm: null };
     }
 
     onSpectrumChange({ ...spectrum, stops: newStops });
   };
 
-  /* Split the widest band in half to add a new colour */
+  /* Split the widest band in half to add a new colour.
+     Unbounded (null) stops use their effective width for comparison. */
   const addStop = () => {
-    const sorted = [...spectrum.stops].sort((a, b) => a.minDbm - b.minDbm);
+    const sorted = [...spectrum.stops].sort((a, b) => {
+      const aMin = a.minDbm ?? -Infinity;
+      const bMin = b.minDbm ?? -Infinity;
+      return aMin - bMin;
+    });
     let widestIdx = 0;
     let widestSpan = 0;
     sorted.forEach((s, i) => {
-      const span = s.maxDbm - s.minDbm;
+      const span = s.maxDbm - effectiveMinDbm(s, sorted);
       if (span > widestSpan) { widestSpan = span; widestIdx = i; }
     });
 
     if (widestSpan < 2) return;
 
     const target = sorted[widestIdx];
-    const mid = Math.floor((target.minDbm + target.maxDbm) / 2);
+    const effMin = effectiveMinDbm(target, sorted);
+    const mid = Math.floor((effMin + target.maxDbm) / 2);
 
+    /* The original stop keeps its minDbm (including null) and gets a new maxDbm.
+       The new stop above it always has a concrete minDbm. */
     const newStops = sorted.map((s, i) =>
       i === widestIdx ? { ...s, maxDbm: mid } : s,
     );
@@ -182,7 +202,7 @@ const ColourSpectrum = ({ spectrum, onSpectrumChange }: ColourSpectrumProps) => 
                 key={stop.id}
                 className="colour-spectrum__segment"
                 style={{
-                  flex: stop.maxDbm - stop.minDbm,
+                  flex: stop.maxDbm - effectiveMinDbm(stop, sortedStops),
                   backgroundColor: rgbToHex(stop.color),
                 }}
               />
@@ -192,7 +212,7 @@ const ColourSpectrum = ({ spectrum, onSpectrumChange }: ColourSpectrumProps) => 
           {/* Handles overlaid at each boundary between adjacent bands */}
           {sortedStops.slice(0, -1).map((stop, i) => {
             /* Cumulative flex up to and including this segment — matches flex layout */
-            const cumFlex = sortedStops.slice(0, i + 1).reduce((s, st) => s + (st.maxDbm - st.minDbm), 0);
+            const cumFlex = sortedStops.slice(0, i + 1).reduce((s, st) => s + (st.maxDbm - effectiveMinDbm(st, sortedStops)), 0);
             const pct = (cumFlex / totalFlex) * 100;
             return (
               <div
@@ -215,7 +235,7 @@ const ColourSpectrum = ({ spectrum, onSpectrumChange }: ColourSpectrumProps) => 
 
           {/* Min / max labels under the bar */}
           <div className="colour-spectrum__bar-labels">
-            <span>{globalMin}</span>
+            <span>{sortedStops[0]?.minDbm === null ? `≤ ${sortedStops[0].maxDbm}` : sortedStops[0]?.minDbm} dBm</span>
             <span>{globalMax} dBm</span>
           </div>
         </div>
@@ -247,7 +267,7 @@ const ColourSpectrum = ({ spectrum, onSpectrumChange }: ColourSpectrumProps) => 
                   disabled={!spectrum.enabled}
                 />
                 <span className="colour-spectrum__range-text">
-                  {stop.minDbm} to {stop.maxDbm} dBm
+                  {formatStopRange(stop)}
                 </span>
               </div>
 

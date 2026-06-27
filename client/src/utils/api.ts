@@ -1,3 +1,5 @@
+import type { CustomSpectrum } from "./rssi";
+
 /* Base URL for all API requests — proxied to Express by Vite in dev */
 const API_BASE = "/api";
 
@@ -27,6 +29,7 @@ export interface Settings {
   syncBatchSize: number;
   retentionDays: number;
   symbolSize: number;
+  colourSpectrum: string;
 }
 
 /* Response from the connection test endpoint */
@@ -214,6 +217,23 @@ export interface LogserverStats {
 export const fetchStats = async (): Promise<LogserverStats> => {
   const res = await assertOk(await fetch(`${API_BASE}/stats`));
   return res.json();
+};
+
+/* Fetch the persisted custom colour spectrum from the server */
+export const fetchColourSpectrum = async (): Promise<CustomSpectrum | null> => {
+  const res = await assertOk(await fetch(`${API_BASE}/settings/colour-spectrum`));
+  return res.json();
+};
+
+/* Persist a custom colour spectrum to the server */
+export const saveColourSpectrum = async (spectrum: CustomSpectrum): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/settings/colour-spectrum`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ colourSpectrum: spectrum }),
+    })
+  );
 };
 
 /* Update the symbol display size setting */
