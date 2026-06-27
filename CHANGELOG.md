@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.9.0] — 2026-06-27
+
+### Added
+- **Symbol lock toggle** — A lock/unlock button in the Symbols tab prevents all symbol movement on the map when engaged. Dragging existing symbols and placing new ones from the palette are both disabled while locked. Lock state is persisted to the database across refreshes and restarts.
+
 ## [0.8.0] — 2026-06-27
 
 ### Added

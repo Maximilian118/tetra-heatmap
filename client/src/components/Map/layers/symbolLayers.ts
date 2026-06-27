@@ -10,7 +10,7 @@ import type { LayerBuildParams } from "./types";
 export const buildSymbolLayers = (params: LayerBuildParams) => {
   const {
     bearing, symbols, bgAtlasUrl, fgAtlasUrl, selectedSymbolId, symbolSize,
-    draggingSymbolId, setSelectedSymbolId, setDraggingSymbolId, setSymbols,
+    draggingSymbolId, symbolsLocked, setSelectedSymbolId, setDraggingSymbolId, setSymbols,
   } = params;
 
   /* Symbol backgrounds — rotates for directional repeaters (wedge points in direction) */
@@ -42,11 +42,13 @@ export const buildSymbolLayers = (params: LayerBuildParams) => {
       }
     },
     onDragStart: (info: PickingInfo<MapSymbol>) => {
+      if (symbolsLocked) return;
       if (info.object) {
         setDraggingSymbolId(info.object.id);
       }
     },
     onDrag: (info: PickingInfo<MapSymbol>) => {
+      if (symbolsLocked) return;
       if (draggingSymbolId && info.coordinate) {
         setSymbols((prev) =>
           prev.map((s) =>
@@ -58,6 +60,7 @@ export const buildSymbolLayers = (params: LayerBuildParams) => {
       }
     },
     onDragEnd: (info: PickingInfo<MapSymbol>) => {
+      if (symbolsLocked) return;
       if (draggingSymbolId && info.coordinate) {
         updateSymbolPosition(draggingSymbolId, info.coordinate[0], info.coordinate[1]).catch(
           (err) => console.error("[map] Failed to update symbol position:", err)

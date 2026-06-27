@@ -30,6 +30,7 @@ export interface Settings {
   retentionDays: number;
   symbolSize: number;
   colourSpectrum: string;
+  symbolsLocked: boolean;
 }
 
 /* Response from the connection test endpoint */
@@ -232,6 +233,17 @@ export const saveColourSpectrum = async (spectrum: CustomSpectrum): Promise<void
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ colourSpectrum: spectrum }),
+    })
+  );
+};
+
+/* Update the symbols locked state */
+export const updateSymbolsLocked = async (symbolsLocked: boolean): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/settings/symbols-locked`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbolsLocked }),
     })
   );
 };

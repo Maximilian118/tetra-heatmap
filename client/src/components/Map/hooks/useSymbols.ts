@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type MutableRefObject } from "react";
 import { generateUUID } from "../../../utils/uuid";
-import { fetchSymbols, createSymbol, updateSymbolDirection, updateSymbolBackup, updateSymbolInactive, updateSymbolSize as apiUpdateSymbolSize, deleteSymbol as apiDeleteSymbol, type MapSymbol } from "../../../utils/api";
+import { fetchSymbols, createSymbol, updateSymbolDirection, updateSymbolBackup, updateSymbolInactive, updateSymbolSize as apiUpdateSymbolSize, updateSymbolsLocked as apiUpdateSymbolsLocked, deleteSymbol as apiDeleteSymbol, type MapSymbol } from "../../../utils/api";
 
 interface UseSymbolsParams {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -17,6 +17,7 @@ export const useSymbols = (params: UseSymbolsParams) => {
   const [symbolSize, setSymbolSize] = useState(48);
   const [selectedSymbolId, setSelectedSymbolId] = useState<string | null>(null);
   const [draggingSymbolId, setDraggingSymbolId] = useState<string | null>(null);
+  const [symbolsLocked, setSymbolsLocked] = useState(false);
   const [radialLeaving, setRadialLeaving] = useState(false);
   const prevSymbolRef = useRef<{ symbol: MapSymbol; screenPos: [number, number] } | null>(null);
   const radialTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -112,6 +113,7 @@ export const useSymbols = (params: UseSymbolsParams) => {
 
   /* Handle dropping a symbol from the sidebar palette onto the map */
   const handleMapDrop = useCallback(async (e: React.DragEvent) => {
+    if (symbolsLocked) return;
     const symbolType = e.dataTransfer.getData("symbolType");
     if (!symbolType) return;
 
@@ -148,20 +150,27 @@ export const useSymbols = (params: UseSymbolsParams) => {
     } catch (err) {
       console.error("[map] Failed to create symbol:", err);
     }
-  }, [deckRef]);
+  }, [deckRef, symbolsLocked]);
 
   /* Allow the map area to accept drops (browsers lowercase dataTransfer type keys) */
   const handleMapDragOver = useCallback((e: React.DragEvent) => {
+    if (symbolsLocked) return;
     if (e.dataTransfer.types.includes("symboltype")) {
       e.preventDefault();
       e.dataTransfer.dropEffect = "copy";
     }
-  }, []);
+  }, [symbolsLocked]);
 
   /* Update symbol size locally and persist to server */
   const handleSymbolSizeChange = useCallback((size: number) => {
     setSymbolSize(size);
     apiUpdateSymbolSize(size).catch((err) => console.error("[map] Failed to save symbol size:", err));
+  }, []);
+
+  /* Toggle symbols locked state and persist to server */
+  const handleSymbolsLockedChange = useCallback((locked: boolean) => {
+    setSymbolsLocked(locked);
+    apiUpdateSymbolsLocked(locked).catch((err) => console.error("[map] Failed to save symbols locked:", err));
   }, []);
 
   return {
@@ -185,5 +194,8 @@ export const useSymbols = (params: UseSymbolsParams) => {
     handleMapDrop,
     handleMapDragOver,
     handleSymbolSizeChange,
+    symbolsLocked,
+    setSymbolsLocked,
+    handleSymbolsLockedChange,
   };
 };

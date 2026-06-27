@@ -53,7 +53,7 @@ const Map = () => {
   const nt = useNotes({ deckRef: viewport.deckRef, liveViewState: viewport.liveViewState });
 
   /* ─── Server settings (seeds symbol size on mount) ─── */
-  const { mapboxToken, dbConnected, retentionDays } = useServerSettings(sym.setSymbolSize);
+  const { mapboxToken, dbConnected, retentionDays } = useServerSettings(sym.setSymbolSize, sym.setSymbolsLocked);
 
   /* ─── Data fetching & file mode ─── */
   const data = useReadings({
@@ -129,6 +129,7 @@ const Map = () => {
     selectedSymbolId: sym.selectedSymbolId,
     symbolSize: sym.symbolSize,
     draggingSymbolId: sym.draggingSymbolId,
+    symbolsLocked: sym.symbolsLocked,
     reportMode: false,
     notes: nt.notes,
     editingNoteId: nt.editingNoteId,
@@ -181,6 +182,7 @@ const Map = () => {
     selectedSymbolId: null,
     symbolSize: sym.symbolSize,
     draggingSymbolId: null,
+    symbolsLocked: true,
     reportMode: true,
     notes: nt.notes,
     editingNoteId: null,
@@ -318,6 +320,8 @@ const Map = () => {
         onDeleteSymbol={sym.handleDeleteSymbol}
         onFlyTo={viewport.handleFlyTo}
         onDirectionChange={sym.handleDirectionChange}
+        symbolsLocked={sym.symbolsLocked}
+        onSymbolsLockedChange={sym.handleSymbolsLockedChange}
         customSpectrum={config.customSpectrum}
         onSpectrumChange={config.setCustomSpectrum}
         colourTabTrigger={config.colourTabTrigger}

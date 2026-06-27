@@ -49,6 +49,7 @@ export interface LayerBuildParams {
   selectedSymbolId: string | null;
   symbolSize: number;
   draggingSymbolId: string | null;
+  symbolsLocked: boolean;
   /* Notes */
   reportMode: boolean;
   notes: MapNote[];

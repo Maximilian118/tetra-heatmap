@@ -21,6 +21,7 @@ const DEFAULTS: Settings = {
   retentionDays: 5,
   symbolSize: 48,
   colourSpectrum: "",
+  symbolsLocked: false,
 };
 
 /* Props for the reusable form field helper */

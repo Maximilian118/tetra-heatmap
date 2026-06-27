@@ -20,6 +20,12 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 6px;
+
+    /* Greyed out when symbols are locked */
+    &--locked {
+      opacity: 0.4;
+      pointer-events: none;
+    }
   }
 
   /* Individual draggable icon card */

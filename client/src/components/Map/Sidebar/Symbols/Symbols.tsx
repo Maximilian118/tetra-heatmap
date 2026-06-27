@@ -1,8 +1,9 @@
-import { Trash2, Navigation } from "lucide-react";
+import { Trash2, Navigation, Lock, LockOpen } from "lucide-react";
 import type { MapSymbol } from "../../../../utils/api";
 import { SYMBOL_TYPES, buildIconAtlas, ICON_MAPPING, degreesToCompass, type SymbolType } from "../../../../utils/symbols";
 import { useRef, useEffect, useMemo } from "react";
 import Slider from "../../../Slider/Slider";
+import SideBarButton from "../SideBarButton/SideBarButton";
 import "./Symbols.scss";
 
 interface SymbolsProps {
@@ -14,6 +15,8 @@ interface SymbolsProps {
   onDelete: (id: string) => void;
   onFlyTo: (longitude: number, latitude: number) => void;
   onDirectionChange: (id: string, direction: number) => void;
+  symbolsLocked: boolean;
+  onSymbolsLockedChange: (locked: boolean) => void;
 }
 
 /* Render a preview canvas for a single symbol type in the drag palette.
@@ -52,7 +55,7 @@ interface SymbolGroup {
 }
 
 /* Sidebar tab showing draggable symbol palette and list of placed symbols */
-const Symbols = ({ symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDelete, onFlyTo, onDirectionChange }: SymbolsProps) => {
+const Symbols = ({ symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDelete, onFlyTo, onDirectionChange, symbolsLocked, onSymbolsLockedChange }: SymbolsProps) => {
   /* Set the symbol type in dataTransfer and use the icon as the drag image */
   const handleDragStart = (e: React.DragEvent, type: SymbolType) => {
     e.dataTransfer.setData("symbolType", type);
@@ -117,15 +120,22 @@ const Symbols = ({ symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, on
 
   return (
     <div className="symbols" onClick={() => onSelectSymbol(null)}>
+      {/* Lock toggle — prevents all symbol movement when engaged */}
+      <SideBarButton
+        icon={symbolsLocked ? Lock : LockOpen}
+        label={symbolsLocked ? "Symbols Locked" : "Symbols Unlocked"}
+        onClick={() => onSymbolsLockedChange(!symbolsLocked)}
+      />
+
       {/* Draggable icon palette */}
       <span className="symbols__label">Drag to Place</span>
-      <div className="symbols__palette">
+      <div className={`symbols__palette${symbolsLocked ? " symbols__palette--locked" : ""}`}>
         {SYMBOL_TYPES.map((def) => (
           <div
             key={def.type}
             className="symbols__card"
-            draggable
-            onDragStart={(e) => handleDragStart(e, def.type)}
+            draggable={!symbolsLocked}
+            onDragStart={(e) => { if (symbolsLocked) return; handleDragStart(e, def.type); }}
             title={`Drag to place a ${def.label}`}
           >
             <SymbolPreview type={def.type} />

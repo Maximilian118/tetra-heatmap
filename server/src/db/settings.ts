@@ -13,6 +13,7 @@ export interface Settings {
   retentionDays: number;
   symbolSize: number;
   colourSpectrum: string;
+  symbolsLocked: boolean;
 }
 
 /* Validation limits to prevent excessive load on the logserver */
@@ -33,6 +34,7 @@ export const DEFAULT_SETTINGS: Settings = {
   retentionDays: 5,
   symbolSize: 48,
   colourSpectrum: "",
+  symbolsLocked: false,
 };
 
 /* Create the settings table — single-row design enforced by CHECK constraint */
@@ -66,13 +68,18 @@ try {
   db.exec("ALTER TABLE settings ADD COLUMN colour_spectrum TEXT NOT NULL DEFAULT ''");
 } catch { /* column already exists */ }
 
+/* Migration: add symbols_locked column for existing databases */
+try {
+  db.exec("ALTER TABLE settings ADD COLUMN symbols_locked INTEGER NOT NULL DEFAULT 0");
+} catch { /* column already exists */ }
+
 /* Prepared statements for reading and writing settings */
 const selectStmt = db.prepare("SELECT * FROM settings WHERE id = 1");
 const upsertStmt = db.prepare(`
   INSERT OR REPLACE INTO settings
-    (id, mapbox_token, db_host, db_port, db_user, db_password, db_name, sync_interval_ms, sync_batch_size, retention_days, symbol_size, colour_spectrum)
+    (id, mapbox_token, db_host, db_port, db_user, db_password, db_name, sync_interval_ms, sync_batch_size, retention_days, symbol_size, colour_spectrum, symbols_locked)
   VALUES
-    (1, @mapboxToken, @dbHost, @dbPort, @dbUser, @dbPassword, @dbName, @syncIntervalMs, @syncBatchSize, @retentionDays, @symbolSize, @colourSpectrum)
+    (1, @mapboxToken, @dbHost, @dbPort, @dbUser, @dbPassword, @dbName, @syncIntervalMs, @syncBatchSize, @retentionDays, @symbolSize, @colourSpectrum, @symbolsLocked)
 `);
 
 /* Map a database row to the Settings interface */
@@ -88,6 +95,7 @@ interface SettingsRow {
   retention_days: number;
   symbol_size: number;
   colour_spectrum: string;
+  symbols_locked: number;
 }
 
 const rowToSettings = (row: SettingsRow): Settings => ({
@@ -102,6 +110,7 @@ const rowToSettings = (row: SettingsRow): Settings => ({
   retentionDays: row.retention_days,
   symbolSize: row.symbol_size ?? 48,
   colourSpectrum: row.colour_spectrum ?? "",
+  symbolsLocked: !!(row.symbols_locked ?? 0),
 });
 
 /* Read settings from the database, returning defaults if no row exists */
@@ -139,6 +148,12 @@ export const updateColourSpectrum = (spectrum: string): void => {
   saveSettings({ ...current, colourSpectrum: spectrum });
 };
 
+/* Update only the symbols locked setting without touching other fields */
+export const updateSymbolsLocked = (locked: boolean): void => {
+  const current = getSettings();
+  saveSettings({ ...current, symbolsLocked: locked });
+};
+
 /* Return settings with password masked for client consumption */
 export const getSafeSettings = (): Settings => {
   const s = getSettings();
@@ -161,6 +176,7 @@ export const coerceSettings = (raw: Record<string, unknown>): Settings => ({
   retentionDays: Number(raw.retentionDays),
   symbolSize: Number(raw.symbolSize ?? 48),
   colourSpectrum: String(raw.colourSpectrum ?? ""),
+  symbolsLocked: Boolean(raw.symbolsLocked ?? false),
 });
 
 /* Check that a value is a finite integer (rejects NaN, Infinity, floats) */

@@ -8,6 +8,7 @@ import {
   isConfigured,
   updateSymbolSize,
   updateColourSpectrum,
+  updateSymbolsLocked,
 } from "../db/settings.js";
 import { testConnection } from "../utils/testConnection.js";
 import { recreatePool } from "../db/remote.js";
@@ -41,6 +42,17 @@ router.patch("/settings/symbol-size", (req, res) => {
     return;
   }
   updateSymbolSize(symbolSize);
+  res.json({ success: true });
+});
+
+/* Update the symbols locked state (called by the lock toggle in the symbols tab) */
+router.patch("/settings/symbols-locked", (req, res) => {
+  const { symbolsLocked } = req.body;
+  if (typeof symbolsLocked !== "boolean") {
+    res.status(400).json({ error: "symbolsLocked must be a boolean" });
+    return;
+  }
+  updateSymbolsLocked(symbolsLocked);
   res.json({ success: true });
 });
 

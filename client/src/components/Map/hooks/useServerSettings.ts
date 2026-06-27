@@ -2,7 +2,10 @@ import { useState, useEffect } from "react";
 import { fetchSettings } from "../../../utils/api";
 
 /* Fetch server settings on mount — Mapbox token, DB status, retention config */
-export const useServerSettings = (onInitialSymbolSize: (size: number) => void) => {
+export const useServerSettings = (
+  onInitialSymbolSize: (size: number) => void,
+  onInitialSymbolsLocked: (locked: boolean) => void,
+) => {
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [dbConnected, setDbConnected] = useState(false);
   const [retentionDays, setRetentionDays] = useState(5);
@@ -15,6 +18,7 @@ export const useServerSettings = (onInitialSymbolSize: (size: number) => void) =
         setDbConnected(s.dbHost.trim() !== "" && s.dbUser.trim() !== "");
         if (s.retentionDays > 0) setRetentionDays(s.retentionDays);
         if (s.symbolSize > 0) onInitialSymbolSize(s.symbolSize);
+        onInitialSymbolsLocked(!!s.symbolsLocked);
       })
       .catch((err) => console.error("[map] Failed to fetch settings:", err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
