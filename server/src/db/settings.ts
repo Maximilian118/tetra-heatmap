@@ -133,7 +133,7 @@ export const isMapboxConfigured = (): boolean => {
 
 /* Persist settings to the database (upsert via INSERT OR REPLACE) */
 export const saveSettings = (s: Settings): void => {
-  upsertStmt.run(s);
+  upsertStmt.run({ ...s, symbolsLocked: s.symbolsLocked ? 1 : 0 });
 };
 
 /* Update only the symbol size setting without touching other fields */

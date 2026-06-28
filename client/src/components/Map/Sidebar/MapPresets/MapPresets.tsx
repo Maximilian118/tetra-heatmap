@@ -39,13 +39,14 @@ interface MapPresetsProps {
   onStyleChange: (style: string) => void;
   onLayerTypeChange: (type: LayerType) => void;
   onKmlLoad: (data: KmlData) => void;
+  onOpenKmlPicker?: () => void;
 }
 
 /* Map style dropdown and layer type toggle for the sidebar */
-const MapPresets = ({ mapStyle, layerType, kmlLoaded, onStyleChange, onLayerTypeChange, onKmlLoad }: MapPresetsProps) => {
+const MapPresets = ({ mapStyle, layerType, kmlLoaded, onStyleChange, onLayerTypeChange, onKmlLoad, onOpenKmlPicker }: MapPresetsProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /* Handle KML file selection from the native file picker */
+  /* Handle KML file selection from the native file picker (fallback when no picker tab) */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -66,10 +67,14 @@ const MapPresets = ({ mapStyle, layerType, kmlLoaded, onStyleChange, onLayerType
     e.target.value = "";
   };
 
-  /* Handle layer button click — KML opens file picker, others switch directly */
+  /* Handle layer button click — KML opens picker tab or file picker, others switch directly */
   const handleLayerClick = (type: LayerType) => {
     if (type === "kml") {
-      fileInputRef.current?.click();
+      if (onOpenKmlPicker) {
+        onOpenKmlPicker();
+      } else {
+        fileInputRef.current?.click();
+      }
     } else {
       onLayerTypeChange(type);
     }

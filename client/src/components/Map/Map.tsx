@@ -297,6 +297,9 @@ const Map = () => {
         onLayerTypeChange={config.setLayerType}
         onSettingsChange={config.setLayerSettings}
         onKmlLoad={kml.setKmlData}
+        onKmlClear={kml.clearKml}
+        activeKmlId={kml.activeKmlId}
+        onActiveKmlIdChange={kml.setActiveKmlId}
         onScopeAdjusting={kml.setScopeAdjusting}
         onSaveData={data.handleSaveData}
         onLoadData={data.handleLoadData}

@@ -431,6 +431,59 @@ export const deleteNote = async (id: string): Promise<void> => {
   );
 };
 
+/* ── KML API ───────────────────────────────────────────────────── */
+
+/* Shape of a persisted KML file metadata row */
+export interface KmlFileMeta {
+  id: string;
+  filename: string;
+  center_lat: number;
+  center_lng: number;
+  uploaded_at: string;
+}
+
+/* Fetch all stored KML file metadata, optionally sorted by proximity to a center point */
+export const fetchKmlFiles = async (centerLat?: number, centerLng?: number): Promise<KmlFileMeta[]> => {
+  const params = new URLSearchParams();
+  if (centerLat !== undefined && centerLng !== undefined) {
+    params.set("centerLat", String(centerLat));
+    params.set("centerLng", String(centerLng));
+  }
+  const qs = params.toString();
+  const res = await assertOk(await fetch(`${API_BASE}/kml${qs ? `?${qs}` : ""}`));
+  return res.json();
+};
+
+/* Fetch the raw KML file content for a given id */
+export const fetchKmlContent = async (id: string): Promise<string> => {
+  const res = await assertOk(await fetch(`${API_BASE}/kml/${id}`));
+  return res.text();
+};
+
+/* Upload a new KML file to the server */
+export const uploadKml = async (
+  id: string,
+  filename: string,
+  center_lat: number,
+  center_lng: number,
+  content: string
+): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/kml`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, filename, center_lat, center_lng, content }),
+    })
+  );
+};
+
+/* Delete a stored KML file */
+export const deleteKml = async (id: string): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/kml/${id}`, { method: "DELETE" })
+  );
+};
+
 /* Save new settings, test connection, and restart sync service */
 export const saveSettings = async (settings: Settings): Promise<SettingsResponse> => {
   const res = await assertOk(

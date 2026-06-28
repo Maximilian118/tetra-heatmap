@@ -15,6 +15,7 @@ import subscriberRoutes from "./routes/subscribers.js";
 import statsRoutes from "./routes/stats.js";
 import symbolRoutes from "./routes/symbols.js";
 import noteRoutes from "./routes/notes.js";
+import kmlRoutes from "./routes/kml.js";
 import { startSync, stopSync } from "./services/sync.js";
 import { createPool, closePool } from "./db/remote.js";
 import { closeDb } from "./db/local.js";
@@ -27,7 +28,7 @@ const HOST = process.env.HOST || "localhost";
 
 app.use(compression());
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 /* Mount API routes */
 app.use("/api", rssiRoutes);
@@ -37,6 +38,7 @@ app.use("/api", subscriberRoutes);
 app.use("/api", statsRoutes);
 app.use("/api", symbolRoutes);
 app.use("/api", noteRoutes);
+app.use("/api", kmlRoutes);
 
 /* Serve the built Vite client as static files (production mode) */
 const clientDist = path.resolve(__dirname, "../../client/dist");

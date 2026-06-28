@@ -766,3 +766,44 @@ export function clipPolygonToPolygon(
 
   return output;
 }
+
+/* Compute the geographic centroid of all coordinates in a raw KML string.
+   Used to store a representative center point when persisting KML files. */
+export function computeKmlCenter(xmlString: string): { lat: number; lng: number } {
+  const doc = new DOMParser().parseFromString(xmlString, "application/xml");
+  const coordElements = doc.getElementsByTagName("coordinates");
+  let sumLat = 0;
+  let sumLng = 0;
+  let count = 0;
+
+  for (let i = 0; i < coordElements.length; i++) {
+    const text = coordElements[i].textContent ?? "";
+    const pairs = parseCoordinateText(text);
+    for (const [lng, lat] of pairs) {
+      sumLng += lng;
+      sumLat += lat;
+      count++;
+    }
+  }
+
+  if (count === 0) return { lat: 0, lng: 0 };
+  return { lat: sumLat / count, lng: sumLng / count };
+}
+
+/* Compute the geographic centroid of a set of readings.
+   Returns null if no readings have valid (non-zero) coordinates. */
+export function computeReadingsCenter(readings: Reading[]): { lat: number; lng: number } | null {
+  let sumLat = 0;
+  let sumLng = 0;
+  let count = 0;
+
+  for (const r of readings) {
+    if (r.latitude === 0 && r.longitude === 0) continue;
+    sumLat += r.latitude;
+    sumLng += r.longitude;
+    count++;
+  }
+
+  if (count === 0) return null;
+  return { lat: sumLat / count, lng: sumLng / count };
+}

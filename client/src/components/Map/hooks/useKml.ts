@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useDeferredValue } from "react";
+import { useState, useEffect, useMemo, useCallback, useDeferredValue } from "react";
 import type { Reading } from "../../../utils/api";
 import { buildKmlResult, getDefaultKmlLayerStyles, repositionLabels, separateOverlappingLabels, type KmlData, type KmlLayerStyle, type KmlPoint } from "../../../utils/kml";
 import type { LayerType } from "../Sidebar/MapPresets/MapPresets";
@@ -19,6 +19,14 @@ export const useKml = (params: UseKmlParams) => {
   const [kmlData, setKmlData] = useState<KmlData | null>(null);
   const [kmlLayerStyles, setKmlLayerStyles] = useState<Record<string, KmlLayerStyle>>({});
   const [scopeAdjusting, setScopeAdjusting] = useState(false);
+  const [activeKmlId, setActiveKmlId] = useState<string | null>(null);
+
+  /* Clear KML overlay and reset associated state */
+  const clearKml = useCallback(() => {
+    setKmlData(null);
+    setActiveKmlId(null);
+    setKmlLayerStyles({});
+  }, []);
 
   /* Deferred values — React prioritises slider input over geo-computation */
   const deferredScope = useDeferredValue(scope);
@@ -99,5 +107,8 @@ export const useKml = (params: UseKmlParams) => {
     visibleLineFolders,
     visiblePointFolders,
     adjustedPointPositions,
+    activeKmlId,
+    setActiveKmlId,
+    clearKml,
   };
 };

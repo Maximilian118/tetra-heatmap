@@ -16,6 +16,7 @@ import type { DatabaseSettingsHandle } from "./DatabaseSettings/DatabaseSettings
 import Symbols from "./Symbols/Symbols";
 import ColourSpectrum from "./ColourSpectrum/ColourSpectrum";
 import Notes from "./Notes/Notes";
+import KmlPicker from "./KmlPicker/KmlPicker";
 import SideBarButton from "./SideBarButton/SideBarButton";
 import "./Sidebar.scss";
 
@@ -26,7 +27,7 @@ const MOBILE_BREAKPOINT = 768;
 const formatResetDate = (iso: string): string =>
   new Date(iso).toLocaleString();
 
-type SidebarTab = "map" | "database" | "symbols" | "colour" | "report" | "notes";
+type SidebarTab = "map" | "database" | "symbols" | "colour" | "report" | "notes" | "kml";
 
 interface SidebarProps {
   resetting: boolean;
@@ -45,6 +46,9 @@ interface SidebarProps {
   onLayerTypeChange: (type: LayerType) => void;
   onSettingsChange: (settings: LayerSettings) => void;
   onKmlLoad: (data: KmlData) => void;
+  onKmlClear: () => void;
+  activeKmlId: string | null;
+  onActiveKmlIdChange: (id: string | null) => void;
   onScopeAdjusting: (adjusting: boolean) => void;
   onSaveData: () => void;
   onLoadData: (file: File) => void;
@@ -87,7 +91,7 @@ interface SidebarProps {
 }
 
 /* Left sidebar panel with Map and Database tabs */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, kmlLoaded, kmlFolders, kmlLayerStyles, onKmlLayerStyleChange, onStyleChange, onLayerTypeChange, onSettingsChange, onKmlLoad, onScopeAdjusting, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats, symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDeleteSymbol, onFlyTo, onDirectionChange, symbolsLocked, onSymbolsLockedChange, customSpectrum, onSpectrumChange, colourTabTrigger, notes, editingNoteId, onSetEditingNoteId, onNoteTitleChange, onNoteTextChange, onDeleteNote, onAddNote, notesTabTrigger, reportMode, onGenerateReport, onCloseReport }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, kmlLoaded, kmlFolders, kmlLayerStyles, onKmlLayerStyleChange, onStyleChange, onLayerTypeChange, onSettingsChange, onKmlLoad, onKmlClear, activeKmlId, onActiveKmlIdChange, onScopeAdjusting, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats, symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDeleteSymbol, onFlyTo, onDirectionChange, symbolsLocked, onSymbolsLockedChange, customSpectrum, onSpectrumChange, colourTabTrigger, notes, editingNoteId, onSetEditingNoteId, onNoteTitleChange, onNoteTextChange, onDeleteNote, onAddNote, notesTabTrigger, reportMode, onGenerateReport, onCloseReport }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("map");
   const [confirming, setConfirming] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -184,6 +188,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
               onStyleChange={onStyleChange}
               onLayerTypeChange={onLayerTypeChange}
               onKmlLoad={onKmlLoad}
+              onOpenKmlPicker={() => setActiveTab("kml")}
             />
             <DataControls
               readings={readings}
@@ -274,6 +279,25 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
               />
             )}
           </>
+        ) : activeTab === "kml" ? (
+          <>
+            <MapPresets
+              mapStyle={mapStyle}
+              layerType={layerType}
+              kmlLoaded={kmlLoaded}
+              onStyleChange={onStyleChange}
+              onLayerTypeChange={onLayerTypeChange}
+              onKmlLoad={onKmlLoad}
+            />
+            <KmlPicker
+              readings={readings}
+              onKmlLoad={onKmlLoad}
+              onKmlClear={onKmlClear}
+              activeKmlId={activeKmlId}
+              onActiveKmlIdChange={onActiveKmlIdChange}
+              onLayerTypeChange={onLayerTypeChange}
+            />
+          </>
         ) : (
           <DatabaseSettings ref={dbRef} onStateChange={handleDbStateChange} onShowStats={onShowStats} />
         )}
@@ -295,14 +319,14 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
           <span className="sidebar__hint">Adjust the title in the report preview, then click Save PDF to export.</span>
           <SideBarButton icon={X} label="Close" onClick={onCloseReport} />
         </div>
-      ) : activeTab === "symbols" || activeTab === "colour" || activeTab === "notes" ? (
+      ) : activeTab === "symbols" || activeTab === "colour" || activeTab === "notes" || activeTab === "kml" ? (
         <div className="sidebar__footer">
           <SideBarButton icon={X} label="Close" onClick={() => setActiveTab("map")} />
         </div>
       ) : (
         <div className="sidebar__footer">
           {dbStatusMessage && <span className="sidebar__message">{dbStatusMessage}</span>}
-          <span className="sidebar__hint">v0.6.0</span>
+          <span className="sidebar__hint">v0.10.0</span>
           <SideBarButton
             icon={RotateCcw}
             label={resetting ? "Resetting..." : "Reset Cache"}

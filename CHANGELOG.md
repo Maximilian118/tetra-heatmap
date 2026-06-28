@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.10.0] — 2026-06-28
+
+### Added
+- **KML file storage** — Uploaded KML files are now persisted on the server (SQLite metadata + disk storage inside the Docker volume), making them available to all connected users across sessions and restarts.
+- **KML Picker sidebar tab** — Clicking the KML button opens a dedicated picker tab with a search bar, proximity-sorted file list, upload button, per-file delete, and a clear selection button that reverts to the heatmap layer. KML files are automatically sorted by geographic proximity to the current RSSI readings data.
+
+### Fixed
+- **Colour spectrum save crash** — Fixed a `TypeError: SQLite3 can only bind booleans` error when saving colour spectrum or symbol size settings, caused by the `symbolsLocked` boolean not being coerced to an integer before binding.
+- **Express JSON body limit** — Increased the default 100KB JSON body limit to 10MB, allowing KML file uploads (typically 150–300KB) to succeed.
+
 ## [0.9.0] — 2026-06-27
 
 ### Added

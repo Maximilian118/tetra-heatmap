@@ -65,6 +65,15 @@ db.exec(`
     polygon TEXT,
     created_at TEXT NOT NULL
   );
+
+  /* Persistent KML file metadata — actual file content stored on disk */
+  CREATE TABLE IF NOT EXISTS kml_files (
+    id TEXT PRIMARY KEY,
+    filename TEXT NOT NULL,
+    center_lat REAL NOT NULL,
+    center_lng REAL NOT NULL,
+    uploaded_at TEXT NOT NULL
+  );
 `);
 
 /* Migrations: add columns that may be missing on existing subscribers table */
@@ -421,6 +430,40 @@ export const pruneOldNotes = (retentionDays: number): number => {
     "DELETE FROM notes WHERE created_at < datetime('now', '-' || ? || ' days')"
   ).run(retentionDays);
   return result.changes;
+};
+
+/* ── KML file helpers ─────────────────────────────────────────────── */
+
+/* Shape of a persisted KML file metadata row */
+export interface KmlFile {
+  id: string;
+  filename: string;
+  center_lat: number;
+  center_lng: number;
+  uploaded_at: string;
+}
+
+/* Fetch all KML file metadata, ordered by upload date (newest first) */
+export const getAllKmlFiles = (): KmlFile[] => {
+  return db.prepare("SELECT * FROM kml_files ORDER BY uploaded_at DESC").all() as KmlFile[];
+};
+
+/* Fetch a single KML file metadata row by id */
+export const getKmlFile = (id: string): KmlFile | undefined => {
+  return db.prepare("SELECT * FROM kml_files WHERE id = ?").get(id) as KmlFile | undefined;
+};
+
+/* Insert a new KML file metadata row */
+export const insertKmlFile = (kml: KmlFile): void => {
+  db.prepare(
+    `INSERT OR REPLACE INTO kml_files (id, filename, center_lat, center_lng, uploaded_at)
+     VALUES (@id, @filename, @center_lat, @center_lng, @uploaded_at)`
+  ).run(kml);
+};
+
+/* Remove a KML file metadata row by id */
+export const deleteKmlFile = (id: string): void => {
+  db.prepare("DELETE FROM kml_files WHERE id = ?").run(id);
 };
 
 /* Gracefully close the SQLite database */
