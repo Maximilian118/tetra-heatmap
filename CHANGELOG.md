@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.0] — 2026-07-01
+
+### Added
+- **Batch KML upload** — The KML file picker now supports multi-file selection, allowing users to upload many KML files at once (e.g. 100+). All files are uploaded concurrently, and the button shows an "Uploading N..." indicator during the batch.
+
+### Fixed
+- **KML upload crash on HTTP** — Fixed `crypto.randomUUID is not a function` error when uploading KML files over a non-secure (HTTP) context by using the existing `generateUUID()` fallback utility.
+
 ## [0.10.0] — 2026-06-28
 
 ### Added

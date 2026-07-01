@@ -4,6 +4,7 @@ import type { Reading, KmlFileMeta } from "../../../../utils/api";
 import { fetchKmlFiles, fetchKmlContent, uploadKml, deleteKml } from "../../../../utils/api";
 import { parseKml, computeKmlCenter, computeReadingsCenter, type KmlData } from "../../../../utils/kml";
 import type { LayerType } from "../MapPresets/MapPresets";
+import { generateUUID } from "../../../../utils/uuid";
 import "./KmlPicker.scss";
 
 interface KmlPickerProps {
@@ -24,6 +25,7 @@ const KmlPicker = ({ readings, onKmlLoad, onKmlClear, activeKmlId, onActiveKmlId
   const [kmlFiles, setKmlFiles] = useState<KmlFileMeta[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* Fetch the KML file list from the server, sorted by proximity to readings center */
@@ -57,33 +59,57 @@ const KmlPicker = ({ readings, onKmlLoad, onKmlClear, activeKmlId, onActiveKmlId
     }
   };
 
-  /* Handle uploading a new KML file */
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  /* Read a single file as text via FileReader */
+  const readFileAsText = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(file);
+    });
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const content = reader.result as string;
-      const center = computeKmlCenter(content);
-      const id = crypto.randomUUID();
+  /* Handle uploading one or more KML files */
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-      /* Upload to server, refresh list, and auto-select */
-      uploadKml(id, file.name, center.lat, center.lng, content)
-        .then(() => refreshList())
-        .then(() => {
-          const kmlData = parseKml(content, file.name);
-          if (kmlData.folders.length > 0) {
-            onKmlLoad(kmlData);
-            onActiveKmlIdChange(id);
-            onLayerTypeChange("kml");
-          }
-        })
-        .catch((err) => console.error("Failed to upload KML file:", err));
-    };
-    reader.readAsText(file);
+    const fileArray = Array.from(files);
+    setUploading(fileArray.length);
 
-    /* Reset the input so the same file can be re-selected */
+    /* Upload all files concurrently */
+    const results = await Promise.allSettled(
+      fileArray.map(async (file) => {
+        const content = await readFileAsText(file);
+        const center = computeKmlCenter(content);
+        const id = generateUUID();
+        await uploadKml(id, file.name, center.lat, center.lng, content);
+        return { id, name: file.name, content };
+      })
+    );
+
+    /* Log any failures */
+    results.forEach((r, i) => {
+      if (r.status === "rejected") {
+        console.error(`Failed to upload KML file "${fileArray[i].name}":`, r.reason);
+      }
+    });
+
+    /* Refresh list and auto-select the last successfully uploaded file */
+    await refreshList();
+    const lastSuccess = [...results].reverse().find((r) => r.status === "fulfilled");
+    if (lastSuccess && lastSuccess.status === "fulfilled") {
+      const { id, name, content } = lastSuccess.value;
+      const kmlData = parseKml(content, name);
+      if (kmlData.folders.length > 0) {
+        onKmlLoad(kmlData);
+        onActiveKmlIdChange(id);
+        onLayerTypeChange("kml");
+      }
+    }
+
+    setUploading(0);
+
+    /* Reset the input so the same files can be re-selected */
     e.target.value = "";
   };
 
@@ -134,16 +160,21 @@ const KmlPicker = ({ readings, onKmlLoad, onKmlClear, activeKmlId, onActiveKmlId
       </div>
 
       {/* Upload button */}
-      <button className="kml-picker__upload-btn" onClick={() => fileInputRef.current?.click()}>
+      <button
+        className="kml-picker__upload-btn"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={uploading > 0}
+      >
         <Upload size={14} />
-        Upload KML
+        {uploading > 0 ? `Uploading ${uploading}...` : "Upload KML"}
       </button>
 
-      {/* Hidden file input for KML upload */}
+      {/* Hidden file input for KML upload (multiple allowed) */}
       <input
         ref={fileInputRef}
         type="file"
         accept=".kml"
+        multiple
         className="kml-picker__file-input"
         onChange={handleFileUpload}
       />
