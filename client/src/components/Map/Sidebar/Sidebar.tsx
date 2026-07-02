@@ -263,6 +263,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
               onStyleChange={onStyleChange}
               onLayerTypeChange={onLayerTypeChange}
               onKmlLoad={onKmlLoad}
+              onOpenKmlPicker={() => setActiveTab("kml")}
             />
             <Customise
               layerType={layerType}
@@ -321,12 +322,12 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
         </div>
       ) : activeTab === "symbols" || activeTab === "colour" || activeTab === "notes" || activeTab === "kml" ? (
         <div className="sidebar__footer">
-          <SideBarButton icon={X} label="Close" onClick={() => setActiveTab("map")} />
+          <SideBarButton icon={X} label="Close" onClick={() => setActiveTab(reportMode ? "report" : "map")} />
         </div>
       ) : (
         <div className="sidebar__footer">
           {dbStatusMessage && <span className="sidebar__message">{dbStatusMessage}</span>}
-          <span className="sidebar__hint">v0.12.0</span>
+          <span className="sidebar__hint">v0.13.0</span>
           <SideBarButton
             icon={RotateCcw}
             label={resetting ? "Resetting..." : "Reset Cache"}

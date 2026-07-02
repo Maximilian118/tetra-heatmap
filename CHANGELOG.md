@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.13.0] — 2026-07-02
+
+### Fixed
+- **KML picker in report mode** — Clicking the KML button while in the PDF preview now opens the new KML picker tab instead of the old native file dialog. Closing the picker returns to the report tab instead of the map tab.
+
 ## [0.12.0] — 2026-07-02
 
 ### Changed
