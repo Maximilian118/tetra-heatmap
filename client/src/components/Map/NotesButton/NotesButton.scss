@@ -25,4 +25,10 @@
   &:hover {
     background: $bg-element-hover;
   }
+
+  /* On mobile, shift right of the sidebar toggle and match its height */
+  @media (max-width: 768px) {
+    left: 56px;
+    height: 40px;
+  }
 }

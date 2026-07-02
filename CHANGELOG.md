@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.0] — 2026-07-02
+
+### Fixed
+- **Notes button hidden on mobile** — The notes button on the map was obscured by the sidebar drawer toggle on mobile viewports. Repositioned it to the right of the toggle and matched its height for a uniform appearance.
+
 ## [0.13.0] — 2026-07-02
 
 ### Fixed
