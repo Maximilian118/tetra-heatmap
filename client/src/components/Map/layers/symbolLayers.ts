@@ -5,8 +5,17 @@ import { ICON_MAPPING } from "../../../utils/symbols";
 import { updateSymbolPosition } from "../../../utils/api";
 import type { LayerBuildParams } from "./types";
 
+/* Zoom level at which symbolSize maps 1:1 to screen pixels.
+   At other zooms, symbols scale with the map like geographic features. */
+const SYMBOL_REF_ZOOM = 14;
+
+/* Divisor to convert pixel size at the reference zoom into common-space units.
+   DeckGL common units: 1 unit = 1 pixel at zoom 0, scaled by 2^zoom on the GPU. */
+const REF_DIVISOR = Math.pow(2, SYMBOL_REF_ZOOM);
+
 /* User-placed map symbols — rendered on top of everything else.
-   Two layers: backgrounds (rotates for directional) and foregrounds (always upright). */
+   Two layers: backgrounds (rotates for directional) and foregrounds (always upright).
+   sizeUnits:'common' lets the GPU handle zoom scaling — perfectly smooth with no lag. */
 export const buildSymbolLayers = (params: LayerBuildParams) => {
   const {
     bearing, symbols, bgAtlasUrl, fgAtlasUrl, selectedSymbolId, symbolSize,
@@ -22,10 +31,11 @@ export const buildSymbolLayers = (params: LayerBuildParams) => {
     iconMapping: ICON_MAPPING,
     getIcon: (d) => d.backup ? `${d.type}-backup` : d.type,
     getAngle: (d) => d.type === "repeater-directional" ? -(d.direction ?? 0) + bearing : 0,
-    getSize: (d) => d.id === selectedSymbolId ? symbolSize + 16 : symbolSize,
+    sizeUnits: "common",
+    getSize: (d) => (d.id === selectedSymbolId ? symbolSize + 16 : symbolSize) / REF_DIVISOR,
     getColor: (d): [number, number, number, number] => d.inactive ? [255, 255, 255, 60] : [255, 255, 255, 255],
-    sizeMinPixels: 20,
-    sizeMaxPixels: 120,
+    sizeMinPixels: 8,
+    sizeMaxPixels: 512,
     pickable: true,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     parameters: { depthTest: false } as any,
@@ -78,10 +88,11 @@ export const buildSymbolLayers = (params: LayerBuildParams) => {
     iconAtlas: fgAtlasUrl,
     iconMapping: ICON_MAPPING,
     getIcon: (d) => d.backup ? `${d.type}-backup` : d.type,
-    getSize: (d) => d.id === selectedSymbolId ? symbolSize + 16 : symbolSize,
+    sizeUnits: "common",
+    getSize: (d) => (d.id === selectedSymbolId ? symbolSize + 16 : symbolSize) / REF_DIVISOR,
     getColor: (d): [number, number, number, number] => d.inactive ? [255, 255, 255, 160] : [255, 255, 255, 255],
-    sizeMinPixels: 20,
-    sizeMaxPixels: 120,
+    sizeMinPixels: 8,
+    sizeMaxPixels: 512,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     parameters: { depthTest: false } as any,
     transitions: { getSize: { duration: 80 } },

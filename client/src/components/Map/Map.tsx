@@ -157,8 +157,9 @@ const Map = () => {
   ]);
 
   /* Factory that builds independent layer instances for the report preview.
-     No interactive callbacks (tooltips, symbol dragging) — just visual layers. */
-  const createReportLayers = useCallback(() => buildLayers({
+     No interactive callbacks (tooltips, symbol dragging) — just visual layers.
+     Accepts the preview's current zoom so symbols scale correctly with its viewport. */
+  const createReportLayers = useCallback((previewZoom: number) => buildLayers({
     layerType: config.layerType,
     validReadings: filter.validReadings,
     radioPaths: config.radioPaths,
@@ -175,7 +176,7 @@ const Map = () => {
     visiblePointFolders: kml.visiblePointFolders,
     adjustedPointPositions: kml.adjustedPointPositions,
     bearing: 0,
-    zoom: viewport.liveViewState?.zoom ?? 12,
+    zoom: previewZoom,
     symbols: sym.symbols,
     bgAtlasUrl,
     fgAtlasUrl,

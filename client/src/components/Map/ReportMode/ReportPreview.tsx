@@ -13,7 +13,7 @@ import ReportSectorStats from "./ReportSectorStats/ReportSectorStats";
 import "./ReportPreview.scss";
 
 interface ReportPreviewProps {
-  createLayers: () => unknown[];
+  createLayers: (previewZoom: number) => unknown[];
   mapboxToken: string;
   mapStyle: string;
   initialViewState: { longitude: number; latitude: number; zoom: number; bearing: number; pitch: number };
@@ -33,6 +33,7 @@ const ReportPreview = ({ createLayers, mapboxToken, mapStyle, initialViewState, 
   const [viewState, setViewState] = useState(initialViewState);
   const [leftHeight, setLeftHeight] = useState(0);
   const leftRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
 
   /* Reverse-geocode the map centre on mount to enrich the default title with country + year */
   useEffect(() => {
@@ -67,38 +68,44 @@ const ReportPreview = ({ createLayers, mapboxToken, mapStyle, initialViewState, 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const deckRef = useRef<any>(null);
 
-  /* Build independent layer instances for this preview's DeckGL */
+  /* Build independent layer instances for this preview's DeckGL, passing the preview's
+     own zoom so symbols scale correctly with this viewport */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const reportLayers = useMemo(() => createLayers() as any[], [createLayers]);
+  const reportLayers = useMemo(() => createLayers(viewState.zoom) as any[], [createLayers, viewState.zoom]);
 
   /* Snapshot this preview's map canvases, insert as static image, then capture as PDF */
   const handleSave = useCallback(async () => {
     if (!captureRef.current) return;
     setSaving(true);
     try {
-      /* Get this preview's own canvases */
+      /* Get this preview's own canvases and container elements */
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const deckCanvas = (deckRef.current as any)?.deck?.getCanvas() as HTMLCanvasElement | undefined;
       const mapboxCanvas = captureRef.current.querySelector(".mapboxgl-canvas") as HTMLCanvasElement | undefined;
-      if (!deckCanvas || !mapboxCanvas) return;
+      const mapArea = captureRef.current.querySelector(".report-preview__map") as HTMLElement;
+      const deckContainer = mapArea?.querySelector(".report-preview__deck") as HTMLElement;
+      if (!deckCanvas || !mapboxCanvas || !mapArea) return;
 
-      /* Composite into a single screenshot */
+      /* Composite into a single screenshot, cropping to the visible map area.
+         The DeckGL container extends below the visible frame (to hide MapBox branding),
+         so we crop to just the visible portion to avoid a position shift. */
+      const visibleRatio = mapArea.clientHeight / (deckContainer?.clientHeight || mapArea.clientHeight);
+      const cropH = Math.round(deckCanvas.height * visibleRatio);
+
       const offscreen = document.createElement("canvas");
       offscreen.width = deckCanvas.width;
-      offscreen.height = deckCanvas.height;
+      offscreen.height = cropH;
       const ctx = offscreen.getContext("2d")!;
-      ctx.drawImage(mapboxCanvas, 0, 0);
-      ctx.drawImage(deckCanvas, 0, 0);
+      ctx.drawImage(mapboxCanvas, 0, 0, mapboxCanvas.width, cropH, 0, 0, offscreen.width, cropH);
+      ctx.drawImage(deckCanvas, 0, 0, deckCanvas.width, cropH, 0, 0, offscreen.width, cropH);
       const mapDataUrl = offscreen.toDataURL("image/png");
 
       /* Insert a temporary static image into the map area */
-      const mapArea = captureRef.current.querySelector(".report-preview__map") as HTMLElement;
       const img = document.createElement("img");
       img.className = "report-preview__img";
       img.src = mapDataUrl;
 
       /* Hide the live canvases so html2canvas only sees the static image */
-      const deckContainer = mapArea.querySelector(".report-preview__deck") as HTMLElement;
       if (deckContainer) deckContainer.style.visibility = "hidden";
       mapArea.appendChild(img);
 
@@ -128,7 +135,7 @@ const ReportPreview = ({ createLayers, mapboxToken, mapStyle, initialViewState, 
         <ReportBanner title={title} onTitleChange={setTitle} />
 
         {/* Map area with a dedicated DeckGL + MapGL instance */}
-        <div className="report-preview__map">
+        <div className="report-preview__map" ref={mapRef}>
           <div className="report-preview__deck">
             <DeckGL
               ref={deckRef}

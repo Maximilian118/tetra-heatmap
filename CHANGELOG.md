@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.12.0] — 2026-07-02
+
+### Changed
+- **Symbols scale with map zoom** — Symbols now scale smoothly with the map zoom level using GPU-accelerated common-space units, maintaining a consistent geographic footprint. Zooming out shrinks symbols to avoid collisions; zooming in grows them proportionally with the map. The size slider still controls the base size at the reference zoom level.
+
+### Fixed
+- **PDF map position shift** — The exported PDF map no longer shifts slightly upward. The DeckGL canvas extended below the visible area to hide MapBox branding; the composite snapshot now crops to only the visible portion instead of centre-cropping.
+- **PDF text sharpness** — Increased html2canvas capture scale from 2x to 3x and raised JPEG quality from 95% to 98%, producing noticeably sharper banner and legend text. Intermediate pre-crop encoding switched from JPEG to PNG to avoid double lossy compression.
+- **PDF symbol sizing** — Map symbols in the PDF preview now scale proportionally to the preview's smaller map area, matching the visual weight they have on the main map.
+
 ## [0.11.0] — 2026-07-01
 
 ### Added

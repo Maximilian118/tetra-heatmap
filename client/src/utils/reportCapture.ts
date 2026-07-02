@@ -75,7 +75,7 @@ export const captureReportPdf = async (
     cropCtx.drawImage(mapImg, sx, sy, sw, sh, 0, 0, cropCanvas.width, cropCanvas.height);
 
     /* Replace the img src with the pre-cropped version and disable object-fit */
-    mapImg.src = cropCanvas.toDataURL("image/jpeg", 0.95);
+    mapImg.src = cropCanvas.toDataURL("image/png");
     mapImg.style.objectFit = "fill";
 
     /* Wait for the new src to load */
@@ -88,7 +88,7 @@ export const captureReportPdf = async (
   /* Capture the entire report element */
   const canvas = await html2canvas(reportEl, {
     useCORS: true,
-    scale: 2,
+    scale: 3,
     backgroundColor: null,
     logging: false,
   });
@@ -105,7 +105,7 @@ export const captureReportPdf = async (
   }
 
   /* Write to PDF — scale to fit A4 while preserving the captured aspect ratio */
-  const imgData = canvas.toDataURL("image/jpeg", 0.95);
+  const imgData = canvas.toDataURL("image/jpeg", 0.98);
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
   const imgAspect = canvas.width / canvas.height;
