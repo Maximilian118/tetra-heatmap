@@ -10,6 +10,7 @@ import {
   setSyncFrom,
   ensureSubscribersExist,
   updateLastLocation,
+  updateLastReading,
 } from "../db/local.js";
 import type { Reading } from "../db/local.js";
 import type { RowDataPacket } from "mysql2";
@@ -210,13 +211,20 @@ const syncReadings = async () => {
         ensureSubscribersExist(uniqueSsis);
 
         /* Pre-compute the last reading location for each SSI in this batch (accepted only) */
+        /* Persist the last reading timestamp and location for each SSI in this batch */
         const acceptedReadings = readings.filter((r) => !r.reject_reason);
-        if (getNearestCity && acceptedReadings.length > 0) {
+        if (acceptedReadings.length > 0) {
           for (const ssi of uniqueSsis) {
             const latest = acceptedReadings
               .filter((r) => r.ssi === ssi)
               .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
-            if (!latest || (latest.latitude === 0 && latest.longitude === 0)) continue;
+            if (!latest) continue;
+
+            /* Always persist the timestamp so it survives retention pruning */
+            updateLastReading(ssi, latest.timestamp);
+
+            /* Geocode and persist location string */
+            if (!getNearestCity || (latest.latitude === 0 && latest.longitude === 0)) continue;
             try {
               const result = getNearestCity(latest.latitude, latest.longitude);
               if (result?.cityName) {

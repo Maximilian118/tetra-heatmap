@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.15.0] — 2026-07-02
+
+### Fixed
+- **Last reading lost after retention pruning** — The "Last Reading" timestamp in the SSI Register was computed dynamically from the readings table, so it disappeared once readings were pruned after the retention period. The timestamp is now persisted on the subscribers table (mirroring the existing `last_location` behaviour) and falls back to the stored value when live readings have been purged. Also fixed a latent bug where re-importing subscribers via the Import button would reset the stored last location.
+
 ## [0.14.0] — 2026-07-02
 
 ### Fixed

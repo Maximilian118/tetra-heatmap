@@ -83,6 +83,7 @@ try { db.exec("ALTER TABLE subscribers ADD COLUMN organisation TEXT NOT NULL DEF
 try { db.exec("ALTER TABLE subscribers ADD COLUMN profile_id INTEGER"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE subscribers ADD COLUMN profile_name TEXT NOT NULL DEFAULT ''"); } catch { /* already exists */ }
 try { db.exec("ALTER TABLE subscribers ADD COLUMN last_location TEXT NOT NULL DEFAULT ''"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE subscribers ADD COLUMN last_reading TEXT NOT NULL DEFAULT ''"); } catch { /* already exists */ }
 
 /* Migrations: add reject_reason column to readings table for persisting rejected LIP data */
 try { db.exec("ALTER TABLE readings ADD COLUMN reject_reason TEXT"); } catch { /* already exists */ }
@@ -199,7 +200,7 @@ export const getAllSubscribers = (): Subscriber[] => {
               s.profile_id, s.profile_name,
               COALESCE(r.cnt, 0) AS readings_count,
               COALESCE(r.rejected, 0) AS rejected_count,
-              r.last_reading,
+              COALESCE(r.last_reading, NULLIF(s.last_reading, '')) AS last_reading,
               s.last_location
        FROM subscribers s
        LEFT JOIN (
@@ -219,10 +220,16 @@ export const upsertSubscribers = (
   rows: Omit<Subscriber, "readings_count" | "rejected_count" | "last_reading" | "last_location">[]
 ): void => {
   const stmt = db.prepare(`
-    INSERT OR REPLACE INTO subscribers
+    INSERT INTO subscribers
       (ssi, description, organisation_id, organisation, profile_id, profile_name)
     VALUES
       (@ssi, @description, @organisation_id, @organisation, @profile_id, @profile_name)
+    ON CONFLICT(ssi) DO UPDATE SET
+      description = excluded.description,
+      organisation_id = excluded.organisation_id,
+      organisation = excluded.organisation,
+      profile_id = excluded.profile_id,
+      profile_name = excluded.profile_name
   `);
 
   const insertMany = db.transaction(
@@ -266,6 +273,14 @@ export const getSubscribersMissingLocation = (): { ssi: number; latitude: number
 export const updateLastLocation = (ssi: number, location: string): void => {
   db.prepare("UPDATE subscribers SET last_location = ? WHERE ssi = ?").run(
     location,
+    ssi
+  );
+};
+
+/* Update the pre-computed last reading timestamp for a subscriber */
+export const updateLastReading = (ssi: number, timestamp: string): void => {
+  db.prepare("UPDATE subscribers SET last_reading = ? WHERE ssi = ?").run(
+    timestamp,
     ssi
   );
 };
