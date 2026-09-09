@@ -25,6 +25,7 @@ export interface Settings {
   dbUser: string;
   dbPassword: string;
   dbName: string;
+  dbSsl: boolean;
   syncIntervalMs: number;
   syncBatchSize: number;
   retentionDays: number;

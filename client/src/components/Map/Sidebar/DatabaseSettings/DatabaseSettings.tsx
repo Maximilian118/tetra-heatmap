@@ -6,6 +6,7 @@ import {
   testDbConnection,
   type Settings,
 } from "../../../../utils/api";
+import ToggleSwitch from "../ToggleSwitch/ToggleSwitch";
 import "./DatabaseSettings.scss";
 
 /* Default form values before settings are loaded from the server */
@@ -16,6 +17,7 @@ const DEFAULTS: Settings = {
   dbUser: "",
   dbPassword: "",
   dbName: "tetraflexlogdb",
+  dbSsl: true,
   syncIntervalMs: 60000,
   syncBatchSize: 10000,
   retentionDays: 5,
@@ -193,6 +195,12 @@ const DatabaseSettings = forwardRef<DatabaseSettingsHandle, DatabaseSettingsProp
             label="Database"
             value={settings.dbName}
             onChange={(v) => updateField("dbName", v)}
+          />
+          <ToggleSwitch
+            label="Use SSL"
+            hint="Required by TetraFlex Logserver — disable only for servers without SSL (connection will be unencrypted)"
+            checked={settings.dbSsl}
+            onChange={(v) => updateField("dbSsl", v)}
           />
         </div>
 

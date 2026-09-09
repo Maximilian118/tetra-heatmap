@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.16.0] — 2026-09-09
+
+### Added
+- **Optional SSL toggle** — SSL for the remote MySQL connection is no longer hardcoded. A new "Use SSL" toggle switch in the Settings (Database) tab controls it, defaulting to on so existing deployments are unaffected (the TetraFlex Logserver requires SSL). Disabling it allows connecting to MySQL servers without SSL support; the pre-save connection test respects the toggle, so a misconfigured change fails visibly without breaking the running pool. Stored as a new `db_ssl` column in the settings table via an additive migration.
+
 ## [0.15.0] — 2026-07-02
 
 ### Fixed

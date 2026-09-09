@@ -8,6 +8,7 @@ export interface Settings {
   dbUser: string;
   dbPassword: string;
   dbName: string;
+  dbSsl: boolean;
   syncIntervalMs: number;
   syncBatchSize: number;
   retentionDays: number;
@@ -29,6 +30,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dbUser: "",
   dbPassword: "",
   dbName: "tetraflexlogdb",
+  dbSsl: true,
   syncIntervalMs: 60000,
   syncBatchSize: 10000,
   retentionDays: 5,
@@ -73,13 +75,18 @@ try {
   db.exec("ALTER TABLE settings ADD COLUMN symbols_locked INTEGER NOT NULL DEFAULT 0");
 } catch { /* column already exists */ }
 
+/* Migration: add db_ssl column for existing databases (defaults on — TetraFlex requires SSL) */
+try {
+  db.exec("ALTER TABLE settings ADD COLUMN db_ssl INTEGER NOT NULL DEFAULT 1");
+} catch { /* column already exists */ }
+
 /* Prepared statements for reading and writing settings */
 const selectStmt = db.prepare("SELECT * FROM settings WHERE id = 1");
 const upsertStmt = db.prepare(`
   INSERT OR REPLACE INTO settings
-    (id, mapbox_token, db_host, db_port, db_user, db_password, db_name, sync_interval_ms, sync_batch_size, retention_days, symbol_size, colour_spectrum, symbols_locked)
+    (id, mapbox_token, db_host, db_port, db_user, db_password, db_name, db_ssl, sync_interval_ms, sync_batch_size, retention_days, symbol_size, colour_spectrum, symbols_locked)
   VALUES
-    (1, @mapboxToken, @dbHost, @dbPort, @dbUser, @dbPassword, @dbName, @syncIntervalMs, @syncBatchSize, @retentionDays, @symbolSize, @colourSpectrum, @symbolsLocked)
+    (1, @mapboxToken, @dbHost, @dbPort, @dbUser, @dbPassword, @dbName, @dbSsl, @syncIntervalMs, @syncBatchSize, @retentionDays, @symbolSize, @colourSpectrum, @symbolsLocked)
 `);
 
 /* Map a database row to the Settings interface */
@@ -90,6 +97,7 @@ interface SettingsRow {
   db_user: string;
   db_password: string;
   db_name: string;
+  db_ssl: number;
   sync_interval_ms: number;
   sync_batch_size: number;
   retention_days: number;
@@ -105,6 +113,7 @@ const rowToSettings = (row: SettingsRow): Settings => ({
   dbUser: row.db_user,
   dbPassword: row.db_password,
   dbName: row.db_name,
+  dbSsl: !!(row.db_ssl ?? 1),
   syncIntervalMs: row.sync_interval_ms,
   syncBatchSize: row.sync_batch_size,
   retentionDays: row.retention_days,
@@ -133,7 +142,7 @@ export const isMapboxConfigured = (): boolean => {
 
 /* Persist settings to the database (upsert via INSERT OR REPLACE) */
 export const saveSettings = (s: Settings): void => {
-  upsertStmt.run({ ...s, symbolsLocked: s.symbolsLocked ? 1 : 0 });
+  upsertStmt.run({ ...s, dbSsl: s.dbSsl ? 1 : 0, symbolsLocked: s.symbolsLocked ? 1 : 0 });
 };
 
 /* Update only the symbol size setting without touching other fields */
@@ -171,6 +180,7 @@ export const coerceSettings = (raw: Record<string, unknown>): Settings => ({
   dbUser: String(raw.dbUser ?? ""),
   dbPassword: String(raw.dbPassword ?? ""),
   dbName: String(raw.dbName ?? ""),
+  dbSsl: Boolean(raw.dbSsl ?? true),
   syncIntervalMs: Number(raw.syncIntervalMs),
   syncBatchSize: Number(raw.syncBatchSize),
   retentionDays: Number(raw.retentionDays),

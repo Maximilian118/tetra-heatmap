@@ -1,0 +1,78 @@
+@use "../../../../styles/variables" as *;
+
+/* Labelled toggle switch — checkbox rendered as a sliding pill */
+.toggle-switch {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  /* Row container — label left, pill right (matches sidebar toggle rows) */
+  &__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    background: $bg-element;
+    border: 1px solid $border-default;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  &__label {
+    font-size: 12px;
+    color: $text-secondary;
+  }
+
+  /* Native checkbox — visually hidden but still focusable for accessibility */
+  &__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Pill track — background shifts when checked */
+  &__track {
+    position: relative;
+    flex-shrink: 0;
+    width: 30px;
+    height: 16px;
+    background: $border-default;
+    border-radius: 8px;
+    transition: background 0.15s;
+  }
+
+  /* Sliding thumb */
+  &__thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    background: $text-primary;
+    border-radius: 50%;
+    transition: transform 0.15s;
+  }
+
+  &__input:checked ~ &__track {
+    background: $accent-blue-link;
+
+    .toggle-switch__thumb {
+      transform: translateX(14px);
+    }
+  }
+
+  /* Keyboard focus ring on the pill */
+  &__input:focus-visible ~ &__track {
+    outline: 2px solid $accent-blue-link;
+    outline-offset: 2px;
+  }
+
+  /* Hint text beneath the row */
+  &__hint {
+    font-size: 10px;
+    color: $text-muted;
+    padding-left: 2px;
+  }
+}
