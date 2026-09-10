@@ -1,5 +1,6 @@
 import mysql from "mysql2/promise";
 import type { Settings } from "./settings.js";
+import { getDbSslOverride } from "../utils/env.js";
 import logger from "../utils/log.js";
 
 /* Subset of settings needed to open a remote MySQL connection */
@@ -11,9 +12,15 @@ export type DbConnectionConfig = Pick<
 /* Pool instance — created by createPool() when settings are configured */
 let pool: ReturnType<typeof mysql.createPool> | null = null;
 
+/* Resolve the effective SSL state: the DB_SSL environment variable wins over
+   the UI-configured setting when present */
+export const resolveDbSsl = (config: Pick<Settings, "dbSsl">): boolean =>
+  getDbSslOverride() ?? config.dbSsl;
+
 /* Build the connection options shared by the pool and throwaway test connections.
    TetraFlex requires SSL (--require_secure_transport=ON) with a self-signed certificate,
-   but other MySQL servers may not support SSL — the dbSsl setting toggles it. */
+   but other MySQL servers may not support SSL — the dbSsl setting (or DB_SSL env
+   override) toggles it. */
 export const buildConnectionOptions = (config: DbConnectionConfig) => ({
   host: config.dbHost,
   port: config.dbPort,
@@ -22,13 +29,14 @@ export const buildConnectionOptions = (config: DbConnectionConfig) => ({
   database: config.dbName,
   /* Fail fast if the connection can't be established */
   connectTimeout: 3_000,
-  ssl: config.dbSsl ? { rejectUnauthorized: false } : undefined,
+  ssl: resolveDbSsl(config) ? { rejectUnauthorized: false } : undefined,
 });
 
 /* Create the MySQL connection pool with the given settings */
 export const createPool = (config: DbConnectionConfig) => {
+  const forced = getDbSslOverride() !== null ? " — forced by DB_SSL" : "";
   logger.info(
-    `Creating MySQL pool → ${config.dbHost}:${config.dbPort}/${config.dbName} (SSL ${config.dbSsl ? "on" : "off"})`
+    `Creating MySQL pool → ${config.dbHost}:${config.dbPort}/${config.dbName} (SSL ${resolveDbSsl(config) ? "on" : "off"}${forced})`
   );
   pool = mysql.createPool({
     ...buildConnectionOptions(config),

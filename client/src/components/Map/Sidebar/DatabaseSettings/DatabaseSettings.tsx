@@ -198,8 +198,13 @@ const DatabaseSettings = forwardRef<DatabaseSettingsHandle, DatabaseSettingsProp
           />
           <ToggleSwitch
             label="Use SSL"
-            hint="Required by TetraFlex Logserver — disable only for servers without SSL (connection will be unencrypted)"
+            hint={
+              settings.dbSslLocked
+                ? "Set by the DB_SSL environment variable — remove it from the deployment to control this here"
+                : "Required by TetraFlex Logserver — disable only for servers without SSL (connection will be unencrypted)"
+            }
             checked={settings.dbSsl}
+            disabled={settings.dbSslLocked}
             onChange={(v) => updateField("dbSsl", v)}
           />
         </div>

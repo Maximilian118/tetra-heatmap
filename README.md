@@ -24,6 +24,8 @@ To use a different external port, change the first number in `-p`:
 
 The app is then accessible at `http://localhost:8080`.
 
+To pin the logserver SSL state at the deployment level, add `-e DB_SSL=false` (or `true`) — see [Forcing SSL On or Off](#forcing-ssl-on-or-off-db_ssl).
+
 ## Docker Compose
 
 Create a `docker-compose.yml`:
@@ -36,6 +38,8 @@ services:
       - "3001:3001"
     volumes:
       - tetra-data:/app/server/data
+    # environment:
+    #   DB_SSL: "false"  # see "Forcing SSL On or Off" below
     restart: unless-stopped
 
 volumes:
@@ -53,6 +57,34 @@ The `-v tetra-data:/app/server/data` volume mount stores the SQLite database tha
 ### Network Access
 
 The TetraFlex logserver must be reachable from the machine running Docker. Containers use Docker's bridge network and can reach any LAN host through NAT — no special networking configuration is required. Enter the logserver's LAN IP (e.g. `10.46.72.41`) in the Settings tab.
+
+### Forcing SSL On or Off (DB_SSL)
+
+By default, SSL for the logserver MySQL connection is controlled by the **Use SSL** toggle in the Settings tab (on by default — the TetraFlex logserver requires SSL). To pin it at the deployment level instead, set the `DB_SSL` environment variable:
+
+```bash
+docker run -d \
+  --name tetra-heatmap \
+  -p 3001:3001 \
+  -v tetra-data:/app/server/data \
+  -e DB_SSL=false \
+  ghcr.io/maximilian118/tetra-heatmap:latest
+```
+
+Or in `docker-compose.yml`:
+
+```yaml
+    environment:
+      DB_SSL: "false"   # or "true"
+```
+
+While `DB_SSL` is set:
+
+- It **overrides** the Settings tab — accepted values are `true`/`1` and `false`/`0` (anything else is ignored with a logged warning).
+- The **Use SSL** toggle in the UI shows the forced state and is **locked**, with a hint explaining why.
+- The preference saved in the UI is untouched, so removing the variable and restarting the container hands control straight back to the Settings tab.
+
+This is useful for connecting to MySQL servers that don't support SSL (e.g. a test database), or for guaranteeing SSL stays on regardless of UI changes. Note that disabling SSL sends database credentials unencrypted.
 
 ## First-Time Setup
 
@@ -98,14 +130,15 @@ npm start
 
 Builds the client and starts a single Express server that serves both the API and the built frontend on port 3001.
 
-### Environment Variables (Bare-Metal Only)
+### Environment Variables
 
-These are only relevant when running outside of Docker. The Docker image sets sensible defaults automatically.
+`PORT` and `HOST` are only relevant when running outside of Docker — the Docker image sets sensible defaults automatically. `DB_SSL` applies to both Docker and bare-metal runs.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Server port | `3001` |
 | `HOST` | Bind address (`0.0.0.0` for LAN access) | `localhost` |
+| `DB_SSL` | Force SSL for the logserver MySQL connection (`true`/`false`) — see [Forcing SSL On or Off](#forcing-ssl-on-or-off-db_ssl) | unset (UI setting applies) |
 
 All other configuration (Mapbox token, database credentials, sync settings) is managed through the Settings tab in the UI.
 

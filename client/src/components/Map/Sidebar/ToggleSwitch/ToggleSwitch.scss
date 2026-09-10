@@ -16,6 +16,12 @@
     border: 1px solid $border-default;
     border-radius: 4px;
     cursor: pointer;
+
+    /* Locked state — e.g. forced by an environment variable (hint stays readable) */
+    &--locked {
+      opacity: 0.35;
+      pointer-events: none;
+    }
   }
 
   &__label {

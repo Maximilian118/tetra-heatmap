@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.17.0] — 2026-09-10
+
+### Added
+- **DB_SSL environment variable** — The MySQL SSL state can now be forced at the deployment level with `DB_SSL=true`/`false` (`docker run -e` or compose `environment:`). When set, it overrides the Settings tab and the "Use SSL" toggle is shown at the forced value, disabled, with an explanatory hint. The stored UI preference is never overwritten while the override is active, so removing the variable hands control back to the UI exactly as the user left it. Unrecognised values are ignored with a logged warning.
+
 ## [0.16.0] — 2026-09-09
 
 ### Added

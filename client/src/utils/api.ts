@@ -26,6 +26,8 @@ export interface Settings {
   dbPassword: string;
   dbName: string;
   dbSsl: boolean;
+  /* True when the DB_SSL environment variable forces the SSL state (locks the UI toggle) */
+  dbSslLocked?: boolean;
   syncIntervalMs: number;
   syncBatchSize: number;
   retentionDays: number;

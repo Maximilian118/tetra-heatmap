@@ -11,16 +11,23 @@ import {
   updateSymbolsLocked,
 } from "../db/settings.js";
 import { testConnection } from "../utils/testConnection.js";
-import { recreatePool } from "../db/remote.js";
+import { recreatePool, resolveDbSsl } from "../db/remote.js";
+import { getDbSslOverride } from "../utils/env.js";
 import { restartSync } from "../services/sync.js";
 import logger from "../utils/log.js";
 
 const router = Router();
 
-/* Return current settings with the password masked */
+/* Return current settings with the password masked.
+   dbSsl reflects the effective state (DB_SSL env override wins), and dbSslLocked
+   tells the client to disable the SSL toggle while the override is active. */
 router.get("/settings", (_req, res) => {
   const settings = getSafeSettings();
-  res.json(settings);
+  res.json({
+    ...settings,
+    dbSsl: resolveDbSsl(settings),
+    dbSslLocked: getDbSslOverride() !== null,
+  });
 });
 
 /* Test the connection using the currently saved settings */
@@ -88,6 +95,12 @@ router.post("/settings", async (req, res) => {
   /* If password is masked (unchanged), preserve the existing stored password */
   if (incoming.dbPassword === "********") {
     incoming.dbPassword = getSettings().dbPassword;
+  }
+
+  /* While DB_SSL forces the SSL state, preserve the stored preference so the
+     user's UI choice survives the override being removed later */
+  if (getDbSslOverride() !== null) {
+    incoming.dbSsl = getSettings().dbSsl;
   }
 
   /* Validate all fields before saving */
