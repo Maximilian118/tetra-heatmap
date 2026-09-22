@@ -1,9 +1,13 @@
 @use "../../../styles/variables" as *;
 
-/* Full-area form for entering RSSI values by hand against each KML sector */
+/* Full-area form for entering RSSI values by hand against each KML sector.
+   Stops short of the map area's bottom overflow so the footer stays on screen. */
 .sector-rssi {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: $map-area-overflow;
   display: flex;
   flex-direction: column;
   background: $bg-overlay;

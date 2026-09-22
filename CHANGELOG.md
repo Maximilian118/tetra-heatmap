@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.20.0] — 2026-09-22
+
+### Fixed
+- **Manual sector form cut off at the top with no way to scroll back** — Focusing the clicked sector's field used `scrollIntoView()`, which scrolls every scrollable ancestor, not just the list. The map area is deliberately drawn 100px taller than the viewport to push MapBox's branding off screen, and that overflow left `#root` programmatically scrollable even though `overflow: hidden` stops the user scrolling it — so opening the form on a mid-list sector slid the whole app up by up to 100px and stranded it there. The list is now scrolled directly and focus is taken with `preventScroll`, and `.map-container` clips the overflow so nothing else in the app can shift the layout this way either.
+- **Manual sector form footer below the fold** — The form was anchored to the full height of the map area rather than its visible part, putting Clear All / Cancel / Save 100px off the bottom of the screen. It now stops short of the overflow strip. The buttons were only reachable before because of the scrolling bug above, so the two had been masking each other.
+
 ## [0.19.0] — 2026-09-22
 
 ### Added

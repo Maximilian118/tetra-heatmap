@@ -43,16 +43,27 @@ const normaliseEntry = (raw: string): number | null => {
 const SectorRssi = ({ sectors, manualRssi, focusSector, onSave, onClose }: SectorRssiProps) => {
   const [draft, setDraft] = useState<Record<string, string>>(() => toDraft(sectors, manualRssi));
   const focusRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   /* Start on the clicked sector, or on the first row when opened from the sidebar */
   const focusName = focusSector ?? sectors[0]?.name ?? null;
 
-  /* Bring the starting sector into view and put the caret in its field */
+  /* Centre the starting sector in the list and put the caret in its field.
+     The scroll is applied to the list element directly, and focus is taken with
+     preventScroll: scrollIntoView() and a plain focus() both walk up and scroll
+     every scrollable ancestor, which drags the whole app off-screen. */
   useEffect(() => {
     const input = focusRef.current;
+    const body = bodyRef.current;
     if (!input) return;
-    input.scrollIntoView({ block: "center" });
-    input.focus();
+
+    if (body) {
+      const rowRect = (input.closest(".sector-rssi__row") ?? input).getBoundingClientRect();
+      const offset = rowRect.top - body.getBoundingClientRect().top;
+      body.scrollTop += offset - (body.clientHeight - rowRect.height) / 2;
+    }
+
+    input.focus({ preventScroll: true });
     input.select();
   }, []);
 
@@ -106,7 +117,7 @@ const SectorRssi = ({ sectors, manualRssi, focusSector, onSave, onClose }: Secto
         the sector to live data. Accepted range {RSSI_MIN} to {RSSI_MAX} dBm.
       </p>
 
-      <div className="sector-rssi__body">
+      <div className="sector-rssi__body" ref={bodyRef}>
         <div className="sector-rssi__columns">
           <span className="sector-rssi__col-name">Sector</span>
           <span className="sector-rssi__col-measured">Measured</span>

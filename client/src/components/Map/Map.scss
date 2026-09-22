@@ -1,13 +1,20 @@
+@use "../../styles/variables" as *;
+
 /* Flex layout — sidebar + map side by side */
 .map-container {
   display: flex;
   width: 100%;
   height: 100%;
+  /* Clips the map area's deliberate overflow. Without this the extra height
+     leaks out to #root, which is overflow:hidden and so cannot be scrolled by
+     the user but can still be scrolled programmatically — a focus() or
+     scrollIntoView() anywhere then shifts the whole app and strands it. */
+  overflow: hidden;
 }
 
 /* Map area fills remaining space after sidebar */
 .map-area {
   flex: 1;
   position: relative;
-  height: calc(100% + 100px);
+  height: calc(100% + #{$map-area-overflow});
 }
