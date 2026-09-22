@@ -6,7 +6,7 @@ import { buildBgAtlas, buildFgAtlas } from "../../utils/symbols";
 import { useServerSettings, useMapViewport, useReadings, useFilterPipeline, useLayerConfig, useKml, useSymbols, useNotes } from "./hooks";
 import { buildLayers } from "./layers";
 import type { NoteTooltipInfo } from "./layers/types";
-import { getDefaultKmlLayerStyles, type KmlLayerStyle } from "../../utils/kml";
+import { computeKmlBounds, getDefaultKmlLayerStyles, type KmlData, type KmlLayerStyle } from "../../utils/kml";
 import Tooltip, { type TooltipInfo } from "./Tooltip/Tooltip";
 import KmlTooltip, { type KmlTooltipInfo } from "./Tooltip/KmlTooltip";
 import Sidebar from "./Sidebar/Sidebar";
@@ -33,7 +33,8 @@ const Map = () => {
   const [noteTooltip, setNoteTooltip] = useState<NoteTooltipInfo | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [showStats, setShowStats] = useState(false);
-  const [manualRssiSector, setManualRssiSector] = useState<string | null>(null);
+  const [manualRssiOpen, setManualRssiOpen] = useState(false);
+  const [manualRssiFocus, setManualRssiFocus] = useState<string | null>(null);
 
   /* ─── Report mode state ─── */
   const [reportMode, setReportMode] = useState(false);
@@ -109,14 +110,28 @@ const Map = () => {
   /* Close the manual sector RSSI form whenever the loaded KML is swapped or cleared,
      so it can't reopen against a sector belonging to a different track */
   useEffect(() => {
-    setManualRssiSector(null);
+    setManualRssiOpen(false);
   }, [kml.kmlData]);
 
   /* Open the manual sector RSSI form on the sector that was clicked */
   const handleSectorClick = useCallback((name: string) => {
     setKmlTooltip(null);
-    setManualRssiSector(name);
+    setManualRssiFocus(name);
+    setManualRssiOpen(true);
   }, []);
+
+  /* Open the manual sector RSSI form from the sidebar, with no sector singled out */
+  const handleOpenManualRssi = useCallback(() => {
+    setManualRssiFocus(null);
+    setManualRssiOpen(true);
+  }, []);
+
+  /* Load a KML overlay and frame the map on its full extent */
+  const handleKmlLoad = useCallback((data: KmlData) => {
+    kml.setKmlData(data);
+    const bounds = computeKmlBounds(data);
+    if (bounds) viewport.handleFitBounds(bounds);
+  }, [kml.setKmlData, viewport.handleFitBounds]);
 
   /* ─── Assemble deck.gl layers ─── */
   const layers = useMemo(() => buildLayers({
@@ -313,10 +328,11 @@ const Map = () => {
         onStyleChange={setMapStyle}
         onLayerTypeChange={config.setLayerType}
         onSettingsChange={config.setLayerSettings}
-        onKmlLoad={kml.setKmlData}
+        onKmlLoad={handleKmlLoad}
         onKmlClear={kml.clearKml}
         activeKmlId={kml.activeKmlId}
         onActiveKmlIdChange={kml.setActiveKmlId}
+        onOpenManualRssi={handleOpenManualRssi}
         onScopeAdjusting={kml.setScopeAdjusting}
         onSaveData={data.handleSaveData}
         onLoadData={data.handleLoadData}
@@ -438,13 +454,13 @@ const Map = () => {
         )}
 
         {/* Manual sector RSSI form — only reachable by clicking a sector of a loaded KML */}
-        {manualRssiSector !== null && kml.kmlData && (
+        {manualRssiOpen && kml.kmlData && (
           <SectorRssi
             sectors={kml.kmlSectorStats}
             manualRssi={kml.manualRssi}
-            focusSector={manualRssiSector}
+            focusSector={manualRssiFocus}
             onSave={kml.saveManualRssi}
-            onClose={() => setManualRssiSector(null)}
+            onClose={() => setManualRssiOpen(false)}
           />
         )}
 

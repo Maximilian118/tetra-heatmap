@@ -227,7 +227,7 @@ A KML (Keyhole Markup Language) file is a geographic data format that contains s
 
 <span class="step-number">3</span> A file picker opens — select your `.kml` file.
 
-<span class="step-number">4</span> The circuit appears on the map with sectors outlined, turn numbers labelled, and the track boundary drawn.
+<span class="step-number">4</span> The circuit appears on the map with sectors outlined, turn numbers labelled, and the track boundary drawn. The map flies to the track and zooms so the whole lap fits on screen with a margin around it — there is no need to find it yourself.
 
 ### Understanding the KML View
 
@@ -242,6 +242,8 @@ After loading a KML file, a **KML Layers** section appears in the sidebar showin
 - **Toggle visibility** using the checkbox
 - **Change the colour** using the colour picker
 - **Adjust line width** using the slider (for line-type layers)
+
+Below the layer list is a **Manual Sectors** button, which opens the manual RSSI form described in the next section. It is greyed out while no sector layer is visible.
 
 ### Hovering Over Sectors
 
@@ -258,9 +260,9 @@ The last two rows are only shown when the sector actually has readings behind it
 
 Sometimes a figure exists that the survey drive never captured — coverage checked with a handheld at a marshal post, or a sector the vehicle could not reach. With a KML loaded you can enter those values yourself.
 
-<span class="step-number">1</span> **Click** any sector polygon on the map.
+<span class="step-number">1</span> **Click** any sector polygon on the map, or press **Manual Sectors** in the KML Layers section of the sidebar.
 
-<span class="step-number">2</span> A form opens listing **every sector of the loaded track**, each showing its measured median and reading count. The sector you clicked is highlighted and its field is ready to type in.
+<span class="step-number">2</span> A form opens listing **every sector of the loaded track**, each showing its measured median and reading count. If you arrived by clicking a sector it is highlighted with its field ready to type in; opening from the sidebar starts at the first sector.
 
 <span class="step-number">3</span> Type an RSSI figure in dBm (for example `-70`) against any sector. Values must fall between **-110 and -20 dBm**; a missing minus sign is added for you when you leave the field.
 

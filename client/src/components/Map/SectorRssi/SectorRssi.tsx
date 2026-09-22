@@ -14,7 +14,7 @@ export interface SectorStat {
 interface SectorRssiProps {
   sectors: SectorStat[];
   manualRssi: KmlSectorRssi;
-  focusSector: string;
+  focusSector: string | null;
   onSave: (values: KmlSectorRssi) => void;
   onClose: () => void;
 }
@@ -38,12 +38,16 @@ const normaliseEntry = (raw: string): number | null => {
 };
 
 /* Full-area form for entering an RSSI value by hand against each sector of the loaded KML.
-   A value entered here replaces that sector's measured median until it is cleared. */
+   A value entered here replaces that sector's measured median until it is cleared.
+   focusSector is the sector clicked on the map, or null when opened from the sidebar. */
 const SectorRssi = ({ sectors, manualRssi, focusSector, onSave, onClose }: SectorRssiProps) => {
   const [draft, setDraft] = useState<Record<string, string>>(() => toDraft(sectors, manualRssi));
   const focusRef = useRef<HTMLInputElement>(null);
 
-  /* Bring the sector the user clicked into view and put the caret in its field */
+  /* Start on the clicked sector, or on the first row when opened from the sidebar */
+  const focusName = focusSector ?? sectors[0]?.name ?? null;
+
+  /* Bring the starting sector into view and put the caret in its field */
   useEffect(() => {
     const input = focusRef.current;
     if (!input) return;
@@ -123,7 +127,7 @@ const SectorRssi = ({ sectors, manualRssi, focusSector, onSave, onClose }: Secto
             </span>
 
             <input
-              ref={sector.name === focusSector ? focusRef : undefined}
+              ref={sector.name === focusName ? focusRef : undefined}
               type="number"
               className="sector-rssi__input"
               placeholder="—"

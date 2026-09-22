@@ -115,4 +115,9 @@
   &__width {
     width: 100%;
   }
+
+  /* Manual sector RSSI button, separated from the layer rows above */
+  &__action {
+    margin-top: 4px;
+  }
 }

@@ -1,11 +1,14 @@
+import { SquarePen } from "lucide-react";
 import type { KmlFolder, KmlLayerStyle } from "../../../../utils/kml";
 import Slider from "../../../Slider/Slider";
+import SideBarButton from "../SideBarButton/SideBarButton";
 import "./KmlLayers.scss";
 
 interface KmlLayersProps {
   folders: KmlFolder[];
   styles: Record<string, KmlLayerStyle>;
   onStyleChange: (folderName: string, style: KmlLayerStyle) => void;
+  onOpenManualRssi: () => void;
 }
 
 /* Convert an RGB tuple to a hex color string for the color input */
@@ -19,7 +22,12 @@ const hexToRgb = (hex: string): [number, number, number] => {
 };
 
 /* Sidebar section listing all detected KML folder layers with per-layer controls */
-const KmlLayers = ({ folders, styles, onStyleChange }: KmlLayersProps) => {
+const KmlLayers = ({ folders, styles, onStyleChange, onOpenManualRssi }: KmlLayersProps) => {
+  /* Sectors can only be edited while a polygon layer is actually on the map */
+  const hasVisibleSectors = folders.some(
+    (f) => f.polygons.length > 0 && styles[f.name]?.visible
+  );
+
   return (
     <div className="kml-layers">
       <span className="kml-layers__label">KML Layers</span>
@@ -81,6 +89,16 @@ const KmlLayers = ({ folders, styles, onStyleChange }: KmlLayersProps) => {
           </div>
         );
       })}
+
+      {/* Opens the manual sector RSSI form without having to click a sector on the map */}
+      <div className="kml-layers__action">
+        <SideBarButton
+          icon={SquarePen}
+          label="Manual Sectors"
+          onClick={onOpenManualRssi}
+          disabled={!hasVisibleSectors}
+        />
+      </div>
     </div>
   );
 };

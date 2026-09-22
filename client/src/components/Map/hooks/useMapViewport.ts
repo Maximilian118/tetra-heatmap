@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { WebMercatorViewport } from "@deck.gl/core";
 import type { ViewState } from "../types";
 import { loadSavedViewState } from "../types";
-import { DEFAULT_VIEW, VIEW_SAVE_DELAY_MS, VIEW_STATE_KEY } from "../constants";
+import { DEFAULT_VIEW, FIT_MAX_ZOOM, FIT_MIN_EXTENT_DEG, FIT_PADDING_MAX_PX, FIT_PADDING_MIN_PX, FIT_PADDING_RATIO, MAP_AREA_OVERFLOW_PX, VIEW_SAVE_DELAY_MS, VIEW_STATE_KEY } from "../constants";
 
 /* Manages map viewport state, saves/restores from localStorage, and exposes navigation helpers */
 export const useMapViewport = () => {
@@ -54,6 +55,42 @@ export const useMapViewport = () => {
     });
   }, []);
 
+  /* Frame the map on a bounding box so the whole extent fits with a margin around it.
+     Uses the live canvas size so the fit accounts for the map area's aspect ratio,
+     and keeps the current bearing and pitch rather than snapping the camera upright. */
+  const handleFitBounds = useCallback((bounds: [[number, number], [number, number]]) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const vp = (deckRef.current as any)?.deck?.viewManager?.getViewports()?.[0];
+    const width = vp?.width > 0 ? vp.width : window.innerWidth;
+    const height = vp?.height > 0 ? vp.height : window.innerHeight;
+
+    /* Scale the margin to the canvas so a phone isn't left with a sliver of map,
+       then cap it so fitBounds is never handed padding wider than the canvas */
+    const shortAxis = Math.min(width, height);
+    const scaled = Math.round(shortAxis * FIT_PADDING_RATIO);
+    const padding = Math.min(
+      Math.max(FIT_PADDING_MIN_PX, Math.min(FIT_PADDING_MAX_PX, scaled)),
+      Math.floor(shortAxis / 2) - 8
+    );
+
+    /* The canvas runs past the bottom of the visible area, so reserve that strip */
+    const bottom = Math.min(padding + MAP_AREA_OVERFLOW_PX, Math.floor(height / 2) - padding - 8);
+
+    const fitted = new WebMercatorViewport({ width, height }).fitBounds(bounds, {
+      padding: { top: padding, bottom: Math.max(padding, bottom), left: padding, right: padding },
+      maxZoom: FIT_MAX_ZOOM,
+      minExtent: FIT_MIN_EXTENT_DEG,
+    });
+
+    setInitialView({
+      longitude: fitted.longitude,
+      latitude: fitted.latitude,
+      zoom: fitted.zoom,
+      bearing: vp?.bearing ?? 0,
+      pitch: vp?.pitch ?? 0,
+    });
+  }, []);
+
   /* Snap the map bearing back to 0° (facing north) */
   const handleResetNorth = useCallback(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -80,5 +117,6 @@ export const useMapViewport = () => {
     handleViewStateChange,
     handleResetNorth,
     handleFlyTo,
+    handleFitBounds,
   };
 };

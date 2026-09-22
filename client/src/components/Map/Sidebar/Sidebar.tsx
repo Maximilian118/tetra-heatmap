@@ -49,6 +49,7 @@ interface SidebarProps {
   onKmlClear: () => void;
   activeKmlId: string | null;
   onActiveKmlIdChange: (id: string | null) => void;
+  onOpenManualRssi: () => void;
   onScopeAdjusting: (adjusting: boolean) => void;
   onSaveData: () => void;
   onLoadData: (file: File) => void;
@@ -91,7 +92,7 @@ interface SidebarProps {
 }
 
 /* Left sidebar panel with Map and Database tabs */
-const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, kmlLoaded, kmlFolders, kmlLayerStyles, onKmlLayerStyleChange, onStyleChange, onLayerTypeChange, onSettingsChange, onKmlLoad, onKmlClear, activeKmlId, onActiveKmlIdChange, onScopeAdjusting, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats, symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDeleteSymbol, onFlyTo, onDirectionChange, symbolsLocked, onSymbolsLockedChange, customSpectrum, onSpectrumChange, colourTabTrigger, notes, editingNoteId, onSetEditingNoteId, onNoteTitleChange, onNoteTextChange, onDeleteNote, onAddNote, notesTabTrigger, reportMode, onGenerateReport, onCloseReport }: SidebarProps) => {
+const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, layerSettings, readings, isFileMode, kmlLoaded, kmlFolders, kmlLayerStyles, onKmlLayerStyleChange, onStyleChange, onLayerTypeChange, onSettingsChange, onKmlLoad, onKmlClear, activeKmlId, onActiveKmlIdChange, onOpenManualRssi, onScopeAdjusting, onSaveData, onLoadData, onResumeLive, onReset, onToggleRegister, selectedSsis, dataAgeMinutes, onDataAgeChange, retentionDays, maxAccuracy, onAccuracyChange, clockOffsetMs, serverTzOffsetHours, onShowStats, symbols, symbolSize, onSymbolSizeChange, selectedSymbolId, onSelectSymbol, onDeleteSymbol, onFlyTo, onDirectionChange, symbolsLocked, onSymbolsLockedChange, customSpectrum, onSpectrumChange, colourTabTrigger, notes, editingNoteId, onSetEditingNoteId, onNoteTitleChange, onNoteTextChange, onDeleteNote, onAddNote, notesTabTrigger, reportMode, onGenerateReport, onCloseReport }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("map");
   const [confirming, setConfirming] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -222,6 +223,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
                 folders={kmlFolders}
                 styles={kmlLayerStyles}
                 onStyleChange={onKmlLayerStyleChange}
+                onOpenManualRssi={onOpenManualRssi}
               />
             )}
           </>
@@ -277,6 +279,7 @@ const Sidebar = ({ resetting, resetMessage, lastReset, mapStyle, layerType, laye
                 folders={kmlFolders}
                 styles={kmlLayerStyles}
                 onStyleChange={onKmlLayerStyleChange}
+                onOpenManualRssi={onOpenManualRssi}
               />
             )}
           </>

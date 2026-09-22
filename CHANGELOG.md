@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.19.0] — 2026-09-22
+
+### Added
+- **Map frames the track on KML load** — Selecting or uploading a KML now flies the map to that file's full extent and picks the zoom that fits it, so loading a circuit puts the whole lap on screen with a margin around it instead of leaving the user to hunt for it. The fit uses the live canvas size, so it accounts for the map area's aspect ratio and for the strip of canvas that sits below the visible area; the margin scales with the viewport so it works on a phone as well as a desktop. The current bearing and pitch are preserved.
+- **Manual Sectors button** — The KML Layers section of the sidebar now has a "Manual Sectors" button opening the manual sector RSSI form directly, as an alternative to clicking a sector on the map. It is disabled while no sector layer is visible.
+
 ## [0.18.0] — 2026-09-22
 
 ### Added

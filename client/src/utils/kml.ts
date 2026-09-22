@@ -611,6 +611,38 @@ export function buildKmlResult(
   };
 }
 
+/* Bounding box of every placemark in a parsed KML as [[west, south], [east, north]].
+   Polygons contribute their pre-computed bbox rather than re-scanning their rings.
+   Returns null when the document holds no usable geometry. */
+export function computeKmlBounds(
+  data: KmlData
+): [[number, number], [number, number]] | null {
+  let minLng = Infinity, maxLng = -Infinity;
+  let minLat = Infinity, maxLat = -Infinity;
+
+  /* Widen the box to include one coordinate */
+  const extend = (lng: number, lat: number) => {
+    if (lng < minLng) minLng = lng;
+    if (lng > maxLng) maxLng = lng;
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+  };
+
+  for (const folder of data.folders) {
+    for (const point of folder.points) extend(point.coordinates[0], point.coordinates[1]);
+    for (const line of folder.lines) {
+      for (const [lng, lat] of line.coordinates) extend(lng, lat);
+    }
+    for (const poly of folder.polygons) {
+      extend(poly.bbox.minLng, poly.bbox.minLat);
+      extend(poly.bbox.maxLng, poly.bbox.maxLat);
+    }
+  }
+
+  if (!isFinite(minLng) || !isFinite(minLat)) return null;
+  return [[minLng, minLat], [maxLng, maxLat]];
+}
+
 /* Order sector names numerically so Sector02 sorts before Sector10 */
 export const compareSectorNames = (a: string, b: string): number =>
   a.localeCompare(b, undefined, { numeric: true });
