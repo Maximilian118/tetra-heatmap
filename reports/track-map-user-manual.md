@@ -252,6 +252,32 @@ Hover your mouse over any sector polygon to see a tooltip displaying:
 - **Min / Max RSSI** range
 - **Reading count** — how many data points are in that sector
 
+The last two rows are only shown when the sector actually has readings behind it.
+
+### Entering RSSI Values by Hand
+
+Sometimes a figure exists that the survey drive never captured — coverage checked with a handheld at a marshal post, or a sector the vehicle could not reach. With a KML loaded you can enter those values yourself.
+
+<span class="step-number">1</span> **Click** any sector polygon on the map.
+
+<span class="step-number">2</span> A form opens listing **every sector of the loaded track**, each showing its measured median and reading count. The sector you clicked is highlighted and its field is ready to type in.
+
+<span class="step-number">3</span> Type an RSSI figure in dBm (for example `-70`) against any sector. Values must fall between **-110 and -20 dBm**; a missing minus sign is added for you when you leave the field.
+
+<span class="step-number">4</span> Click **Save**.
+
+A manual value **replaces** that sector's measured median. The polygon recolours immediately, the hover tooltip reports the new figure, and the value carries through to the Sector Median table in the PDF report.
+
+<strong>Note:</strong> manual and measured values are shown identically everywhere — nothing in the app or the PDF marks a figure as hand-entered. Use them for readings you have actually taken, not for estimates.
+
+To undo:
+
+- **Clear one sector** — the small ✕ beside that row empties the field, returning the sector to live data.
+- **Clear every sector** — the **Clear All** button at the foot of the form.
+- **Cancel** discards your edits without saving; nothing is written until you click Save.
+
+Values are saved against the KML file itself, so they survive a page reload and a restart, and each track keeps its own set. Deleting a KML file from the picker deletes its manual values with it.
+
 ---
 
 ## 6. Placing Symbols — Base Stations and Repeaters
@@ -415,7 +441,7 @@ The main body of the report is an interactive map showing:
 Shows the RSSI colour bands with their dBm ranges and labels (e.g. Critical, Poor, Marginal, Good — or your custom band names). Also displays icons for any placed base stations and repeaters. A **scale bar** shows the map distance scale.
 
 #### Sector Median Table (Bottom Left, below Legend)
-A compact table showing the **median**, **min**, and **max** RSSI values for each sector. Sector names are formatted for readability (e.g. "PIT" for the pit lane, numbered sectors "01" through "11").
+A compact table showing the **median**, **min**, and **max** RSSI values for each sector. Sector names are formatted for readability (e.g. "PIT" for the pit lane, numbered sectors "01" through "11"). Any sector given a value by hand appears here with that figure, including sectors that have no recorded readings.
 
 #### Notes Panel (Bottom Right)
 Displays all your notes with their colour swatches, titles, and description text. The panel height automatically matches the left-side legend for a balanced layout.
@@ -474,7 +500,7 @@ Click **Cancel** (or the **Close** button in the sidebar) to exit report mode. T
 |---------|----------|
 | No data appearing on the map | Check the Settings tab — ensure the status shows CONNECTED. Verify the Poll Interval and that the radios are powered on. |
 | GPS radios not in the SSI Register | The radios may not have acquired GPS lock yet. Ensure they have a clear sky view and wait a few minutes. |
-| Sectors showing grey (no data) | Drive through those sectors again. Grey means no RSSI readings fell within the sector's polygon boundary. Increase the **Scope** slider in KML customisation to widen the capture radius. |
+| Sectors showing grey (no data) | Drive through those sectors again. Grey means no RSSI readings fell within the sector's polygon boundary. Increase the **Scope** slider in KML customisation to widen the capture radius. If the sector cannot be driven, click it and enter the value by hand — see [Entering RSSI Values by Hand](#entering-rssi-values-by-hand). |
 | Report map looks different from main map | The report uses its own independent map view. Pan and zoom within the report preview to match your desired framing. |
 | PDF download doesn't start | Ensure your browser allows downloads. The capture process takes a few seconds — wait for it to complete. |
 
@@ -491,14 +517,15 @@ Click **Cancel** (or the **Close** button in the sidebar) to exit report mode. T
 7. ☐ Drive the complete circuit
 8. ☐ Open the SSI Register and verify all 4 radios are reporting
 9. ☐ Load the track KML file
-10. ☐ Place base station and repeater symbols
-11. ☐ Customise the colour spectrum with named quality bands
-12. ☐ Add notes for any areas of interest
-13. ☐ Click **Generate Report**
-14. ☐ Edit the report title
-15. ☐ Frame the map in the report preview
-16. ☐ Review the legend, sector stats, and notes
-17. ☐ Click **Save PDF**
+10. ☐ Enter any hand-measured RSSI values for sectors the drive missed
+11. ☐ Place base station and repeater symbols
+12. ☐ Customise the colour spectrum with named quality bands
+13. ☐ Add notes for any areas of interest
+14. ☐ Click **Generate Report**
+15. ☐ Edit the report title
+16. ☐ Frame the map in the report preview
+17. ☐ Review the legend, sector stats, and notes
+18. ☐ Click **Save PDF**
 
 ---
 

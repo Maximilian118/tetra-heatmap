@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { KmlGeoJsonFeatureCollection } from "../../../../utils/kml";
+import { compareSectorNames, type KmlGeoJsonFeatureCollection } from "../../../../utils/kml";
 import "./ReportSectorStats.scss";
 
 interface ReportSectorStatsProps {
@@ -30,7 +30,7 @@ const ReportSectorStats = ({ kmlGeoJson }: ReportSectorStatsProps) => {
     if (!kmlGeoJson) return [];
     return kmlGeoJson.features
       .filter((f) => f.properties.medianRssi !== null)
-      .sort((a, b) => a.properties.name.localeCompare(b.properties.name, undefined, { numeric: true }));
+      .sort((a, b) => compareSectorNames(a.properties.name, b.properties.name));
   }, [kmlGeoJson]);
 
   if (sectors.length === 0) return null;

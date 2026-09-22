@@ -7,6 +7,10 @@ export const RSSI_MIN = -110;
 export const RSSI_MAX = -20;
 const RSSI_RANGE = RSSI_MAX - RSSI_MIN;
 
+/* Clamp a user-entered dBm value into the supported RSSI range */
+export const clampRssi = (dbm: number): number =>
+  Math.max(RSSI_MIN, Math.min(RSSI_MAX, dbm));
+
 /* Normalise RSSI from [-110, -20] → [0, 1] */
 export const normalizeRssi = (rssi: number) =>
   Math.max(0, Math.min(1, (rssi - RSSI_MIN) / RSSI_RANGE));

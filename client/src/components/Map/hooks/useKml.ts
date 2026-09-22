@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useDeferredValue } from "react";
-import type { Reading } from "../../../utils/api";
-import { buildKmlResult, getDefaultKmlLayerStyles, repositionLabels, separateOverlappingLabels, type KmlData, type KmlLayerStyle, type KmlPoint } from "../../../utils/kml";
+import { fetchKmlSectorRssi, saveKmlSectorRssi, type Reading, type KmlSectorRssi } from "../../../utils/api";
+import { applyManualRssi, buildKmlResult, compareSectorNames, getDefaultKmlLayerStyles, repositionLabels, separateOverlappingLabels, type KmlData, type KmlLayerStyle, type KmlPoint } from "../../../utils/kml";
 import type { LayerType } from "../Sidebar/MapPresets/MapPresets";
 
 interface UseKmlParams {
@@ -20,13 +20,43 @@ export const useKml = (params: UseKmlParams) => {
   const [kmlLayerStyles, setKmlLayerStyles] = useState<Record<string, KmlLayerStyle>>({});
   const [scopeAdjusting, setScopeAdjusting] = useState(false);
   const [activeKmlId, setActiveKmlId] = useState<string | null>(null);
+  const [manualRssi, setManualRssi] = useState<KmlSectorRssi>({});
 
   /* Clear KML overlay and reset associated state */
   const clearKml = useCallback(() => {
     setKmlData(null);
     setActiveKmlId(null);
     setKmlLayerStyles({});
+    setManualRssi({});
   }, []);
+
+  /* Load the manually entered sector values whenever the selected KML file changes.
+     The cancelled guard stops a slow response landing on a file the user has since left. */
+  useEffect(() => {
+    if (!activeKmlId) {
+      setManualRssi({});
+      return;
+    }
+
+    let cancelled = false;
+    fetchKmlSectorRssi(activeKmlId)
+      .then((values) => { if (!cancelled) setManualRssi(values); })
+      .catch((err) => console.error("[kml] Failed to fetch manual sector RSSI:", err));
+
+    return () => { cancelled = true; };
+  }, [activeKmlId]);
+
+  /* Apply manual sector values locally, then persist them against the active KML file.
+     Files loaded through the legacy file dialog have no id, so those edits stay in-session. */
+  const saveManualRssi = useCallback(async (values: KmlSectorRssi) => {
+    setManualRssi(values);
+    if (!activeKmlId) return;
+    try {
+      await saveKmlSectorRssi(activeKmlId, values);
+    } catch (err) {
+      console.error("[kml] Failed to save manual sector RSSI:", err);
+    }
+  }, [activeKmlId]);
 
   /* Deferred values — React prioritises slider input over geo-computation */
   const deferredScope = useDeferredValue(scope);
@@ -87,8 +117,27 @@ export const useKml = (params: UseKmlParams) => {
     return buildKmlResult(visiblePolygons, validReadings, deferredScope, activeRssiToColor, scopeAdjusting);
   }, [visiblePolygons, validReadings, layerType, deferredScope, scopeAdjusting, activeRssiToColor]);
 
-  const kmlGeoJson = kmlResult?.geoJson ?? null;
+  /* Overlay the manual values on the measured result — a cheap per-polygon pass that
+     avoids re-running the spatial aggregation every time a value is edited */
+  const kmlGeoJson = useMemo(
+    () => applyManualRssi(kmlResult?.geoJson ?? null, manualRssi, activeRssiToColor),
+    [kmlResult, manualRssi, activeRssiToColor]
+  );
+
   const kmlScopeReadings = kmlResult?.scopeReadings ?? [];
+
+  /* Measured value and reading count per sector, taken before any manual override,
+     so the manual RSSI form can show what the live data actually says */
+  const kmlSectorStats = useMemo(() => {
+    if (!kmlResult) return [];
+    return kmlResult.geoJson.features
+      .map((f) => ({
+        name: f.properties.name,
+        measuredRssi: f.properties.medianRssi,
+        count: f.properties.count,
+      }))
+      .sort((a, b) => compareSectorNames(a.name, b.name));
+  }, [kmlResult]);
 
   /* Clear KML tooltip when switching away from KML layer */
   useEffect(() => {
@@ -110,5 +159,8 @@ export const useKml = (params: UseKmlParams) => {
     activeKmlId,
     setActiveKmlId,
     clearKml,
+    manualRssi,
+    saveManualRssi,
+    kmlSectorStats,
   };
 };

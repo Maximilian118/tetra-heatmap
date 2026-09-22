@@ -21,6 +21,7 @@ const KmlTooltip = ({ tooltip }: KmlTooltipProps) => {
   if (!tooltip) return null;
 
   const hasData = tooltip.medianRssi !== null;
+  const hasReadings = tooltip.count > 0;
 
   return (
     <div
@@ -32,8 +33,12 @@ const KmlTooltip = ({ tooltip }: KmlTooltipProps) => {
         <>
           <div><strong>Quality:</strong> {rssiQualityLabel(tooltip.medianRssi!)}</div>
           <div><strong>Median RSSI:</strong> {Math.round(tooltip.medianRssi!)} dBm</div>
-          <div><strong>Range:</strong> {tooltip.minRssi} to {tooltip.maxRssi} dBm</div>
-          <div><strong>Data Points:</strong> {tooltip.count.toLocaleString()}</div>
+          {hasReadings && (
+            <>
+              <div><strong>Range:</strong> {tooltip.minRssi} to {tooltip.maxRssi} dBm</div>
+              <div><strong>Data Points:</strong> {tooltip.count.toLocaleString()}</div>
+            </>
+          )}
         </>
       ) : (
         <div>No data</div>

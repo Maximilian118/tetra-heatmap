@@ -611,6 +611,45 @@ export function buildKmlResult(
   };
 }
 
+/* Order sector names numerically so Sector02 sorts before Sector10 */
+export const compareSectorNames = (a: string, b: string): number =>
+  a.localeCompare(b, undefined, { numeric: true });
+
+/* Apply manual per-sector RSSI overrides to a built sector FeatureCollection.
+   An overridden sector takes the manual value as its median and is recoloured;
+   its measured range and reading count are left untouched so the tooltip can still
+   report what was actually recorded there. The input collection is returned
+   unchanged when no override matches, keeping object identity stable for the
+   memoised layers that depend on it. */
+export function applyManualRssi(
+  geoJson: KmlGeoJsonFeatureCollection | null,
+  manualRssi: Record<string, number>,
+  rssiToColor: (rssi: number) => [number, number, number, number]
+): KmlGeoJsonFeatureCollection | null {
+  if (!geoJson) return null;
+
+  /* Skip the rebuild entirely when no feature carries an override */
+  const hasOverride = geoJson.features.some((f) => manualRssi[f.properties.name] !== undefined);
+  if (!hasOverride) return geoJson;
+
+  const features = geoJson.features.map((f) => {
+    const manual = manualRssi[f.properties.name];
+    if (manual === undefined) return f;
+
+    const raw = rssiToColor(manual);
+    return {
+      ...f,
+      properties: {
+        ...f.properties,
+        medianRssi: manual,
+        color: [raw[0], raw[1], raw[2], 255] as [number, number, number, number],
+      },
+    };
+  });
+
+  return { type: "FeatureCollection", features };
+}
+
 /* ── Line-polygon clipping ─────────────────────────────────────── */
 
 /* Intersection point of two line segments (a1→a2 and b1→b2).

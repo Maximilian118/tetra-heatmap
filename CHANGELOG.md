@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.18.0] — 2026-09-22
+
+### Added
+- **Manual sector RSSI entry** — With a KML loaded, clicking any sector on the map opens a form listing every sector of that track alongside its measured median and reading count, with a field to enter an RSSI figure by hand. A manual value replaces that sector's measured median, driving the polygon colour, the hover tooltip and the PDF sector table, which makes it possible to record coverage checked with a handheld or to fill a sector the survey vehicle could not reach. Each row has a Clear button returning that sector to live data, and Clear All at the foot of the form resets every sector at once. Entries are clamped to -110…-20 dBm and a missing minus sign is corrected on blur. Values are stored per KML file in a new `kml_sector_rssi` table and are removed with the file.
+
+### Changed
+- **Sector tooltip omits empty stats** — The Range and Data Points rows are now hidden when a sector has no readings behind it, rather than rendering blank figures.
+
 ## [0.17.0] — 2026-09-10
 
 ### Added

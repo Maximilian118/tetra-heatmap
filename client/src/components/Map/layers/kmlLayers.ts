@@ -9,7 +9,7 @@ export const buildKmlLayers = (params: LayerBuildParams) => {
   const {
     kmlGeoJson, kmlData, kmlLayerStyles, kmlScopeReadings, scopeAdjusting,
     visibleLineFolders, visiblePointFolders, adjustedPointPositions, layerSettings,
-    activeRssiToColor, setKmlTooltip, setTooltip,
+    activeRssiToColor, onSectorClick, setKmlTooltip, setTooltip,
   } = params;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,6 +39,12 @@ export const buildKmlLayers = (params: LayerBuildParams) => {
         getLineWidth: borderWidth,
         lineWidthMinPixels: borderWidth,
         opacity: layerSettings.opacity,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onClick: (info: PickingInfo<any>) => {
+          if (info.object) {
+            onSectorClick((info.object.properties as KmlGeoJsonProperties).name);
+          }
+        },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onHover: (info: PickingInfo<any>) => {
           if (info.object) {

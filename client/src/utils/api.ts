@@ -487,6 +487,26 @@ export const deleteKml = async (id: string): Promise<void> => {
   );
 };
 
+/* Manually entered RSSI values for a KML file, keyed by sector polygon name */
+export type KmlSectorRssi = Record<string, number>;
+
+/* Fetch the manual sector RSSI values stored against a KML file */
+export const fetchKmlSectorRssi = async (id: string): Promise<KmlSectorRssi> => {
+  const res = await assertOk(await fetch(`${API_BASE}/kml/${id}/rssi`));
+  return res.json();
+};
+
+/* Replace the manual sector RSSI values stored against a KML file */
+export const saveKmlSectorRssi = async (id: string, values: KmlSectorRssi): Promise<void> => {
+  await assertOk(
+    await fetch(`${API_BASE}/kml/${id}/rssi`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ values }),
+    })
+  );
+};
+
 /* Save new settings, test connection, and restart sync service */
 export const saveSettings = async (settings: Settings): Promise<SettingsResponse> => {
   const res = await assertOk(

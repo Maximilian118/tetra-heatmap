@@ -17,6 +17,7 @@ import Radial from "./Radial/Radial";
 import SsiRegister from "./SsiRegister/SsiRegister";
 import MapboxSetup from "./MapboxSetup/MapboxSetup";
 import ReportPreview from "./ReportMode/ReportPreview";
+import SectorRssi from "./SectorRssi/SectorRssi";
 import NotesButton from "./NotesButton/NotesButton";
 import "./Map.scss";
 
@@ -32,6 +33,7 @@ const Map = () => {
   const [noteTooltip, setNoteTooltip] = useState<NoteTooltipInfo | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [manualRssiSector, setManualRssiSector] = useState<string | null>(null);
 
   /* ─── Report mode state ─── */
   const [reportMode, setReportMode] = useState(false);
@@ -104,6 +106,18 @@ const Map = () => {
   const bgAtlasUrl = useMemo(() => buildBgAtlas().toDataURL(), []);
   const fgAtlasUrl = useMemo(() => buildFgAtlas().toDataURL(), []);
 
+  /* Close the manual sector RSSI form whenever the loaded KML is swapped or cleared,
+     so it can't reopen against a sector belonging to a different track */
+  useEffect(() => {
+    setManualRssiSector(null);
+  }, [kml.kmlData]);
+
+  /* Open the manual sector RSSI form on the sector that was clicked */
+  const handleSectorClick = useCallback((name: string) => {
+    setKmlTooltip(null);
+    setManualRssiSector(name);
+  }, []);
+
   /* ─── Assemble deck.gl layers ─── */
   const layers = useMemo(() => buildLayers({
     layerType: config.layerType,
@@ -121,6 +135,7 @@ const Map = () => {
     visibleLineFolders: kml.visibleLineFolders,
     visiblePointFolders: kml.visiblePointFolders,
     adjustedPointPositions: kml.adjustedPointPositions,
+    onSectorClick: handleSectorClick,
     bearing: viewport.bearing,
     zoom: viewport.liveViewState?.zoom ?? 12,
     symbols: sym.symbols,
@@ -150,7 +165,7 @@ const Map = () => {
     config.activeColorRange, config.activeRssiToColor, data.ssiDescriptionMap,
     kml.kmlGeoJson, kml.kmlScopeReadings, kml.scopeAdjusting, kml.kmlData,
     kml.kmlLayerStyles, kml.visibleLineFolders, kml.visiblePointFolders,
-    kml.adjustedPointPositions,
+    kml.adjustedPointPositions, handleSectorClick,
     viewport.bearing, viewport.liveViewState?.zoom, sym.symbols, bgAtlasUrl, fgAtlasUrl, sym.selectedSymbolId, sym.symbolSize,
     sym.draggingSymbolId, sym.setSelectedSymbolId, sym.setDraggingSymbolId, sym.setSymbols,
     nt.notes, nt.editingNoteId, nt.handlePolygonUpdate, nt.setDraggingVertexNoteId,
@@ -175,6 +190,7 @@ const Map = () => {
     visibleLineFolders: kml.visibleLineFolders,
     visiblePointFolders: kml.visiblePointFolders,
     adjustedPointPositions: kml.adjustedPointPositions,
+    onSectorClick: () => {},
     bearing: 0,
     zoom: previewZoom,
     symbols: sym.symbols,
@@ -419,6 +435,17 @@ const Map = () => {
         {/* Logserver stats overlay */}
         {showStats && (
           <LogserverStats onClose={() => setShowStats(false)} />
+        )}
+
+        {/* Manual sector RSSI form — only reachable by clicking a sector of a loaded KML */}
+        {manualRssiSector !== null && kml.kmlData && (
+          <SectorRssi
+            sectors={kml.kmlSectorStats}
+            manualRssi={kml.manualRssi}
+            focusSector={manualRssiSector}
+            onSave={kml.saveManualRssi}
+            onClose={() => setManualRssiSector(null)}
+          />
         )}
 
         {/* Report preview modal — own DeckGL + MapGL instance */}

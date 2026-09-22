@@ -74,6 +74,15 @@ db.exec(`
     center_lng REAL NOT NULL,
     uploaded_at TEXT NOT NULL
   );
+
+  /* Manually entered RSSI values per KML sector — override the measured median */
+  CREATE TABLE IF NOT EXISTS kml_sector_rssi (
+    kml_id TEXT NOT NULL,
+    sector TEXT NOT NULL,
+    rssi REAL NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (kml_id, sector)
+  );
 `);
 
 /* Migrations: add columns that may be missing on existing subscribers table */
@@ -476,9 +485,46 @@ export const insertKmlFile = (kml: KmlFile): void => {
   ).run(kml);
 };
 
-/* Remove a KML file metadata row by id */
+/* Remove a KML file metadata row and any manual sector RSSI values it owns */
 export const deleteKmlFile = (id: string): void => {
   db.prepare("DELETE FROM kml_files WHERE id = ?").run(id);
+  deleteKmlSectorRssi(id);
+};
+
+/* ── KML manual sector RSSI helpers ───────────────────────────────── */
+
+/* Fetch the manually entered sector values for one KML file as a sector → dBm map */
+export const getKmlSectorRssi = (kmlId: string): Record<string, number> => {
+  const rows = db
+    .prepare("SELECT sector, rssi FROM kml_sector_rssi WHERE kml_id = ?")
+    .all(kmlId) as { sector: string; rssi: number }[];
+
+  const values: Record<string, number> = {};
+  for (const row of rows) values[row.sector] = row.rssi;
+  return values;
+};
+
+/* Replace every manual sector value for one KML file in a single transaction.
+   An empty map clears all values for that file. */
+export const replaceKmlSectorRssi = (kmlId: string, values: Record<string, number>): void => {
+  const clear = db.prepare("DELETE FROM kml_sector_rssi WHERE kml_id = ?");
+  const insert = db.prepare(
+    `INSERT INTO kml_sector_rssi (kml_id, sector, rssi, updated_at)
+     VALUES (?, ?, ?, ?)`
+  );
+
+  db.transaction(() => {
+    clear.run(kmlId);
+    const updatedAt = new Date().toISOString();
+    for (const [sector, rssi] of Object.entries(values)) {
+      insert.run(kmlId, sector, rssi, updatedAt);
+    }
+  })();
+};
+
+/* Remove every manual sector value belonging to a KML file */
+export const deleteKmlSectorRssi = (kmlId: string): void => {
+  db.prepare("DELETE FROM kml_sector_rssi WHERE kml_id = ?").run(kmlId);
 };
 
 /* Gracefully close the SQLite database */

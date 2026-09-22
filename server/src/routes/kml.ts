@@ -7,9 +7,16 @@ import {
   getKmlFile,
   insertKmlFile,
   deleteKmlFile,
+  getKmlSectorRssi,
+  replaceKmlSectorRssi,
 } from "../db/local.js";
 
 const router = Router();
+
+/* Accepted range for a manually entered RSSI value, matching the client colour ramp.
+   -110 dBm is just below Rx sensitivity, -20 dBm the BS422 RSSI ceiling. */
+const RSSI_MIN = -110;
+const RSSI_MAX = -20;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const KML_DIR = path.resolve(__dirname, "../../data/kml");
@@ -103,6 +110,33 @@ router.delete("/kml/:id", (req, res) => {
     /* File may already be missing — that's fine */
   }
 
+  res.json({ success: true });
+});
+
+/* Return the manually entered sector RSSI values for a KML file as a sector → dBm map */
+router.get("/kml/:id/rssi", (req, res) => {
+  res.json(getKmlSectorRssi(req.params.id));
+});
+
+/* Replace every manually entered sector RSSI value for a KML file.
+   An empty values object clears them all, returning those sectors to live data. */
+router.put("/kml/:id/rssi", (req, res) => {
+  const { values } = req.body;
+
+  if (typeof values !== "object" || values === null || Array.isArray(values)) {
+    res.status(400).json({ error: "values must be an object of sector name to dBm" });
+    return;
+  }
+
+  /* Every entry must be a finite dBm figure inside the supported RSSI range */
+  for (const [sector, rssi] of Object.entries(values)) {
+    if (typeof rssi !== "number" || !Number.isFinite(rssi) || rssi < RSSI_MIN || rssi > RSSI_MAX) {
+      res.status(400).json({ error: `Invalid RSSI for sector "${sector}": must be a number between ${RSSI_MIN} and ${RSSI_MAX}` });
+      return;
+    }
+  }
+
+  replaceKmlSectorRssi(req.params.id, values as Record<string, number>);
   res.json({ success: true });
 });
 

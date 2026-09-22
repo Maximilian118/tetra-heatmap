@@ -40,6 +40,7 @@ export interface LayerBuildParams {
   visibleLineFolders: KmlFolder[];
   visiblePointFolders: KmlFolder[];
   adjustedPointPositions: Map<object, [number, number]>;
+  onSectorClick: (name: string) => void;
   /* Symbols */
   bearing: number;
   zoom: number;
