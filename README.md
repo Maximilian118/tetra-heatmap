@@ -54,6 +54,25 @@ docker compose up -d
 
 The `-v tetra-data:/app/server/data` volume mount stores the SQLite database that holds all cached readings and application settings. Without it, data is lost when the container is recreated.
 
+### Updating
+
+Every push to `main` publishes a fresh `latest` image to GitHub Container Registry, so picking up new features is a pull and a recreate:
+
+```bash
+docker pull ghcr.io/maximilian118/tetra-heatmap:latest
+docker stop tetra-heatmap && docker rm tetra-heatmap
+# then re-run the `docker run` command from Quick Start
+```
+
+With Compose:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Your data is untouched — readings, settings, symbols, notes and uploaded KML files all live in the `tetra-data` volume, not the image. New database tables and columns are created on startup, so there is nothing to migrate by hand.
+
 ### Network Access
 
 The TetraFlex logserver must be reachable from the machine running Docker. Containers use Docker's bridge network and can reach any LAN host through NAT — no special networking configuration is required. Enter the logserver's LAN IP (e.g. `10.46.72.41`) in the Settings tab.
