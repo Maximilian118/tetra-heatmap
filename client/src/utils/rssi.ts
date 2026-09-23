@@ -147,9 +147,13 @@ export const effectiveMinDbm = (stop: ColourStop, allStops: ColourStop[]): numbe
   return stop.maxDbm - (widest > 0 ? widest : 10);
 };
 
-/* Format the dBm range of a stop for display. Shows "≤ X dBm" for unbounded. */
-export const formatStopRange = (stop: ColourStop): string =>
+/* Format the dBm range of a stop for display. Shows "≤ X dBm" for unbounded.
+   Takes the bounds structurally so fixed bands can be formatted the same way. */
+export const formatStopRange = (stop: { minDbm: number | null; maxDbm: number }): string =>
   stop.minDbm === null ? `≤ ${stop.maxDbm} dBm` : `${stop.minDbm} to ${stop.maxDbm} dBm`;
+
+/* Format an RGB(A) colour tuple as a CSS rgb() string, ignoring any alpha channel */
+export const rgbToCss = ([r, g, b]: readonly number[]): string => `rgb(${r}, ${g}, ${b})`;
 
 /* User-defined colour spectrum with an enable toggle */
 export interface CustomSpectrum {

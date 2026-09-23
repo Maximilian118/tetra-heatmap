@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { compareSectorNames, type KmlGeoJsonFeatureCollection } from "../../../../utils/kml";
+import { compareSectorNames, hasMeasuredSectors, type KmlGeoJsonFeatureCollection } from "../../../../utils/kml";
 import "./ReportSectorStats.scss";
 
 interface ReportSectorStatsProps {
@@ -22,18 +22,19 @@ const sectorLabel = (name: string): string => {
 };
 
 /* Sector median RSSI stats box for the PDF report.
-   Displays one row per KML polygon sector with its median RSSI value.
-   Only renders when KML data with computed sector RSSI exists. */
+   Lists every KML polygon sector so the numbering stays continuous — sectors with
+   neither readings nor a manual override show a dash rather than being omitted.
+   Hidden entirely when no sector has a value at all. */
 const ReportSectorStats = ({ kmlGeoJson }: ReportSectorStatsProps) => {
-  /* Filter to sectors with RSSI data and sort by name (numeric-aware) */
+  /* Every sector, sorted by name (numeric-aware) */
   const sectors = useMemo(() => {
     if (!kmlGeoJson) return [];
-    return kmlGeoJson.features
-      .filter((f) => f.properties.medianRssi !== null)
-      .sort((a, b) => compareSectorNames(a.properties.name, b.properties.name));
+    return [...kmlGeoJson.features].sort((a, b) =>
+      compareSectorNames(a.properties.name, b.properties.name)
+    );
   }, [kmlGeoJson]);
 
-  if (sectors.length === 0) return null;
+  if (!hasMeasuredSectors(kmlGeoJson)) return null;
 
   /* Determine column count and explicit grid height so column-fill: auto fills left-first */
   const columnCount = Math.ceil(sectors.length / MAX_PER_COLUMN);
@@ -48,7 +49,7 @@ const ReportSectorStats = ({ kmlGeoJson }: ReportSectorStatsProps) => {
             <div key={i} className="report-sector-stats__row">
               <span className="report-sector-stats__name">{sectorLabel(f.properties.name)}</span>
               <span className="report-sector-stats__value">
-                {Math.round(f.properties.medianRssi!)}
+                {f.properties.medianRssi === null ? "—" : Math.round(f.properties.medianRssi)}
               </span>
             </div>
           ))}

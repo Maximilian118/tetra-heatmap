@@ -514,6 +514,10 @@ export interface KmlResult {
   scopeReadings: Reading[];
 }
 
+/* No-data fill — fully opaque dark grey so the opacity slider controls visibility.
+   Shared with the report legend so its swatch always matches the map. */
+export const NO_DATA_COLOR: [number, number, number, number] = [60, 60, 60, 255];
+
 /* Compute the median of a pre-sorted numeric array */
 function median(sorted: number[]): number {
   const mid = sorted.length >> 1;
@@ -530,9 +534,6 @@ export function buildKmlResult(
   rssiToColor: (rssi: number) => [number, number, number, number],
   collectReadings: boolean
 ): KmlResult {
-  /* No-data fill — fully opaque dark grey so opacity slider controls visibility */
-  const NO_DATA_COLOR: [number, number, number, number] = [60, 60, 60, 255];
-
   /* Convert scope to degree offset for bbox pre-filter.
      Use worst-case (equator) cosLat=1 so the offset is generous enough at all latitudes. */
   const scopeDeg = scopeMeters / METRES_PER_DEG_LAT;
@@ -646,6 +647,16 @@ export function computeKmlBounds(
 /* Order sector names numerically so Sector02 sorts before Sector10 */
 export const compareSectorNames = (a: string, b: string): number =>
   a.localeCompare(b, undefined, { numeric: true });
+
+/* True when at least one sector has neither readings in scope nor a manual override.
+   Drives whether the report legend explains the no-data fill. */
+export const hasNoDataSectors = (geoJson: KmlGeoJsonFeatureCollection | null): boolean =>
+  !!geoJson?.features.some((f) => f.properties.medianRssi === null);
+
+/* True when at least one sector has a usable median RSSI, measured or manual.
+   Drives whether the report shows a sector table at all. */
+export const hasMeasuredSectors = (geoJson: KmlGeoJsonFeatureCollection | null): boolean =>
+  !!geoJson?.features.some((f) => f.properties.medianRssi !== null);
 
 /* Apply manual per-sector RSSI overrides to a built sector FeatureCollection.
    An overridden sector takes the manual value as its median and is recoloured;

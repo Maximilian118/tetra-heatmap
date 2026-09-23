@@ -1,5 +1,6 @@
 import { useMemo, useEffect, useRef } from "react";
-import type { CustomSpectrum } from "../../../utils/rssi";
+import { formatStopRange, rgbToCss, type CustomSpectrum } from "../../../utils/rssi";
+import { hasNoDataSectors, NO_DATA_COLOR, type KmlGeoJsonFeatureCollection } from "../../../utils/kml";
 import type { MapSymbol } from "../../../utils/api";
 import { buildSymbolIcon, type SymbolType } from "../../../utils/symbols";
 import "./ReportLegend.scss";
@@ -9,6 +10,15 @@ interface ReportLegendProps {
   symbols: MapSymbol[];
   zoom: number;
   latitude: number;
+  kmlGeoJson: KmlGeoJsonFeatureCollection | null;
+}
+
+/* A single legend row. A null range marks an entry with no dBm bounds,
+   such as the no-data fill, which renders as its label alone. */
+interface LegendBand {
+  range: string | null;
+  color: string;
+  label: string;
 }
 
 /* Default RSSI quality bands matching the example PDF legend */
@@ -18,6 +28,13 @@ const DEFAULT_BANDS: { minDbm: number | null; maxDbm: number; color: string; lab
   { minDbm:  -96, maxDbm:  -81, color: "#f5a623", label: "Marginal" },
   { minDbm:  -81, maxDbm:    0, color: "#388e3c", label: "Good" },
 ];
+
+/* Legend row explaining sectors drawn with the no-data fill */
+const NO_DATA_BAND: LegendBand = {
+  range: null,
+  color: rgbToCss(NO_DATA_COLOR),
+  label: "No readings",
+};
 
 /* Round distance candidates for the scale bar */
 const SCALE_STEPS = [25, 50, 100, 200, 250, 500, 1000, 2000, 5000, 10000];
@@ -89,21 +106,21 @@ const SymbolIcon = ({ type, backup }: { type: SymbolType; backup: boolean }) => 
 
 /* Report legend box — RSSI colour swatches, map symbols, and scale bar.
    Positioned at the bottom-left of the map in report mode. */
-const ReportLegend = ({ customSpectrum, symbols, zoom, latitude }: ReportLegendProps) => {
+const ReportLegend = ({ customSpectrum, symbols, zoom, latitude, kmlGeoJson }: ReportLegendProps) => {
   const useCustom = customSpectrum?.enabled && customSpectrum.stops.length > 0;
 
-  /* Build the legend bands from either custom spectrum or default thresholds */
+  /* Build the legend bands from either custom spectrum or default thresholds,
+     weakest first. The no-data row is prepended above the lowest band, and only
+     when the map actually shows a sector with no readings. */
   const bands = useMemo(() => {
-    if (!useCustom) return DEFAULT_BANDS;
-    return [...customSpectrum.stops]
-      .sort((a, b) => (a.minDbm ?? -Infinity) - (b.minDbm ?? -Infinity))
-      .map((s) => ({
-        minDbm: s.minDbm,
-        maxDbm: s.maxDbm,
-        color: `rgb(${s.color[0]}, ${s.color[1]}, ${s.color[2]})`,
-        label: s.label,
-      }));
-  }, [useCustom, customSpectrum]);
+    const ranged: LegendBand[] = useCustom
+      ? [...customSpectrum.stops]
+          .sort((a, b) => (a.minDbm ?? -Infinity) - (b.minDbm ?? -Infinity))
+          .map((s) => ({ range: formatStopRange(s), color: rgbToCss(s.color), label: s.label }))
+      : DEFAULT_BANDS.map((b) => ({ range: formatStopRange(b), color: b.color, label: b.label }));
+
+    return hasNoDataSectors(kmlGeoJson) ? [NO_DATA_BAND, ...ranged] : ranged;
+  }, [useCustom, customSpectrum, kmlGeoJson]);
 
   /* Derive which symbol types are present on the map */
   const symbolEntries = useMemo(() => deriveSymbolEntries(symbols), [symbols]);
@@ -122,7 +139,7 @@ const ReportLegend = ({ customSpectrum, symbols, zoom, latitude }: ReportLegendP
           <div key={i} className="report-legend__band">
             <span className="report-legend__swatch" style={{ backgroundColor: band.color }} />
             <span className="report-legend__label">
-              {band.minDbm === null ? `≤ ${band.maxDbm}` : `${band.minDbm} to ${band.maxDbm}`} dBm — {band.label}
+              {band.range === null ? band.label : `${band.range} — ${band.label}`}
             </span>
           </div>
         ))}

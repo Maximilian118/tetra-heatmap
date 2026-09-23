@@ -169,6 +169,7 @@ const ReportPreview = ({ createLayers, mapboxToken, mapStyle, initialViewState, 
               symbols={symbols}
               zoom={viewState.zoom ?? 14}
               latitude={viewState.latitude ?? 0}
+              kmlGeoJson={kmlGeoJson}
             />
             <ReportSectorStats kmlGeoJson={kmlGeoJson} />
           </div>
